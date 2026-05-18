@@ -142,6 +142,7 @@ CREATE TYPE employment_status_enum AS ENUM ('employed','self_employed','unemploy
 CREATE TYPE kyc_image_type_enum   AS ENUM ('portrait','selfie','id_front','id_back','passport','proof_of_address','proof_of_income','other');
 CREATE TYPE relationship_type_enum AS ENUM ('spouse','parent','child','sibling','guardian','co_borrower','emergency_contact','employer','other');
 CREATE TYPE kyc_record_status_enum AS ENUM ('pending','verified','rejected','expired');
+CREATE TYPE bank_account_status_enum AS ENUM ('pending','verified','rejected','disabled');
 
 -- Multiple personal identity/detail records are allowed for aliases, document variants and history
 CREATE TABLE kyc_personal_details (
@@ -177,6 +178,27 @@ CREATE TABLE kyc_contact_infos (
     verified_at         TIMESTAMPTZ,
     source              VARCHAR(50),
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Customer-linked bank accounts; customers may connect many and choose one primary
+CREATE TABLE customer_bank_accounts (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id         UUID NOT NULL REFERENCES customer_profiles(id) ON DELETE CASCADE,
+    bank_name           VARCHAR(150) NOT NULL,
+    bank_code           VARCHAR(50),
+    branch_name         VARCHAR(150),
+    account_number      VARCHAR(50) NOT NULL,
+    iban                VARCHAR(50),
+    holder_name         VARCHAR(200) NOT NULL,
+    currency            VARCHAR(10) NOT NULL DEFAULT 'MNT',
+    is_primary          BOOLEAN NOT NULL DEFAULT FALSE,
+    status              bank_account_status_enum NOT NULL DEFAULT 'pending',
+    verified_at         TIMESTAMPTZ,
+    disabled_at         TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (customer_id, id),
+    UNIQUE (customer_id, bank_name, account_number),
+    UNIQUE (customer_id, iban)
 );
 
 -- Multiple registered, residential, work and temporary addresses per customer
@@ -353,6 +375,9 @@ CREATE UNIQUE INDEX idx_kyc_personal_primary ON kyc_personal_details(customer_id
 CREATE INDEX idx_kyc_contact_customer     ON kyc_contact_infos(customer_id);
 CREATE INDEX idx_kyc_contact_value        ON kyc_contact_infos(contact_type, contact_value);
 CREATE UNIQUE INDEX idx_kyc_contact_primary ON kyc_contact_infos(customer_id, contact_type) WHERE is_primary = TRUE;
+CREATE INDEX idx_customer_bank_accounts_customer ON customer_bank_accounts(customer_id);
+CREATE INDEX idx_customer_bank_accounts_number ON customer_bank_accounts(bank_name, account_number);
+CREATE UNIQUE INDEX idx_customer_bank_accounts_primary ON customer_bank_accounts(customer_id) WHERE is_primary = TRUE;
 CREATE INDEX idx_kyc_address_customer     ON kyc_addresses(customer_id);
 CREATE UNIQUE INDEX idx_kyc_address_primary ON kyc_addresses(customer_id, address_type) WHERE is_primary = TRUE;
 CREATE INDEX idx_kyc_education_customer   ON kyc_educations(customer_id);
@@ -491,6 +516,7 @@ CREATE TABLE loan_applications (
     product_id            UUID NOT NULL REFERENCES loan_products(id),
     credit_score_id       UUID NOT NULL REFERENCES credit_score_results(id),
     requested_amount      NUMERIC(14,2) NOT NULL,
+    requested_disbursement_bank_account_id UUID REFERENCES customer_bank_accounts(id),
     duration_option_id    UUID REFERENCES loan_product_duration_options(id),
     requested_duration_value INT CHECK (requested_duration_value IS NULL OR requested_duration_value > 0),
     requested_duration_unit  loan_duration_unit_enum,
@@ -505,7 +531,9 @@ CREATE TABLE loan_applications (
     CHECK (
         (requested_duration_value IS NULL AND requested_duration_unit IS NULL)
         OR (requested_duration_value IS NOT NULL AND requested_duration_unit IS NOT NULL)
-    )
+    ),
+    FOREIGN KEY (customer_id, requested_disbursement_bank_account_id)
+        REFERENCES customer_bank_accounts(customer_id, id)
 );
 
 CREATE TABLE loans (
@@ -516,6 +544,7 @@ CREATE TABLE loans (
     loan_number         VARCHAR(40) NOT NULL UNIQUE,
     principal_amount    NUMERIC(14,2) NOT NULL,
     disbursed_amount    NUMERIC(14,2),
+    disbursement_bank_account_id UUID REFERENCES customer_bank_accounts(id),
     interest_rate       NUMERIC(6,4) NOT NULL,
     duration_option_id  UUID REFERENCES loan_product_duration_options(id),
     duration_value      INT CHECK (duration_value IS NULL OR duration_value > 0),
@@ -531,7 +560,9 @@ CREATE TABLE loans (
     CHECK (
         (duration_value IS NULL AND duration_unit IS NULL)
         OR (duration_value IS NOT NULL AND duration_unit IS NOT NULL)
-    )
+    ),
+    FOREIGN KEY (customer_id, disbursement_bank_account_id)
+        REFERENCES customer_bank_accounts(customer_id, id)
 );
 
 -- Maps a loan to all Polaris account numbers used in its lifecycle
@@ -547,6 +578,7 @@ CREATE TABLE loan_account_mappings (
 
 CREATE INDEX idx_loans_customer     ON loans(customer_id);
 CREATE INDEX idx_loan_apps_customer ON loan_applications(customer_id);
+CREATE INDEX idx_loan_apps_disbursement_bank ON loan_applications(requested_disbursement_bank_account_id);
 CREATE INDEX idx_duration_options_product ON loan_product_duration_options(product_id, is_active, sort_order);
 CREATE UNIQUE INDEX idx_duration_options_default ON loan_product_duration_options(product_id) WHERE is_default = TRUE;
 CREATE INDEX idx_bnpl_installment_options_product ON bnpl_installment_options(product_id, is_active, sort_order);
@@ -555,6 +587,7 @@ CREATE INDEX idx_loan_apps_duration_option ON loan_applications(duration_option_
 CREATE INDEX idx_loan_apps_bnpl_option ON loan_applications(bnpl_installment_option_id);
 CREATE INDEX idx_loans_duration_option ON loans(duration_option_id);
 CREATE INDEX idx_loans_bnpl_option ON loans(bnpl_installment_option_id);
+CREATE INDEX idx_loans_disbursement_bank ON loans(disbursement_bank_account_id);
 
 
 -- ============================================================
@@ -1099,6 +1132,7 @@ FOR EACH ROW EXECUTE FUNCTION prevent_when_service_paused('merchant_settlement')
 ALTER TABLE customer_profiles   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_personal_details ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_contact_infos    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customer_bank_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_addresses        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_educations       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_employments      ENABLE ROW LEVEL SECURITY;
