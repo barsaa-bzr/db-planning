@@ -127,6 +127,160 @@ CREATE INDEX idx_calpro_user         ON calpro_message_logs(user_id);
 -- 2. KYC & 3RD-PARTY SERVICES
 -- ============================================================
 
+CREATE TYPE kyc_gender_enum       AS ENUM ('male','female','other','unknown');
+CREATE TYPE customer_segment_enum AS ENUM ('citizen','foreigner','living_abroad');
+CREATE TYPE contact_type_enum     AS ENUM ('mobile','phone','email','social','messaging','fax','other');
+CREATE TYPE address_type_enum     AS ENUM ('registered','residential','mailing','work','temporary','other');
+CREATE TYPE education_level_enum  AS ENUM ('primary','secondary','vocational','bachelor','master','doctorate','other');
+CREATE TYPE education_status_enum AS ENUM ('in_progress','completed','dropped','unknown');
+CREATE TYPE employment_status_enum AS ENUM ('employed','self_employed','unemployed','student','retired','contract','other');
+CREATE TYPE kyc_image_type_enum   AS ENUM ('portrait','selfie','id_front','id_back','passport','proof_of_address','proof_of_income','other');
+CREATE TYPE relationship_type_enum AS ENUM ('spouse','parent','child','sibling','guardian','co_borrower','emergency_contact','employer','other');
+CREATE TYPE kyc_record_status_enum AS ENUM ('pending','verified','rejected','expired');
+
+-- Multiple personal identity/detail records are allowed for aliases, document variants and history
+CREATE TABLE kyc_personal_details (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id         UUID NOT NULL REFERENCES customer_profiles(id) ON DELETE CASCADE,
+    family_name         VARCHAR(100),
+    first_name          VARCHAR(100),
+    last_name           VARCHAR(100),
+    nickname            VARCHAR(100),
+    gender              kyc_gender_enum DEFAULT 'unknown',
+    nationality         VARCHAR(100),
+    register_number     VARCHAR(30),
+    id_card_number      VARCHAR(50),
+    birth_date          DATE,
+    customer_segment    customer_segment_enum,
+    work_industry       VARCHAR(150),
+    is_primary          BOOLEAN NOT NULL DEFAULT FALSE,
+    source              VARCHAR(50),          -- manual|dan|hur|staff|import
+    status              kyc_record_status_enum NOT NULL DEFAULT 'pending',
+    verified_at         TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Multiple phones, emails and other contact points per customer
+CREATE TABLE kyc_contact_infos (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id         UUID NOT NULL REFERENCES customer_profiles(id) ON DELETE CASCADE,
+    contact_type        contact_type_enum NOT NULL,
+    contact_value       VARCHAR(255) NOT NULL,
+    label               VARCHAR(100),
+    is_primary          BOOLEAN NOT NULL DEFAULT FALSE,
+    is_verified         BOOLEAN NOT NULL DEFAULT FALSE,
+    verified_at         TIMESTAMPTZ,
+    source              VARCHAR(50),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Multiple registered, residential, work and temporary addresses per customer
+CREATE TABLE kyc_addresses (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id         UUID NOT NULL REFERENCES customer_profiles(id) ON DELETE CASCADE,
+    address_type        address_type_enum NOT NULL,
+    country             VARCHAR(100),
+    city                VARCHAR(100),
+    district            VARCHAR(100),
+    khoroo              VARCHAR(100),
+    street              VARCHAR(200),
+    building            VARCHAR(100),
+    apartment           VARCHAR(100),
+    postal_code         VARCHAR(30),
+    full_address        TEXT NOT NULL,
+    is_primary          BOOLEAN NOT NULL DEFAULT FALSE,
+    source              VARCHAR(50),
+    status              kyc_record_status_enum NOT NULL DEFAULT 'pending',
+    verified_at         TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Multiple education records per customer
+CREATE TABLE kyc_educations (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id         UUID NOT NULL REFERENCES customer_profiles(id) ON DELETE CASCADE,
+    institution_name    VARCHAR(200) NOT NULL,
+    education_level     education_level_enum,
+    field_of_study      VARCHAR(150),
+    degree_name         VARCHAR(150),
+    status              education_status_enum NOT NULL DEFAULT 'unknown',
+    start_date          DATE,
+    end_date            DATE,
+    source              VARCHAR(50),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Multiple employment records per customer, including HUR/manual history
+CREATE TABLE kyc_employments (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id         UUID NOT NULL REFERENCES customer_profiles(id) ON DELETE CASCADE,
+    employer_name       VARCHAR(200),
+    job_title           VARCHAR(150),
+    work_industry       VARCHAR(150),
+    employment_status   employment_status_enum,
+    employment_type     VARCHAR(50),          -- full_time|part_time|contract|self_employed|etc.
+    monthly_income      NUMERIC(14,2),
+    income_currency     VARCHAR(10) NOT NULL DEFAULT 'MNT',
+    start_date          DATE,
+    end_date            DATE,
+    is_current          BOOLEAN NOT NULL DEFAULT FALSE,
+    source              VARCHAR(50),
+    status              kyc_record_status_enum NOT NULL DEFAULT 'pending',
+    verified_at         TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- KYC images such as portrait, selfie, ID card, passport and proofs
+CREATE TABLE kyc_customer_images (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id         UUID NOT NULL REFERENCES customer_profiles(id) ON DELETE CASCADE,
+    image_type          kyc_image_type_enum NOT NULL,
+    image_url           TEXT NOT NULL,
+    file_hash           VARCHAR(128),
+    mime_type           VARCHAR(100),
+    captured_at         TIMESTAMPTZ,
+    source              VARCHAR(50),
+    status              kyc_record_status_enum NOT NULL DEFAULT 'pending',
+    verified_at         TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Related customers / related persons such as family, employer and emergency contacts
+CREATE TABLE kyc_related_customers (
+    id                        UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id               UUID NOT NULL REFERENCES customer_profiles(id) ON DELETE CASCADE,
+    related_customer_id       UUID REFERENCES customer_profiles(id),
+    relationship_type         relationship_type_enum NOT NULL,
+    family_name               VARCHAR(100),
+    first_name                VARCHAR(100),
+    last_name                 VARCHAR(100),
+    register_number           VARCHAR(30),
+    phone_number              VARCHAR(20),
+    email                     VARCHAR(255),
+    notes                     TEXT,
+    is_emergency_contact      BOOLEAN NOT NULL DEFAULT FALSE,
+    source                    VARCHAR(50),
+    status                    kyc_record_status_enum NOT NULL DEFAULT 'pending',
+    verified_at               TIMESTAMPTZ,
+    created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (related_customer_id IS NULL OR related_customer_id <> customer_id)
+);
+
+-- Multiple signature images can be stored for refreshed KYC or contract versions
+CREATE TABLE kyc_signature_images (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id         UUID NOT NULL REFERENCES customer_profiles(id) ON DELETE CASCADE,
+    image_url           TEXT NOT NULL,
+    file_hash           VARCHAR(128),
+    mime_type           VARCHAR(100),
+    signed_at           TIMESTAMPTZ,
+    is_active           BOOLEAN NOT NULL DEFAULT TRUE,
+    source              VARCHAR(50),
+    status              kyc_record_status_enum NOT NULL DEFAULT 'pending',
+    verified_at         TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Mongolian Dan — national ID verification
 CREATE TABLE dan_verifications (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -187,6 +341,23 @@ CREATE INDEX idx_dan_customer      ON dan_verifications(customer_id);
 CREATE INDEX idx_hur_customer      ON hur_data_snapshots(customer_id);
 CREATE INDEX idx_sain_customer     ON sain_score_requests(customer_id);
 CREATE INDEX idx_kyc_steps_cust    ON kyc_verification_steps(customer_id);
+CREATE INDEX idx_kyc_personal_customer    ON kyc_personal_details(customer_id);
+CREATE INDEX idx_kyc_personal_register    ON kyc_personal_details(register_number);
+CREATE INDEX idx_kyc_personal_id_card     ON kyc_personal_details(id_card_number);
+CREATE UNIQUE INDEX idx_kyc_personal_primary ON kyc_personal_details(customer_id) WHERE is_primary = TRUE;
+CREATE INDEX idx_kyc_contact_customer     ON kyc_contact_infos(customer_id);
+CREATE INDEX idx_kyc_contact_value        ON kyc_contact_infos(contact_type, contact_value);
+CREATE UNIQUE INDEX idx_kyc_contact_primary ON kyc_contact_infos(customer_id, contact_type) WHERE is_primary = TRUE;
+CREATE INDEX idx_kyc_address_customer     ON kyc_addresses(customer_id);
+CREATE UNIQUE INDEX idx_kyc_address_primary ON kyc_addresses(customer_id, address_type) WHERE is_primary = TRUE;
+CREATE INDEX idx_kyc_education_customer   ON kyc_educations(customer_id);
+CREATE INDEX idx_kyc_employment_customer  ON kyc_employments(customer_id);
+CREATE INDEX idx_kyc_employment_current   ON kyc_employments(customer_id, is_current);
+CREATE INDEX idx_kyc_images_customer      ON kyc_customer_images(customer_id);
+CREATE INDEX idx_kyc_related_customer     ON kyc_related_customers(customer_id);
+CREATE INDEX idx_kyc_related_linked       ON kyc_related_customers(related_customer_id);
+CREATE INDEX idx_kyc_signature_customer   ON kyc_signature_images(customer_id);
+CREATE UNIQUE INDEX idx_kyc_signature_active ON kyc_signature_images(customer_id) WHERE is_active = TRUE;
 
 
 -- ============================================================
@@ -848,6 +1019,14 @@ FOR EACH ROW EXECUTE FUNCTION prevent_when_service_paused('merchant_settlement')
 -- ROW-LEVEL SECURITY (enable per-tenant isolation)
 -- ============================================================
 ALTER TABLE customer_profiles   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kyc_personal_details ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kyc_contact_infos    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kyc_addresses        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kyc_educations       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kyc_employments      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kyc_customer_images  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kyc_related_customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kyc_signature_images ENABLE ROW LEVEL SECURITY;
 ALTER TABLE merchant_profiles   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE loan_applications   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE loans               ENABLE ROW LEVEL SECURITY;
