@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ERD — Lending App Schema</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0b0f1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d42;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --accent: #4f8ef7;
+    --header-h: 52px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    user-select: none;
+  }
+
+  /* ── HEADER ── */
+  #header {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
+    background: rgba(11,15,26,0.92); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 24px;
+    padding: 0 20px; z-index: 100;
+  }
+  #header h1 { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 800; letter-spacing: 0.04em; color: #fff; }
+  #header h1 span { color: var(--accent); }
+  .stat-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; font-size: 11px; color: var(--text-muted); }
+  .stat-pill b { color: var(--text); }
+
+  /* ── TOOLBAR ── */
+  #toolbar {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: rgba(17,24,39,0.95); backdrop-filter: blur(16px);
+    border: 1px solid var(--border); border-radius: 14px;
+    display: flex; align-items: center; gap: 4px; padding: 6px;
+    z-index: 100; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .tool-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); border-radius: 8px;
+    padding: 7px 12px; font-size: 12px; font-family: inherit;
+    transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+  }
+  .tool-btn:hover { background: var(--surface2); color: var(--text); }
+  .tool-btn.active { background: var(--accent); color: #fff; }
+  .tool-divider { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+
+  /* ── LEGEND ── */
+  #legend {
+    position: fixed; top: calc(var(--header-h) + 12px); right: 14px;
+    background: rgba(17,24,39,0.95); backdrop-filter: blur(12px);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; z-index: 100; max-height: calc(100vh - 100px); overflow-y: auto;
+  }
+  #legend h3 { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; }
+  .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; cursor: pointer; padding: 3px 6px; border-radius: 5px; transition: background 0.1s; }
+  .legend-item:hover { background: var(--surface2); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .legend-label { font-size: 11px; color: var(--text-muted); white-space: nowrap; transition: color 0.1s; }
+  .legend-item:hover .legend-label { color: var(--text); }
+  .legend-item.active-filter .legend-label { color: var(--text); }
+
+  /* ── CANVAS AREA ── */
+  #canvas-wrap {
+    position: fixed; top: var(--header-h); left: 0; right: 0; bottom: 0;
+    overflow: hidden; cursor: grab;
+  }
+  #canvas-wrap.panning { cursor: grabbing; }
+
+  #canvas {
+    position: absolute;
+    transform-origin: 0 0;
+  }
+
+  /* SVG edges */
+  #edge-layer { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; }
+
+  .edge-path { fill: none; stroke-width: 1.5px; opacity: 0.35; transition: opacity 0.2s, stroke-width 0.2s; }
+  .edge-path:hover { opacity: 1; stroke-width: 2.5px; }
+  .edge-path.highlighted { opacity: 0.9; stroke-width: 2px; }
+  .edge-path.dimmed { opacity: 0.05; }
+
+  /* ── TABLE CARDS ── */
+  .table-card {
+    position: absolute;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    width: 260px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    cursor: default;
+    transition: box-shadow 0.2s, border-color 0.2s, opacity 0.2s;
+    will-change: transform;
+  }
+  .table-card:hover { box-shadow: 0 8px 40px rgba(0,0,0,0.6); }
+  .table-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,142,247,0.35), 0 8px 40px rgba(0,0,0,0.6); }
+  .table-card.dimmed { opacity: 0.12; }
+  .table-card.highlighted { border-color: currentColor; opacity: 1; }
+
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 12px 8px;
+    border-bottom: 1px solid var(--border);
+    cursor: move;
+  }
+  .card-title { font-size: 12px; font-weight: 600; color: #fff; letter-spacing: 0.02em; }
+  .card-domain-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .col-count { font-size: 10px; color: var(--text-muted); }
+
+  .card-columns { padding: 4px 0; }
+  .col-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 12px;
+    font-size: 10.5px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    transition: background 0.1s;
+  }
+  .col-row:last-child { border-bottom: none; }
+  .col-row:hover { background: var(--surface2); }
+  .col-name { color: var(--text); flex: 1; }
+  .col-type { color: var(--text-muted); font-size: 9.5px; text-align: right; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge { font-size: 8.5px; padding: 1px 4px; border-radius: 3px; font-weight: 600; flex-shrink: 0; }
+  .badge-pk { background: rgba(79,142,247,0.25); color: #93c5fd; }
+  .badge-fk { background: rgba(249,115,22,0.2); color: #fb923c; }
+  .badge-nn { background: rgba(52,211,153,0.15); color: #6ee7b7; }
+  .badge-uq { background: rgba(167,139,250,0.2); color: #c4b5fd; }
+
+  /* ── SEARCH ── */
+  #search-wrap {
+    position: fixed; top: calc(var(--header-h) + 12px); left: 14px;
+    z-index: 100;
+  }
+  #search {
+    background: rgba(17,24,39,0.95); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 12px;
+    color: var(--text); font-family: inherit; font-size: 12px;
+    width: 200px; outline: none;
+    transition: border-color 0.15s;
+  }
+  #search::placeholder { color: var(--text-muted); }
+  #search:focus { border-color: var(--accent); }
+
+  /* ── DETAIL PANEL ── */
+  #detail-panel {
+    position: fixed; top: var(--header-h); left: -320px;
+    width: 300px; bottom: 0;
+    background: rgba(17,24,39,0.97); backdrop-filter: blur(16px);
+    border-right: 1px solid var(--border);
+    padding: 16px; z-index: 99;
+    transition: left 0.25s cubic-bezier(0.4,0,0.2,1);
+    overflow-y: auto;
+  }
+  #detail-panel.open { left: 0; }
+  #detail-panel h2 { font-family: 'Syne', sans-serif; font-size: 15px; margin-bottom: 4px; }
+  #detail-panel .dp-domain { font-size: 10px; color: var(--text-muted); margin-bottom: 12px; }
+  #detail-panel h3 { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin: 12px 0 6px; }
+  .dp-col { padding: 5px 0; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 6px; flex-wrap: wrap; }
+  .dp-col:last-child { border-bottom: none; }
+  .dp-col-name { font-size: 11px; flex: 1; }
+  .dp-col-type { font-size: 10px; color: var(--text-muted); width: 100%; padding-left: 0; }
+  .dp-fk-list { margin-top: 4px; }
+  .dp-fk { font-size: 10px; color: var(--accent); padding: 3px 0; cursor: pointer; }
+  .dp-fk:hover { text-decoration: underline; }
+  #close-detail { position: absolute; top: 12px; right: 12px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; }
+  #close-detail:hover { color: var(--text); }
+
+  /* mini map */
+  #minimap {
+    position: fixed; bottom: 70px; right: 14px;
+    width: 160px; height: 100px;
+    background: rgba(17,24,39,0.9); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; z-index: 100;
+  }
+  #minimap canvas { width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>ERD <span>//</span> Lending App</h1>
+  <div class="stat-pill">Tables: <b id="stat-tables">0</b></div>
+  <div class="stat-pill">Relationships: <b id="stat-edges">0</b></div>
+  <div class="stat-pill">Columns: <b id="stat-cols">0</b></div>
+</div>
+
+<div id="search-wrap">
+  <input id="search" type="text" placeholder="🔍  Search tables…" autocomplete="off"/>
+</div>
+
+<div id="legend">
+  <h3>Domains</h3>
+  <div id="legend-items"></div>
+</div>
+
+<div id="canvas-wrap">
+  <div id="canvas">
+    <svg id="edge-layer"></svg>
+  </div>
+</div>
+
+<div id="detail-panel">
+  <button id="close-detail">✕</button>
+  <h2 id="dp-title">—</h2>
+  <div class="dp-domain" id="dp-domain">—</div>
+  <h3>Columns</h3>
+  <div id="dp-cols"></div>
+  <h3>References</h3>
+  <div id="dp-fks" class="dp-fk-list"></div>
+  <h3>Referenced by</h3>
+  <div id="dp-ref-by" class="dp-fk-list"></div>
+</div>
+
+<div id="toolbar">
+  <button class="tool-btn" id="btn-fit" title="Fit to screen">⊞ Fit</button>
+  <div class="tool-divider"></div>
+  <button class="tool-btn" id="btn-zoom-in">＋</button>
+  <button class="tool-btn" id="btn-zoom-out">－</button>
+  <div class="tool-divider"></div>
+  <button class="tool-btn" id="btn-edges" title="Toggle FK lines">⇢ Edges</button>
+  <button class="tool-btn" id="btn-reset" title="Reset selection">⟳ Reset</button>
+</div>
+
+<canvas id="minimap"></canvas>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────
+const TABLES  = {"users":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"phone_number","type":"VARCHAR(20)","isPK":false,"isNotNull":true,"isUnique":true,"fk":null},{"name":"email","type":"VARCHAR(255)","isPK":false,"isNotNull":false,"isUnique":true,"fk":null},{"name":"password_hash","type":"VARCHAR(255)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"user_type","type":"user_type_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"status","type":"user_status_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"updated_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[]},"customer_profiles":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"user_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":true,"fk":{"refTable":"users","refColumn":"id"}},{"name":"national_id","type":"VARCHAR(20)","isPK":false,"isNotNull":true,"isUnique":true,"fk":null},{"name":"first_name","type":"VARCHAR(100)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"last_name","type":"VARCHAR(100)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"date_of_birth","type":"DATE","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"gender","type":"VARCHAR(10)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"address","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"photo_url","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"reg_status","type":"reg_status_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["user_id"],"refTable":"users","refColumns":["id"]}]},"merchant_profiles":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"user_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":true,"fk":{"refTable":"users","refColumn":"id"}},{"name":"business_name","type":"VARCHAR(200)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"business_reg_no","type":"VARCHAR(50)","isPK":false,"isNotNull":true,"isUnique":true,"fk":null},{"name":"business_type","type":"VARCHAR(100)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"contact_person","type":"VARCHAR(150)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"address","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"status","type":"VARCHAR(20)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["user_id"],"refTable":"users","refColumns":["id"]}]},"staff_profiles":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"user_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":true,"fk":{"refTable":"users","refColumn":"id"}},{"name":"employee_id","type":"VARCHAR(50)","isPK":false,"isNotNull":true,"isUnique":true,"fk":null},{"name":"department","type":"VARCHAR(100)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"role","type":"VARCHAR(50)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"permissions","type":"JSONB","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["user_id"],"refTable":"users","refColumns":["id"]}]},"otp_sessions":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"user_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":{"refTable":"users","refColumn":"id"}},{"name":"phone_number","type":"VARCHAR(20)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"otp_code_hash","type":"VARCHAR(255)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"purpose","type":"otp_purpose_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"attempt_count","type":"INT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"ip_address","type":"INET","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"expires_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"verified_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["user_id"],"refTable":"users","refColumns":["id"]}]},"user_sessions":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"user_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"users","refColumn":"id"}},{"name":"token_hash","type":"VARCHAR(255)","isPK":false,"isNotNull":true,"isUnique":true,"fk":null},{"name":"device_id","type":"VARCHAR(255)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"device_type","type":"VARCHAR(50)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"ip_address","type":"INET","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"expires_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"revoked_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["user_id"],"refTable":"users","refColumns":["id"]}]},"calpro_message_logs":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"user_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":{"refTable":"users","refColumn":"id"}},{"name":"phone_number","type":"VARCHAR(20)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"msg_type","type":"calpro_msg_type_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"template_id","type":"VARCHAR(100)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"content","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"status","type":"msg_status_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"provider_response","type":"JSONB","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"sent_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"delivered_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["user_id"],"refTable":"users","refColumns":["id"]}]},"dan_verifications":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"customer_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"customer_profiles","refColumn":"id"}},{"name":"request_ref","type":"VARCHAR(100)","isPK":false,"isNotNull":true,"isUnique":true,"fk":null},{"name":"national_id_checked","type":"VARCHAR(20)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"status","type":"VARCHAR(20)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"response_snapshot","type":"JSONB","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"error_message","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"verified_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["customer_id"],"refTable":"customer_profiles","refColumns":["id"]}]},"hur_data_snapshots":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"customer_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"customer_profiles","refColumn":"id"}},{"name":"request_ref","type":"VARCHAR(100)","isPK":false,"isNotNull":true,"isUnique":true,"fk":null},{"name":"employer_name","type":"VARCHAR(200)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"job_title","type":"VARCHAR(150)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"employment_type","type":"VARCHAR(30)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"salary_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"salary_currency","type":"VARCHAR(10)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"social_security_months","type":"INT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"snapshot_date","type":"DATE","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"raw_response","type":"JSONB","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"fetched_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["customer_id"],"refTable":"customer_profiles","refColumns":["id"]}]},"sain_score_requests":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"customer_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"customer_profiles","refColumn":"id"}},{"name":"request_ref","type":"VARCHAR(100)","isPK":false,"isNotNull":true,"isUnique":true,"fk":null},{"name":"fico_score","type":"INT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"sain_score","type":"NUMERIC(6,2)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"risk_grade","type":"VARCHAR(5)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"raw_response","type":"JSONB","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"requested_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"expires_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["customer_id"],"refTable":"customer_profiles","refColumns":["id"]}]},"kyc_verification_steps":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"customer_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"customer_profiles","refColumn":"id"}},{"name":"step","type":"VARCHAR(30)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"status","type":"VARCHAR(20)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"reference_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"reference_table","type":"VARCHAR(100)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"notes","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"completed_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["customer_id"],"refTable":"customer_profiles","refColumns":["id"]}]},"credit_score_results":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"customer_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"customer_profiles","refColumn":"id"}},{"name":"sain_score_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"sain_score_requests","refColumn":"id"}},{"name":"hur_data_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"hur_data_snapshots","refColumn":"id"}},{"name":"final_score","type":"NUMERIC(6,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"risk_grade","type":"VARCHAR(5)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"algorithm_version","type":"VARCHAR(20)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"score_breakdown","type":"JSONB","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"calculated_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"valid_until","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"status","type":"VARCHAR(20)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["customer_id"],"refTable":"customer_profiles","refColumns":["id"]},{"columns":["sain_score_id"],"refTable":"sain_score_requests","refColumns":["id"]},{"columns":["hur_data_id"],"refTable":"hur_data_snapshots","refColumns":["id"]}]},"credit_scoring_factors":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"credit_score_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"credit_score_results","refColumn":"id"}},{"name":"factor_name","type":"VARCHAR(100)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"raw_value","type":"NUMERIC(14,4)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"weight","type":"NUMERIC(6,4)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"contribution","type":"NUMERIC(6,4)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"explanation","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["credit_score_id"],"refTable":"credit_score_results","refColumns":["id"]}]},"loan_limits":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"customer_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"customer_profiles","refColumn":"id"}},{"name":"credit_score_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"credit_score_results","refColumn":"id"}},{"name":"max_total_limit","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"one_tap_limit","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"bnpl_limit","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"sme_limit","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"currency","type":"VARCHAR(10)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"utilized_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"available_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"valid_until","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"status","type":"VARCHAR(20)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["customer_id"],"refTable":"customer_profiles","refColumns":["id"]},{"columns":["credit_score_id"],"refTable":"credit_score_results","refColumns":["id"]}]},"loan_products":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"product_type","type":"product_type_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"product_code","type":"VARCHAR(20)","isPK":false,"isNotNull":true,"isUnique":true,"fk":null},{"name":"name","type":"VARCHAR(100)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"min_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"max_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"annual_interest_rate","type":"NUMERIC(6,4)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"max_term_months","type":"INT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"repayment_freq","type":"repayment_freq_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"product_config","type":"JSONB","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"is_active","type":"BOOLEAN","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[]},"loan_applications":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"customer_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"customer_profiles","refColumn":"id"}},{"name":"product_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"loan_products","refColumn":"id"}},{"name":"credit_score_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"credit_score_results","refColumn":"id"}},{"name":"requested_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"requested_term_months","type":"INT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"purpose","type":"VARCHAR(200)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"status","type":"loan_app_status","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"rejection_reason","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"processed_by_staff_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":{"refTable":"staff_profiles","refColumn":"id"}},{"name":"applied_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"processed_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["customer_id"],"refTable":"customer_profiles","refColumns":["id"]},{"columns":["product_id"],"refTable":"loan_products","refColumns":["id"]},{"columns":["credit_score_id"],"refTable":"credit_score_results","refColumns":["id"]},{"columns":["processed_by_staff_id"],"refTable":"staff_profiles","refColumns":["id"]}]},"loans":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"application_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":true,"fk":{"refTable":"loan_applications","refColumn":"id"}},{"name":"customer_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"customer_profiles","refColumn":"id"}},{"name":"product_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"loan_products","refColumn":"id"}},{"name":"loan_number","type":"VARCHAR(40)","isPK":false,"isNotNull":true,"isUnique":true,"fk":null},{"name":"principal_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"disbursed_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"interest_rate","type":"NUMERIC(6,4)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"term_months","type":"INT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"total_payable","type":"NUMERIC(14,2)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"maturity_date","type":"DATE","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"status","type":"loan_status_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"polaris_loan_acc_no","type":"VARCHAR(30)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"disbursed_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["application_id"],"refTable":"loan_applications","refColumns":["id"]},{"columns":["customer_id"],"refTable":"customer_profiles","refColumns":["id"]},{"columns":["product_id"],"refTable":"loan_products","refColumns":["id"]}]},"loan_account_mappings":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"loan_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":true,"fk":{"refTable":"loans","refColumn":"id"}},{"name":"polaris_deposit_acc_no","type":"VARCHAR(30)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"polaris_loan_acc_no","type":"VARCHAR(30)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"polaris_repayment_pool_acc","type":"VARCHAR(30)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"polaris_merchant_debt_acc","type":"VARCHAR(30)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["loan_id"],"refTable":"loans","refColumns":["id"]}]},"bnpl_terminals":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"merchant_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"merchant_profiles","refColumn":"id"}},{"name":"terminal_code","type":"VARCHAR(50)","isPK":false,"isNotNull":true,"isUnique":true,"fk":null},{"name":"terminal_name","type":"VARCHAR(100)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"location_description","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"api_endpoint","type":"TEXT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"secret_key_hash","type":"VARCHAR(255)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"status","type":"VARCHAR(20)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"registered_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["merchant_id"],"refTable":"merchant_profiles","refColumns":["id"]}]},"bnpl_payment_invoices":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"terminal_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"bnpl_terminals","refColumn":"id"}},{"name":"merchant_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"merchant_profiles","refColumn":"id"}},{"name":"cashier_reference","type":"VARCHAR(100)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"invoice_number","type":"VARCHAR(50)","isPK":false,"isNotNull":true,"isUnique":true,"fk":null},{"name":"total_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"currency","type":"VARCHAR(10)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"items_snapshot","type":"JSONB","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"status","type":"invoice_status_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"expires_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"completed_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["terminal_id"],"refTable":"bnpl_terminals","refColumns":["id"]},{"columns":["merchant_id"],"refTable":"merchant_profiles","refColumns":["id"]}]},"bnpl_qr_codes":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"invoice_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"bnpl_payment_invoices","refColumn":"id"}},{"name":"qr_payload","type":"TEXT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"qr_image_url","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"scanned_by_customer_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":{"refTable":"customer_profiles","refColumn":"id"}},{"name":"selected_installments","type":"INT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"generated_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"expires_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"scanned_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["invoice_id"],"refTable":"bnpl_payment_invoices","refColumns":["id"]},{"columns":["scanned_by_customer_id"],"refTable":"customer_profiles","refColumns":["id"]}]},"bnpl_transactions":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"loan_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":{"refTable":"loans","refColumn":"id"}},{"name":"invoice_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":true,"fk":{"refTable":"bnpl_payment_invoices","refColumn":"id"}},{"name":"customer_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"customer_profiles","refColumn":"id"}},{"name":"merchant_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"merchant_profiles","refColumn":"id"}},{"name":"total_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"installment_count","type":"INT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"per_installment_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"interest_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"status","type":"bnpl_txn_status_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"approved_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["loan_id"],"refTable":"loans","refColumns":["id"]},{"columns":["invoice_id"],"refTable":"bnpl_payment_invoices","refColumns":["id"]},{"columns":["customer_id"],"refTable":"customer_profiles","refColumns":["id"]},{"columns":["merchant_id"],"refTable":"merchant_profiles","refColumns":["id"]}]},"bnpl_terminal_callbacks":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"transaction_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"bnpl_transactions","refColumn":"id"}},{"name":"terminal_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"bnpl_terminals","refColumn":"id"}},{"name":"callback_type","type":"callback_type_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"payload","type":"JSONB","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"http_status","type":"INT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"retry_count","type":"INT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"status","type":"callback_status_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"sent_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"acknowledged_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["transaction_id"],"refTable":"bnpl_transactions","refColumns":["id"]},{"columns":["terminal_id"],"refTable":"bnpl_terminals","refColumns":["id"]}]},"repayment_schedules":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"loan_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"loans","refColumn":"id"}},{"name":"installment_number","type":"INT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"due_date","type":"DATE","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"principal_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"interest_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"penalty_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"total_due","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"paid_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"outstanding_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"status","type":"sched_status_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"paid_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["loan_id"],"refTable":"loans","refColumns":["id"]}]},"qpay_repayment_invoices":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"schedule_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":{"refTable":"repayment_schedules","refColumn":"id"}},{"name":"loan_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"loans","refColumn":"id"}},{"name":"customer_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"customer_profiles","refColumn":"id"}},{"name":"invoice_number","type":"VARCHAR(100)","isPK":false,"isNotNull":true,"isUnique":true,"fk":null},{"name":"qpay_invoice_id","type":"VARCHAR(100)","isPK":false,"isNotNull":false,"isUnique":true,"fk":null},{"name":"amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"currency","type":"VARCHAR(10)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"qr_payload","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"qr_image_url","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"deep_link_url","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"status","type":"qpay_invoice_status_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"request_payload","type":"JSONB","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"response_payload","type":"JSONB","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"expires_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"paid_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["schedule_id"],"refTable":"repayment_schedules","refColumns":["id"]},{"columns":["loan_id"],"refTable":"loans","refColumns":["id"]},{"columns":["customer_id"],"refTable":"customer_profiles","refColumns":["id"]}]},"qpay_repayment_callbacks":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"qpay_repayment_invoice_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":{"refTable":"qpay_repayment_invoices","refColumn":"id"}},{"name":"qpay_invoice_id","type":"VARCHAR(100)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"qpay_payment_id","type":"VARCHAR(100)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"payment_status","type":"VARCHAR(30)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"payload","type":"JSONB","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"status","type":"qpay_callback_status_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"error_message","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"received_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"processed_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["qpay_repayment_invoice_id"],"refTable":"qpay_repayment_invoices","refColumns":["id"]}]},"repayment_transactions":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"schedule_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":{"refTable":"repayment_schedules","refColumn":"id"}},{"name":"loan_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"loans","refColumn":"id"}},{"name":"customer_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"customer_profiles","refColumn":"id"}},{"name":"amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"principal_portion","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"interest_portion","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"penalty_portion","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"qpay_repayment_invoice_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":{"refTable":"qpay_repayment_invoices","refColumn":"id"}},{"name":"payment_channel","type":"payment_chan_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"transaction_ref","type":"VARCHAR(100)","isPK":false,"isNotNull":true,"isUnique":true,"fk":null},{"name":"polaris_txn_ref","type":"VARCHAR(100)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"status","type":"repay_txn_status","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"processed_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["schedule_id"],"refTable":"repayment_schedules","refColumns":["id"]},{"columns":["loan_id"],"refTable":"loans","refColumns":["id"]},{"columns":["customer_id"],"refTable":"customer_profiles","refColumns":["id"]},{"columns":["qpay_repayment_invoice_id"],"refTable":"qpay_repayment_invoices","refColumns":["id"]}]},"penalty_records":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"schedule_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"repayment_schedules","refColumn":"id"}},{"name":"loan_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"loans","refColumn":"id"}},{"name":"penalty_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"penalty_type","type":"penalty_type_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"overdue_days","type":"INT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"is_waived","type":"BOOLEAN","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"waived_by_staff_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":{"refTable":"staff_profiles","refColumn":"id"}},{"name":"waiver_reason","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["schedule_id"],"refTable":"repayment_schedules","refColumns":["id"]},{"columns":["loan_id"],"refTable":"loans","refColumns":["id"]},{"columns":["waived_by_staff_id"],"refTable":"staff_profiles","refColumns":["id"]}]},"polaris_accounts":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"account_number","type":"VARCHAR(30)","isPK":false,"isNotNull":true,"isUnique":true,"fk":null},{"name":"account_type","type":"polaris_acc_type","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"owner_type","type":"VARCHAR(20)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"owner_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"product_ref","type":"VARCHAR(50)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"currency","type":"VARCHAR(10)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"current_balance","type":"NUMERIC(18,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"status","type":"VARCHAR(20)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"polaris_synced_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[]},"polaris_transactions":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"polaris_account_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"polaris_accounts","refColumn":"id"}},{"name":"transaction_ref","type":"VARCHAR(100)","isPK":false,"isNotNull":true,"isUnique":true,"fk":null},{"name":"polaris_txn_id","type":"VARCHAR(100)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"debit_credit","type":"VARCHAR(6)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"balance_after","type":"NUMERIC(18,2)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"narration","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"source_module","type":"VARCHAR(50)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"source_ref_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"value_date","type":"DATE","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"posted_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"sync_status","type":"polaris_sync_stat","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["polaris_account_id"],"refTable":"polaris_accounts","refColumns":["id"]}]},"polaris_api_logs":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"endpoint","type":"VARCHAR(255)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"http_method","type":"VARCHAR(10)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"request_payload","type":"JSONB","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"response_payload","type":"JSONB","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"http_status_code","type":"INT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"duration_ms","type":"INT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"correlation_id","type":"VARCHAR(100)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"error_message","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"is_success","type":"BOOLEAN","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[]},"polaris_sync_queue":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"source_table","type":"VARCHAR(100)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"source_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"operation","type":"queue_op_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"payload","type":"JSONB","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"retry_count","type":"INT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"status","type":"queue_status_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"error_message","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"processed_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null}],"foreignKeys":[]},"merchant_portal_users":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"merchant_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"merchant_profiles","refColumn":"id"}},{"name":"user_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"users","refColumn":"id"}},{"name":"role","type":"portal_role_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"permissions","type":"JSONB","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"status","type":"VARCHAR(20)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["merchant_id"],"refTable":"merchant_profiles","refColumns":["id"]},{"columns":["user_id"],"refTable":"users","refColumns":["id"]}]},"merchant_refund_requests":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"bnpl_transaction_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"bnpl_transactions","refColumn":"id"}},{"name":"merchant_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"merchant_profiles","refColumn":"id"}},{"name":"requested_by_portal_user_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":{"refTable":"merchant_portal_users","refColumn":"id"}},{"name":"refund_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"refund_type","type":"refund_type_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"reason","type":"TEXT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"status","type":"refund_status_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"reviewed_by_staff_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":{"refTable":"staff_profiles","refColumn":"id"}},{"name":"staff_notes","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"polaris_reversal_ref","type":"VARCHAR(100)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"requested_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"reviewed_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"processed_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["bnpl_transaction_id"],"refTable":"bnpl_transactions","refColumns":["id"]},{"columns":["merchant_id"],"refTable":"merchant_profiles","refColumns":["id"]},{"columns":["requested_by_portal_user_id"],"refTable":"merchant_portal_users","refColumns":["id"]},{"columns":["reviewed_by_staff_id"],"refTable":"staff_profiles","refColumns":["id"]}]},"merchant_return_items":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"refund_request_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"merchant_refund_requests","refColumn":"id"}},{"name":"item_code","type":"VARCHAR(100)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"item_description","type":"TEXT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"quantity","type":"INT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"unit_price","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"total_price","type":"NUMERIC(14,2)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["refund_request_id"],"refTable":"merchant_refund_requests","refColumns":["id"]}]},"merchant_settlements":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"merchant_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"merchant_profiles","refColumn":"id"}},{"name":"settlement_date","type":"DATE","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"total_bnpl_amount","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"total_refunds","type":"NUMERIC(14,2)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"net_settlement","type":"NUMERIC(14,2)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"transaction_count","type":"INT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"status","type":"settle_status_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"polaris_txn_ref","type":"VARCHAR(100)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"settled_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["merchant_id"],"refTable":"merchant_profiles","refColumns":["id"]}]},"audit_logs":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"user_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":{"refTable":"users","refColumn":"id"}},{"name":"action","type":"VARCHAR(100)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"entity_type","type":"VARCHAR(100)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"entity_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"old_value","type":"JSONB","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"new_value","type":"JSONB","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"ip_address","type":"INET","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"user_agent","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"session_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"source_module","type":"VARCHAR(50)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["user_id"],"refTable":"users","refColumns":["id"]}]},"staff_action_reviews":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"audit_log_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"reviewer_staff_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"staff_profiles","refColumn":"id"}},{"name":"review_type","type":"review_type_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"outcome","type":"VARCHAR(50)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"notes","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"reviewed_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["reviewer_staff_id"],"refTable":"staff_profiles","refColumns":["id"]}]},"service_pause_windows":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"scope","type":"service_pause_scope_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"reason","type":"TEXT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"status","type":"service_pause_status_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"starts_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"ends_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"started_by_staff_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":{"refTable":"staff_profiles","refColumn":"id"}},{"name":"ended_by_staff_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":{"refTable":"staff_profiles","refColumn":"id"}},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["started_by_staff_id"],"refTable":"staff_profiles","refColumns":["id"]},{"columns":["ended_by_staff_id"],"refTable":"staff_profiles","refColumns":["id"]}]},"notification_templates":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"template_code","type":"VARCHAR(100)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"channel","type":"notif_chan_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"subject","type":"VARCHAR(255)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"body_template","type":"TEXT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"language","type":"VARCHAR(10)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"is_active","type":"BOOLEAN","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[]},"notification_logs":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"user_id","type":"UUID","isPK":false,"isNotNull":true,"isUnique":false,"fk":{"refTable":"users","refColumn":"id"}},{"name":"template_id","type":"UUID","isPK":false,"isNotNull":false,"isUnique":false,"fk":{"refTable":"notification_templates","refColumn":"id"}},{"name":"channel","type":"notif_chan_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"recipient_address","type":"VARCHAR(255)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"rendered_content","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"status","type":"notif_status","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"provider_message_id","type":"VARCHAR(200)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"error_message","type":"TEXT","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"queued_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"sent_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"delivered_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"read_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":false,"isUnique":false,"fk":null}],"foreignKeys":[{"columns":["user_id"],"refTable":"users","refColumns":["id"]},{"columns":["template_id"],"refTable":"notification_templates","refColumns":["id"]}]},"system_event_logs":{"columns":[{"name":"id","type":"UUID","isPK":true,"isNotNull":false,"isUnique":false,"fk":null},{"name":"service_name","type":"VARCHAR(100)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"event_type","type":"VARCHAR(100)","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"severity","type":"severity_enum","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"message","type":"TEXT","isPK":false,"isNotNull":true,"isUnique":false,"fk":null},{"name":"metadata","type":"JSONB","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"trace_id","type":"VARCHAR(100)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"correlation_id","type":"VARCHAR(100)","isPK":false,"isNotNull":false,"isUnique":false,"fk":null},{"name":"created_at","type":"TIMESTAMPTZ","isPK":false,"isNotNull":true,"isUnique":false,"fk":null}],"foreignKeys":[]}};
+const POSITIONS = {"users":{"x":60,"y":60,"w":260,"h":256},"customer_profiles":{"x":360,"y":60,"w":260,"h":322},"merchant_profiles":{"x":660,"y":60,"w":260,"h":278},"staff_profiles":{"x":60,"y":334,"w":260,"h":234},"otp_sessions":{"x":360,"y":400,"w":260,"h":300},"user_sessions":{"x":660,"y":400,"w":260,"h":278},"calpro_message_logs":{"x":60,"y":784,"w":260,"h":322},"dan_verifications":{"x":60,"y":1100,"w":260,"h":278},"hur_data_snapshots":{"x":360,"y":1100,"w":260,"h":344},"sain_score_requests":{"x":660,"y":1100,"w":260,"h":278},"kyc_verification_steps":{"x":60,"y":1418,"w":260,"h":278},"credit_score_results":{"x":60,"y":1820,"w":260,"h":322},"credit_scoring_factors":{"x":360,"y":1820,"w":260,"h":234},"loan_limits":{"x":660,"y":1820,"w":260,"h":366},"loan_products":{"x":60,"y":2220,"w":260,"h":344},"loan_applications":{"x":360,"y":2220,"w":260,"h":344},"loans":{"x":660,"y":2220,"w":260,"h":410},"loan_account_mappings":{"x":60,"y":2494,"w":260,"h":234},"bnpl_terminals":{"x":60,"y":2940,"w":260,"h":278},"bnpl_payment_invoices":{"x":360,"y":2940,"w":260,"h":344},"bnpl_qr_codes":{"x":660,"y":2940,"w":260,"h":278},"bnpl_transactions":{"x":60,"y":3324,"w":260,"h":344},"bnpl_terminal_callbacks":{"x":360,"y":3324,"w":260,"h":322},"repayment_schedules":{"x":60,"y":3660,"w":260,"h":366},"qpay_repayment_invoices":{"x":360,"y":3660,"w":260,"h":454},"qpay_repayment_callbacks":{"x":660,"y":3660,"w":260,"h":300},"repayment_transactions":{"x":60,"y":4110,"w":260,"h":410},"penalty_records":{"x":360,"y":4110,"w":260,"h":300},"polaris_accounts":{"x":1060,"y":60,"w":260,"h":322},"polaris_transactions":{"x":1360,"y":60,"w":260,"h":366},"polaris_api_logs":{"x":1660,"y":60,"w":260,"h":322},"polaris_sync_queue":{"x":1060,"y":400,"w":260,"h":300},"merchant_portal_users":{"x":1060,"y":780,"w":260,"h":234},"merchant_refund_requests":{"x":1360,"y":780,"w":260,"h":388},"merchant_return_items":{"x":1660,"y":780,"w":260,"h":234},"merchant_settlements":{"x":1060,"y":1142,"w":260,"h":322},"audit_logs":{"x":1060,"y":1500,"w":260,"h":344},"staff_action_reviews":{"x":1360,"y":1500,"w":260,"h":234},"notification_templates":{"x":1660,"y":1500,"w":260,"h":256},"notification_logs":{"x":1060,"y":1906,"w":260,"h":366},"system_event_logs":{"x":1360,"y":1906,"w":260,"h":278},"service_pause_windows":{"x":1060,"y":2220,"w":260,"h":278}};
+const EDGES   = [{"from":"customer_profiles","to":"users","cols":["user_id"],"refCols":["id"]},{"from":"merchant_profiles","to":"users","cols":["user_id"],"refCols":["id"]},{"from":"staff_profiles","to":"users","cols":["user_id"],"refCols":["id"]},{"from":"otp_sessions","to":"users","cols":["user_id"],"refCols":["id"]},{"from":"user_sessions","to":"users","cols":["user_id"],"refCols":["id"]},{"from":"calpro_message_logs","to":"users","cols":["user_id"],"refCols":["id"]},{"from":"dan_verifications","to":"customer_profiles","cols":["customer_id"],"refCols":["id"]},{"from":"hur_data_snapshots","to":"customer_profiles","cols":["customer_id"],"refCols":["id"]},{"from":"sain_score_requests","to":"customer_profiles","cols":["customer_id"],"refCols":["id"]},{"from":"kyc_verification_steps","to":"customer_profiles","cols":["customer_id"],"refCols":["id"]},{"from":"credit_score_results","to":"customer_profiles","cols":["customer_id"],"refCols":["id"]},{"from":"credit_score_results","to":"sain_score_requests","cols":["sain_score_id"],"refCols":["id"]},{"from":"credit_score_results","to":"hur_data_snapshots","cols":["hur_data_id"],"refCols":["id"]},{"from":"credit_scoring_factors","to":"credit_score_results","cols":["credit_score_id"],"refCols":["id"]},{"from":"loan_limits","to":"customer_profiles","cols":["customer_id"],"refCols":["id"]},{"from":"loan_limits","to":"credit_score_results","cols":["credit_score_id"],"refCols":["id"]},{"from":"loan_applications","to":"customer_profiles","cols":["customer_id"],"refCols":["id"]},{"from":"loan_applications","to":"loan_products","cols":["product_id"],"refCols":["id"]},{"from":"loan_applications","to":"credit_score_results","cols":["credit_score_id"],"refCols":["id"]},{"from":"loan_applications","to":"staff_profiles","cols":["processed_by_staff_id"],"refCols":["id"]},{"from":"loans","to":"loan_applications","cols":["application_id"],"refCols":["id"]},{"from":"loans","to":"customer_profiles","cols":["customer_id"],"refCols":["id"]},{"from":"loans","to":"loan_products","cols":["product_id"],"refCols":["id"]},{"from":"loan_account_mappings","to":"loans","cols":["loan_id"],"refCols":["id"]},{"from":"bnpl_terminals","to":"merchant_profiles","cols":["merchant_id"],"refCols":["id"]},{"from":"bnpl_payment_invoices","to":"bnpl_terminals","cols":["terminal_id"],"refCols":["id"]},{"from":"bnpl_payment_invoices","to":"merchant_profiles","cols":["merchant_id"],"refCols":["id"]},{"from":"bnpl_qr_codes","to":"bnpl_payment_invoices","cols":["invoice_id"],"refCols":["id"]},{"from":"bnpl_qr_codes","to":"customer_profiles","cols":["scanned_by_customer_id"],"refCols":["id"]},{"from":"bnpl_transactions","to":"loans","cols":["loan_id"],"refCols":["id"]},{"from":"bnpl_transactions","to":"bnpl_payment_invoices","cols":["invoice_id"],"refCols":["id"]},{"from":"bnpl_transactions","to":"customer_profiles","cols":["customer_id"],"refCols":["id"]},{"from":"bnpl_transactions","to":"merchant_profiles","cols":["merchant_id"],"refCols":["id"]},{"from":"bnpl_terminal_callbacks","to":"bnpl_transactions","cols":["transaction_id"],"refCols":["id"]},{"from":"bnpl_terminal_callbacks","to":"bnpl_terminals","cols":["terminal_id"],"refCols":["id"]},{"from":"repayment_schedules","to":"loans","cols":["loan_id"],"refCols":["id"]},{"from":"qpay_repayment_invoices","to":"repayment_schedules","cols":["schedule_id"],"refCols":["id"]},{"from":"qpay_repayment_invoices","to":"loans","cols":["loan_id"],"refCols":["id"]},{"from":"qpay_repayment_invoices","to":"customer_profiles","cols":["customer_id"],"refCols":["id"]},{"from":"qpay_repayment_callbacks","to":"qpay_repayment_invoices","cols":["qpay_repayment_invoice_id"],"refCols":["id"]},{"from":"repayment_transactions","to":"repayment_schedules","cols":["schedule_id"],"refCols":["id"]},{"from":"repayment_transactions","to":"loans","cols":["loan_id"],"refCols":["id"]},{"from":"repayment_transactions","to":"customer_profiles","cols":["customer_id"],"refCols":["id"]},{"from":"repayment_transactions","to":"qpay_repayment_invoices","cols":["qpay_repayment_invoice_id"],"refCols":["id"]},{"from":"penalty_records","to":"repayment_schedules","cols":["schedule_id"],"refCols":["id"]},{"from":"penalty_records","to":"loans","cols":["loan_id"],"refCols":["id"]},{"from":"penalty_records","to":"staff_profiles","cols":["waived_by_staff_id"],"refCols":["id"]},{"from":"polaris_transactions","to":"polaris_accounts","cols":["polaris_account_id"],"refCols":["id"]},{"from":"merchant_portal_users","to":"merchant_profiles","cols":["merchant_id"],"refCols":["id"]},{"from":"merchant_portal_users","to":"users","cols":["user_id"],"refCols":["id"]},{"from":"merchant_refund_requests","to":"bnpl_transactions","cols":["bnpl_transaction_id"],"refCols":["id"]},{"from":"merchant_refund_requests","to":"merchant_profiles","cols":["merchant_id"],"refCols":["id"]},{"from":"merchant_refund_requests","to":"merchant_portal_users","cols":["requested_by_portal_user_id"],"refCols":["id"]},{"from":"merchant_refund_requests","to":"staff_profiles","cols":["reviewed_by_staff_id"],"refCols":["id"]},{"from":"merchant_return_items","to":"merchant_refund_requests","cols":["refund_request_id"],"refCols":["id"]},{"from":"merchant_settlements","to":"merchant_profiles","cols":["merchant_id"],"refCols":["id"]},{"from":"audit_logs","to":"users","cols":["user_id"],"refCols":["id"]},{"from":"staff_action_reviews","to":"staff_profiles","cols":["reviewer_staff_id"],"refCols":["id"]},{"from":"service_pause_windows","to":"staff_profiles","cols":["started_by_staff_id"],"refCols":["id"]},{"from":"service_pause_windows","to":"staff_profiles","cols":["ended_by_staff_id"],"refCols":["id"]},{"from":"notification_logs","to":"users","cols":["user_id"],"refCols":["id"]},{"from":"notification_logs","to":"notification_templates","cols":["template_id"],"refCols":["id"]}];
+const DOMAINS = [{"id":"auth","label":"Users & Auth","color":"#4f8ef7","tables":["users","customer_profiles","merchant_profiles","staff_profiles","otp_sessions","user_sessions","calpro_message_logs"]},{"id":"kyc","label":"KYC & 3rd-Party","color":"#a78bfa","tables":["dan_verifications","hur_data_snapshots","sain_score_requests","kyc_verification_steps"]},{"id":"credit","label":"Credit & Limits","color":"#34d399","tables":["credit_score_results","credit_scoring_factors","loan_limits"]},{"id":"loans","label":"Loans & Products","color":"#f59e0b","tables":["loan_products","loan_applications","loans","loan_account_mappings"]},{"id":"bnpl","label":"BNPL Flow","color":"#f97316","tables":["bnpl_terminals","bnpl_payment_invoices","bnpl_qr_codes","bnpl_transactions","bnpl_terminal_callbacks"]},{"id":"repay","label":"Repayment & QPay","color":"#ec4899","tables":["repayment_schedules","qpay_repayment_invoices","qpay_repayment_callbacks","repayment_transactions","penalty_records"]},{"id":"polaris","label":"Polaris Core Banking","color":"#06b6d4","tables":["polaris_accounts","polaris_transactions","polaris_api_logs","polaris_sync_queue"]},{"id":"merchant","label":"Merchant Portal","color":"#84cc16","tables":["merchant_portal_users","merchant_refund_requests","merchant_return_items","merchant_settlements"]},{"id":"audit","label":"Audit & Notifications","color":"#94a3b8","tables":["audit_logs","staff_action_reviews","notification_templates","notification_logs","system_event_logs"]}];
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+let scale = 0.55, tx = 40, ty = 40;
+let isPanning = false, startX = 0, startY = 0, startTX = 0, startTY = 0;
+let selectedTable = null;
+let showEdges = true;
+let filterDomain = null;
+let draggingCard = null, dragOffX = 0, dragOffY = 0;
+const cardEls = {}; // name → DOM element
+const cardPos = {}; // name → {x,y,w,h} (live)
+
+// Copy initial positions
+for (const [k,v] of Object.entries(POSITIONS)) cardPos[k] = {...v};
+
+// ── DOM HELPERS ───────────────────────────────────────────────────────────
+const canvas    = document.getElementById('canvas');
+const wrap      = document.getElementById('canvas-wrap');
+const edgeLayer = document.getElementById('edge-layer');
+const search    = document.getElementById('search');
+const panel     = document.getElementById('detail-panel');
+
+function setTransform() {
+  canvas.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+}
+
+// ── LEGEND ────────────────────────────────────────────────────────────────
+{
+  const container = document.getElementById('legend-items');
+  for (const d of DOMAINS) {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.dataset.id = d.id;
+    item.innerHTML = `<div class="legend-dot" style="background:${d.color}"></div><span class="legend-label">${d.label}</span>`;
+    item.addEventListener('click', () => {
+      if (filterDomain === d.id) { filterDomain = null; item.classList.remove('active-filter'); }
+      else { filterDomain = d.id; document.querySelectorAll('.legend-item').forEach(el => el.classList.remove('active-filter')); item.classList.add('active-filter'); }
+      applyFilters();
+    });
+    container.appendChild(item);
+  }
+}
+
+// ── TABLE CARDS ───────────────────────────────────────────────────────────
+function getDomain(name) {
+  for (const d of DOMAINS) if (d.tables.includes(name)) return d;
+  return { id:'other', label:'Other', color:'#64748b' };
+}
+
+function buildCards() {
+  for (const [name, tdata] of Object.entries(TABLES)) {
+    const d = getDomain(name);
+    const pos = cardPos[name] || { x:0, y:0, w:260 };
+
+    const card = document.createElement('div');
+    card.className = 'table-card';
+    card.id = 'card-' + name;
+    card.style.left  = pos.x + 'px';
+    card.style.top   = pos.y + 'px';
+    card.style.setProperty('--domain-color', d.color);
+
+    // Header
+    const hdr = document.createElement('div');
+    hdr.className = 'card-header';
+    hdr.innerHTML = `
+      <div style="display:flex;align-items:center;gap:7px;">
+        <div class="card-domain-dot" style="background:${d.color}"></div>
+        <span class="card-title">${name}</span>
+      </div>
+      <span class="col-count">${tdata.columns.length}</span>
+    `;
+    card.appendChild(hdr);
+
+    // Columns
+    const colWrap = document.createElement('div');
+    colWrap.className = 'card-columns';
+
+    for (const col of tdata.columns) {
+      const row = document.createElement('div');
+      row.className = 'col-row';
+      const badges = [];
+      if (col.isPK) badges.push('<span class="badge badge-pk">PK</span>');
+      if (col.fk)   badges.push('<span class="badge badge-fk">FK</span>');
+      else if (col.isUnique) badges.push('<span class="badge badge-uq">UQ</span>');
+      else if (col.isNotNull && !col.isPK) badges.push('<span class="badge badge-nn">NN</span>');
+
+      row.innerHTML = `${badges.join('')}<span class="col-name">${col.name}</span><span class="col-type">${col.type}</span>`;
+      colWrap.appendChild(row);
+    }
+    card.appendChild(colWrap);
+
+    // Drag logic (header drag)
+    hdr.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      draggingCard = name;
+      const p = cardPos[name];
+      dragOffX = (e.clientX - tx) / scale - p.x;
+      dragOffY = (e.clientY - ty) / scale - p.y;
+      card.style.zIndex = 50;
+      e.stopPropagation();
+    });
+
+    // Click card → select
+    card.addEventListener('click', e => {
+      if (draggingCard) return;
+      selectTable(name);
+      e.stopPropagation();
+    });
+
+    canvas.appendChild(card);
+    cardEls[name] = card;
+  }
+}
+
+// ── EDGE RENDERING ────────────────────────────────────────────────────────
+function getAnchor(name, side) {
+  const p = cardPos[name];
+  if (!p) return { x:0, y:0 };
+  const el = cardEls[name];
+  const h = el ? el.offsetHeight : 120;
+  if (side === 'right')  return { x: p.x + 260, y: p.y + h/2 };
+  if (side === 'left')   return { x: p.x,       y: p.y + h/2 };
+  if (side === 'bottom') return { x: p.x + 130,  y: p.y + h };
+  return { x: p.x + 130, y: p.y };
+}
+
+function chooseAnchors(fromName, toName) {
+  const fp = cardPos[fromName], tp = cardPos[toName];
+  if (!fp || !tp) return null;
+  const fmx = fp.x + 130, tmx = tp.x + 130;
+  if (fmx < tmx) return [getAnchor(fromName,'right'), getAnchor(toName,'left')];
+  return [getAnchor(fromName,'left'), getAnchor(toName,'right')];
+}
+
+function renderEdges() {
+  edgeLayer.innerHTML = '';
+  if (!showEdges) return;
+  const svgNS = 'http://www.w3.org/2000/svg';
+
+  // Compute canvas extent
+  let maxX = 0, maxY = 0;
+  for (const p of Object.values(cardPos)) { maxX = Math.max(maxX, p.x + 300); maxY = Math.max(maxY, p.y + 400); }
+  edgeLayer.setAttribute('width',  maxX);
+  edgeLayer.setAttribute('height', maxY);
+
+  // Arrow marker
+  const defs = document.createElementNS(svgNS, 'defs');
+  DOMAINS.forEach(d => {
+    const m = document.createElementNS(svgNS, 'marker');
+    m.setAttribute('id', 'arrow-' + d.id);
+    m.setAttribute('markerWidth', '8'); m.setAttribute('markerHeight', '8');
+    m.setAttribute('refX', '6'); m.setAttribute('refY', '3'); m.setAttribute('orient', 'auto');
+    const p = document.createElementNS(svgNS, 'path');
+    p.setAttribute('d', 'M0,0 L0,6 L8,3 z');
+    p.setAttribute('fill', d.color);
+    m.appendChild(p); defs.appendChild(m);
+  });
+  const mOther = document.createElementNS(svgNS, 'marker');
+  mOther.setAttribute('id', 'arrow-other');
+  mOther.setAttribute('markerWidth', '8'); mOther.setAttribute('markerHeight', '8');
+  mOther.setAttribute('refX', '6'); mOther.setAttribute('refY', '3'); mOther.setAttribute('orient', 'auto');
+  const pOther = document.createElementNS(svgNS, 'path');
+  pOther.setAttribute('d', 'M0,0 L0,6 L8,3 z'); pOther.setAttribute('fill', '#64748b');
+  mOther.appendChild(pOther); defs.appendChild(mOther);
+  edgeLayer.appendChild(defs);
+
+  for (const edge of EDGES) {
+    const anch = chooseAnchors(edge.from, edge.to);
+    if (!anch) continue;
+    const [a, b] = anch;
+    const dx = Math.abs(b.x - a.x) * 0.45;
+    const d  = `M${a.x},${a.y} C${a.x+dx},${a.y} ${b.x-dx},${b.y} ${b.x},${b.y}`;
+    const dom = getDomain(edge.from);
+    const el  = document.createElementNS(svgNS, 'path');
+    el.setAttribute('d', d);
+    el.setAttribute('class', 'edge-path');
+    el.setAttribute('stroke', dom.color);
+    el.setAttribute('marker-end', `url(#arrow-${dom.id})`);
+    el.dataset.from = edge.from;
+    el.dataset.to   = edge.to;
+    edgeLayer.appendChild(el);
+  }
+}
+
+// ── SELECTION / HIGHLIGHT ─────────────────────────────────────────────────
+function selectTable(name) {
+  selectedTable = name === selectedTable ? null : name;
+  if (!selectedTable) { clearHighlight(); closePanel(); return; }
+  highlightRelated(selectedTable);
+  openPanel(selectedTable);
+}
+
+function highlightRelated(name) {
+  const related = new Set([name]);
+  for (const e of EDGES) {
+    if (e.from === name) related.add(e.to);
+    if (e.to   === name) related.add(e.from);
+  }
+  for (const [n, el] of Object.entries(cardEls)) {
+    el.classList.remove('selected','highlighted','dimmed');
+    if (n === name) el.classList.add('selected');
+    else if (related.has(n)) el.classList.add('highlighted');
+    else el.classList.add('dimmed');
+  }
+  document.querySelectorAll('.edge-path').forEach(ep => {
+    ep.classList.remove('highlighted','dimmed');
+    if (ep.dataset.from === name || ep.dataset.to === name) ep.classList.add('highlighted');
+    else ep.classList.add('dimmed');
+  });
+}
+
+function clearHighlight() {
+  selectedTable = null;
+  for (const el of Object.values(cardEls)) el.classList.remove('selected','highlighted','dimmed');
+  document.querySelectorAll('.edge-path').forEach(ep => ep.classList.remove('highlighted','dimmed'));
+}
+
+// ── DOMAIN FILTER ─────────────────────────────────────────────────────────
+function applyFilters() {
+  const q = search.value.toLowerCase();
+  for (const [name, el] of Object.entries(cardEls)) {
+    const domMatch  = !filterDomain || getDomain(name).id === filterDomain;
+    const nameMatch = !q || name.toLowerCase().includes(q);
+    el.style.display = (domMatch && nameMatch) ? '' : 'none';
+  }
+  renderEdges();
+}
+
+// ── DETAIL PANEL ──────────────────────────────────────────────────────────
+function openPanel(name) {
+  const tdata = TABLES[name];
+  const d     = getDomain(name);
+  document.getElementById('dp-title').textContent  = name;
+  document.getElementById('dp-domain').textContent = d.label;
+  document.getElementById('dp-domain').style.color  = d.color;
+
+  // Columns
+  const colsEl = document.getElementById('dp-cols');
+  colsEl.innerHTML = '';
+  for (const col of tdata.columns) {
+    const badges = [];
+    if (col.isPK) badges.push('<span class="badge badge-pk">PK</span>');
+    if (col.fk)   badges.push('<span class="badge badge-fk">FK</span>');
+    if (col.isUnique && !col.isPK) badges.push('<span class="badge badge-uq">UQ</span>');
+    if (col.isNotNull && !col.isPK) badges.push('<span class="badge badge-nn">NN</span>');
+    const row = document.createElement('div');
+    row.className = 'dp-col';
+    row.innerHTML = `${badges.join('')}<span class="dp-col-name">${col.name}</span><span class="dp-col-type">${col.type}</span>`;
+    colsEl.appendChild(row);
+  }
+
+  // FK out
+  const fksEl = document.getElementById('dp-fks');
+  fksEl.innerHTML = '';
+  const outRefs = EDGES.filter(e => e.from === name);
+  if (!outRefs.length) fksEl.innerHTML = '<span style="color:var(--text-muted);font-size:10px">None</span>';
+  for (const e of outRefs) {
+    const link = document.createElement('div');
+    link.className = 'dp-fk';
+    link.innerHTML = `→ ${e.to} <span style="color:var(--text-muted)">(${e.cols.join(',')})</span>`;
+    link.addEventListener('click', () => { selectTable(e.to); scrollToTable(e.to); });
+    fksEl.appendChild(link);
+  }
+
+  // FK in
+  const refByEl = document.getElementById('dp-ref-by');
+  refByEl.innerHTML = '';
+  const inRefs = EDGES.filter(e => e.to === name);
+  if (!inRefs.length) refByEl.innerHTML = '<span style="color:var(--text-muted);font-size:10px">None</span>';
+  for (const e of inRefs) {
+    const link = document.createElement('div');
+    link.className = 'dp-fk';
+    link.innerHTML = `← ${e.from} <span style="color:var(--text-muted)">(${e.cols.join(',')})</span>`;
+    link.addEventListener('click', () => { selectTable(e.from); scrollToTable(e.from); });
+    refByEl.appendChild(link);
+  }
+
+  panel.classList.add('open');
+}
+
+function closePanel() { panel.classList.remove('open'); }
+
+function scrollToTable(name) {
+  const p = cardPos[name];
+  if (!p) return;
+  const ww = wrap.offsetWidth, wh = wrap.offsetHeight;
+  tx = ww/2 - (p.x + 130) * scale;
+  ty = wh/2 - (p.y + 60)  * scale;
+  setTransform();
+}
+
+document.getElementById('close-detail').addEventListener('click', () => { clearHighlight(); closePanel(); });
+
+// ── PAN & ZOOM ────────────────────────────────────────────────────────────
+wrap.addEventListener('mousedown', e => {
+  if (e.button !== 0 || draggingCard) return;
+  isPanning = true;
+  startX = e.clientX; startY = e.clientY;
+  startTX = tx; startTY = ty;
+  wrap.classList.add('panning');
+});
+
+window.addEventListener('mousemove', e => {
+  if (draggingCard) {
+    const name = draggingCard;
+    const nx = (e.clientX - tx) / scale - dragOffX;
+    const ny = (e.clientY - ty) / scale - dragOffY;
+    cardPos[name].x = nx; cardPos[name].y = ny;
+    cardEls[name].style.left = nx + 'px';
+    cardEls[name].style.top  = ny + 'px';
+    renderEdges();
+    return;
+  }
+  if (!isPanning) return;
+  tx = startTX + (e.clientX - startX);
+  ty = startTY + (e.clientY - startY);
+  setTransform();
+});
+
+window.addEventListener('mouseup', e => {
+  if (draggingCard) { cardEls[draggingCard].style.zIndex = ''; draggingCard = null; return; }
+  isPanning = false;
+  wrap.classList.remove('panning');
+});
+
+wrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.1 : 0.91;
+  const rect = wrap.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  tx = mx + (tx - mx) * factor;
+  ty = my + (ty - my) * factor;
+  scale = Math.max(0.15, Math.min(2.5, scale * factor));
+  setTransform();
+}, { passive: false });
+
+// Deselect on canvas click
+wrap.addEventListener('click', e => { if (e.target === wrap || e.target === canvas || e.target === edgeLayer) { clearHighlight(); closePanel(); } });
+
+// ── TOOLBAR ───────────────────────────────────────────────────────────────
+document.getElementById('btn-fit').addEventListener('click', fitScreen);
+document.getElementById('btn-zoom-in').addEventListener('click',  () => { scale = Math.min(2.5, scale*1.2); setTransform(); });
+document.getElementById('btn-zoom-out').addEventListener('click', () => { scale = Math.max(0.15, scale*0.83); setTransform(); });
+document.getElementById('btn-edges').addEventListener('click', function() {
+  showEdges = !showEdges;
+  this.classList.toggle('active', showEdges);
+  renderEdges();
+});
+document.getElementById('btn-reset').addEventListener('click', () => { clearHighlight(); closePanel(); filterDomain = null; search.value = ''; document.querySelectorAll('.legend-item').forEach(el => el.classList.remove('active-filter')); applyFilters(); });
+
+function fitScreen() {
+  let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+  for (const [name, p] of Object.entries(cardPos)) {
+    const el = cardEls[name];
+    if (!el || el.style.display==='none') continue;
+    minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x + 260); maxY = Math.max(maxY, p.y + (el.offsetHeight||120));
+  }
+  const pw = wrap.offsetWidth - 60, ph = wrap.offsetHeight - 60;
+  scale = Math.min(pw / (maxX-minX), ph / (maxY-minY), 1.5);
+  tx = 30 - minX * scale;
+  ty = 30 - minY * scale;
+  setTransform();
+}
+
+// ── SEARCH ────────────────────────────────────────────────────────────────
+search.addEventListener('input', applyFilters);
+
+// ── STATS ─────────────────────────────────────────────────────────────────
+document.getElementById('stat-tables').textContent = Object.keys(TABLES).length;
+document.getElementById('stat-edges').textContent  = EDGES.length;
+const totalCols = Object.values(TABLES).reduce((s,t) => s + t.columns.length, 0);
+document.getElementById('stat-cols').textContent   = totalCols;
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+buildCards();
+renderEdges();
+setTransform();
+
+// Slight delay to let cards render, then fit
+setTimeout(fitScreen, 120);
+
+// keyboard
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { clearHighlight(); closePanel(); }
+  if ((e.key === '=' || e.key === '+') && !e.ctrlKey) { scale = Math.min(2.5, scale*1.15); setTransform(); }
+  if (e.key === '-' && !e.ctrlKey) { scale = Math.max(0.15, scale*0.87); setTransform(); }
+  if (e.key === '0' && !e.ctrlKey) fitScreen();
+});
+</script>
+</body>
+</html>

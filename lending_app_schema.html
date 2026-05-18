@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lending App — Database Schema</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f8f8f6;color:#1a1a18;line-height:1.5}
+.shell{max-width:1200px;margin:0 auto;padding:24px}
+.top{margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #e0dfd8}
+.top h1{font-size:20px;font-weight:600;color:#1a1a18;margin-bottom:4px}
+.top p{font-size:13px;color:#5f5e5a}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.stat{background:#fff;border:1px solid #e0dfd8;border-radius:8px;padding:6px 12px;font-size:12px;color:#5f5e5a}
+.stat b{color:#1a1a18;font-weight:600}
+.nav{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px}
+.tab-btn{padding:6px 14px;font-size:12px;font-weight:500;border:1px solid #d3d1c7;border-radius:20px;background:transparent;color:#5f5e5a;cursor:pointer;transition:.15s;white-space:nowrap}
+.tab-btn:hover{background:#f0efe8;color:#1a1a18}
+.tab-btn.on{background:#1a1a18;color:#fff;border-color:#1a1a18}
+.panel{display:none}
+.panel.on{display:block}
+.ph{margin-bottom:16px;padding:16px;background:#fff;border:1px solid #e0dfd8;border-radius:12px}
+.pt{font-size:15px;font-weight:600;color:#1a1a18;margin-bottom:4px}
+.pd{font-size:12px;color:#5f5e5a;line-height:1.6}
+.badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.badge{font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500}
+.badge-purple{background:#eeedfe;color:#26215c}
+.badge-teal{background:#e1f5ee;color:#04342c}
+.badge-amber{background:#faeeda;color:#412402}
+.badge-coral{background:#faece7;color:#4a1b0c}
+.badge-blue{background:#e6f1fb;color:#042c53}
+.badge-gray{background:#f1efe8;color:#2c2c2a}
+.diagram-tools{display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-bottom:8px}
+.tool-btn{min-width:34px;height:30px;padding:0 10px;border:1px solid #d3d1c7;border-radius:6px;background:#fff;color:#1a1a18;font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
+.tool-btn:hover{background:#f0efe8}
+.tool-btn:disabled{opacity:.45;cursor:not-allowed}
+.zoom-readout{min-width:48px;text-align:center;font-size:12px;color:#5f5e5a;font-variant-numeric:tabular-nums}
+.econ{overflow:auto;resize:vertical;background:#fff;border:1px solid #e0dfd8;border-radius:12px;padding:12px;min-height:260px;height:min(68vh,620px);cursor:grab;user-select:none}
+.econ.dragging{cursor:grabbing}
+.diagram-zoom{display:inline-block;min-width:max-content}
+.econ svg{max-width:none;height:auto;display:block}
+.loading{font-size:12px;color:#888780;padding:20px;text-align:center}
+.tables-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-top:12px}
+.tcard{background:#fff;border:1px solid #e0dfd8;border-radius:10px;overflow:hidden}
+.tcard-head{background:#f8f8f6;border-bottom:1px solid #e0dfd8;padding:10px 12px;display:flex;align-items:center;gap:8px}
+.tcard-name{font-size:12px;font-weight:600;color:#1a1a18;font-family:monospace}
+.tcard-body{padding:8px 12px}
+.tcard-row{display:flex;align-items:baseline;gap:6px;padding:3px 0;border-bottom:1px solid #f1efe8;font-size:11px}
+.tcard-row:last-child{border-bottom:none}
+.col-name{font-family:monospace;color:#1a1a18;flex:0 0 auto;min-width:120px}
+.col-type{color:#5f5e5a;flex:1}
+.col-key{font-size:10px;font-weight:600;padding:1px 4px;border-radius:3px;margin-left:auto;flex:0 0 auto}
+.pk{background:#faeeda;color:#633806}.fk{background:#e1f5ee;color:#085041}.uk{background:#eeedfe;color:#3c3489}
+@media(prefers-color-scheme:dark){
+  body{background:#1a1a18;color:#d3d1c7}
+  .top{border-color:#3d3d3a}.top h1{color:#e8e6de}.top p,.pd{color:#888780}
+  .stat{background:#2c2c2a;border-color:#3d3d3a;color:#888780}.stat b{color:#d3d1c7}
+  .tab-btn{border-color:#3d3d3a;color:#888780}.tab-btn:hover{background:#333331;color:#d3d1c7}
+  .tab-btn.on{background:#d3d1c7;color:#1a1a18;border-color:#d3d1c7}
+  .ph,.econ,.tcard{background:#252523;border-color:#3d3d3a}.pt{color:#e8e6de}
+  .tool-btn{background:#252523;border-color:#3d3d3a;color:#d3d1c7}.tool-btn:hover{background:#333331}
+  .zoom-readout{color:#888780}
+  .tcard-head{background:#2c2c2a;border-color:#3d3d3a}.tcard-name{color:#e8e6de}
+  .tcard-row{border-color:#333331}.col-name{color:#e8e6de}.col-type{color:#888780}
+  .tables-grid .tcard-body .tcard-row .col-name{color:#d3d1c7}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+<h1 class="sr-only">Lending app database schema — interactive domain viewer</h1>
+<div class="top">
+  <h1>Lending App — Database Schema</h1>
+  <p>Multi-domain schema covering auth, KYC, credit scoring, loans, BNPL, QPAY repayments, Polaris core banking, merchant portal and audit.</p>
+  <div class="stats">
+    <div class="stat"><b>9</b> domains</div>
+    <div class="stat"><b>48</b> tables</div>
+    <div class="stat"><b>3</b> user types</div>
+    <div class="stat"><b>3</b> loan products</div>
+    <div class="stat"><b>5</b> 3rd-party integrations</div>
+    <div class="stat"><b>Polaris</b> core banking</div>
+  </div>
+</div>
+<div class="nav" id="nav"></div>
+<div id="panels"></div>
+</div>
+
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: 'system-ui, sans-serif',
+  themeVariables: {
+    darkMode: dark,
+    fontSize: '12px',
+    fontFamily: 'system-ui, sans-serif',
+    lineColor: dark ? '#9c9a92' : '#73726c',
+    textColor: dark ? '#c2c0b6' : '#3d3d3a',
+    attributeBackgroundColorEven: dark ? '#2c2c2a' : '#f8f8f6',
+    attributeBackgroundColorOdd: dark ? '#1e1e1c' : '#ffffff',
+    primaryColor: dark ? '#3c3489' : '#eeedfe',
+    primaryTextColor: dark ? '#cecbf6' : '#26215c',
+    primaryBorderColor: dark ? '#7f77dd' : '#afa9ec',
+    nodeBorder: dark ? '#7f77dd' : '#afa9ec',
+    mainBkg: dark ? '#252523' : '#ffffff',
+  }
+});
+
+const domains = [
+{
+  id:'overview', label:'Overview', title:'High-level domain map',
+  desc:'How the 9 domains connect — users flow through KYC and credit scoring to loan products, BNPL links to Emart terminals, repayments flow through QPAY, and accounting records to Polaris core banking.',
+  badges:[{t:'48 tables total',c:'badge-gray'}],
+  diagram:`erDiagram
+USERS ||--o| CUSTOMER_PROFILES : has
+USERS ||--o| MERCHANT_PROFILES : has
+CUSTOMER_PROFILES ||--o{ KYC_VERIFICATION_STEPS : passes
+CUSTOMER_PROFILES ||--o{ CREDIT_SCORE_RESULTS : scored_by
+CREDIT_SCORE_RESULTS ||--o| LOAN_LIMITS : determines
+LOAN_LIMITS ||--o{ LOAN_APPLICATIONS : enables
+LOAN_APPLICATIONS ||--o| LOANS : becomes
+LOANS ||--o{ REPAYMENT_SCHEDULES : generates
+REPAYMENT_SCHEDULES ||--o{ QPAY_REPAYMENT_INVOICES : invoiced_by
+QPAY_REPAYMENT_INVOICES ||--o{ REPAYMENT_TRANSACTIONS : settles
+LOANS ||--o| LOAN_ACCOUNT_MAPPINGS : mapped_to
+LOAN_ACCOUNT_MAPPINGS }o--o{ POLARIS_ACCOUNTS : uses
+POLARIS_ACCOUNTS ||--o{ POLARIS_TRANSACTIONS : records
+LOANS ||--o| BNPL_TRANSACTIONS : via
+BNPL_TRANSACTIONS }o--|| BNPL_PAYMENT_INVOICES : settles
+BNPL_PAYMENT_INVOICES }o--|| BNPL_TERMINALS : created_on
+BNPL_TERMINALS }o--|| MERCHANT_PROFILES : belongs_to
+MERCHANT_PROFILES ||--o{ MERCHANT_REFUND_REQUESTS : submits
+USERS ||--o{ AUDIT_LOGS : generates`
+},
+{
+  id:'auth', label:'Auth & Users', title:'Users, authentication & profiles',
+  desc:'Three user types share a single users table. Customers authenticate via OTP through Calpro SMS. Each user type has its own profile table. Sessions are tracked per device.',
+  badges:[{t:'customer',c:'badge-purple'},{t:'merchant',c:'badge-teal'},{t:'staff',c:'badge-amber'},{t:'Calpro OTP',c:'badge-coral'}],
+  diagram:`erDiagram
+USERS {
+  uuid id PK
+  string phone_number UK
+  string email UK
+  enum user_type "customer|merchant|staff"
+  enum status "active|suspended|deleted"
+  timestamp created_at
+  timestamp updated_at
+}
+CUSTOMER_PROFILES {
+  uuid id PK
+  uuid user_id FK
+  string national_id UK
+  string first_name
+  string last_name
+  date date_of_birth
+  string gender
+  text address
+  string photo_url
+  enum reg_status "pending|kyc_verified|active|rejected"
+  timestamp created_at
+}
+MERCHANT_PROFILES {
+  uuid id PK
+  uuid user_id FK
+  string business_name
+  string business_reg_no UK
+  string business_type
+  string contact_person
+  text address
+  enum status "pending|active|suspended"
+  timestamp created_at
+}
+STAFF_PROFILES {
+  uuid id PK
+  uuid user_id FK
+  string employee_id UK
+  string department
+  string role
+  jsonb permissions
+  timestamp created_at
+}
+OTP_SESSIONS {
+  uuid id PK
+  uuid user_id FK
+  string phone_number
+  string otp_code_hash
+  enum purpose "login|register|kyc|txn_confirm"
+  int attempt_count
+  string ip_address
+  timestamp expires_at
+  timestamp verified_at
+  timestamp created_at
+}
+USER_SESSIONS {
+  uuid id PK
+  uuid user_id FK
+  string token_hash UK
+  string device_id
+  string device_type
+  string ip_address
+  timestamp expires_at
+  timestamp revoked_at
+  timestamp created_at
+}
+CALPRO_MESSAGE_LOGS {
+  uuid id PK
+  uuid user_id FK
+  string phone_number
+  enum msg_type "otp|loan_alert|repayment_due|marketing"
+  string template_id
+  text content
+  enum status "queued|sent|delivered|failed"
+  jsonb provider_response
+  timestamp sent_at
+  timestamp delivered_at
+}
+USERS ||--o| CUSTOMER_PROFILES : has
+USERS ||--o| MERCHANT_PROFILES : has
+USERS ||--o| STAFF_PROFILES : has
+USERS ||--o{ OTP_SESSIONS : requests
+USERS ||--o{ USER_SESSIONS : creates
+USERS ||--o{ CALPRO_MESSAGE_LOGS : receives`
+},
+{
+  id:'kyc', label:'KYC & 3rd Party', title:'KYC verification & external data services',
+  desc:'Identity verified via Mongolian Dan service. Employment and salary data fetched from HUR. FICO-based Sain Score fetched from 3rd-party scoring engine. Each step tracked in KYC_VERIFICATION_STEPS.',
+  badges:[{t:'Dan (identity)',c:'badge-blue'},{t:'HUR (employment)',c:'badge-teal'},{t:'Sain Score (FICO)',c:'badge-purple'}],
+  diagram:`erDiagram
+CUSTOMER_PROFILES {
+  uuid id PK
+  uuid user_id FK
+  string national_id
+  enum reg_status "pending|kyc_verified|active|rejected"
+}
+DAN_VERIFICATIONS {
+  uuid id PK
+  uuid customer_id FK
+  string request_ref UK
+  string national_id_checked
+  enum status "pending|verified|failed|expired"
+  jsonb response_snapshot
+  string error_message
+  timestamp verified_at
+  timestamp created_at
+}
+HUR_DATA_SNAPSHOTS {
+  uuid id PK
+  uuid customer_id FK
+  string request_ref UK
+  string employer_name
+  string job_title
+  enum employment_type "full_time|part_time|contract|self_employed"
+  decimal salary_amount
+  string salary_currency
+  int social_security_months
+  date snapshot_date
+  jsonb raw_response
+  timestamp fetched_at
+}
+SAIN_SCORE_REQUESTS {
+  uuid id PK
+  uuid customer_id FK
+  string request_ref UK
+  int fico_score
+  decimal sain_score
+  string risk_grade
+  jsonb raw_response
+  timestamp requested_at
+  timestamp expires_at
+}
+KYC_VERIFICATION_STEPS {
+  uuid id PK
+  uuid customer_id FK
+  enum step "dan_check|hur_fetch|sain_score|final_review"
+  enum status "pending|completed|failed|skipped"
+  uuid reference_id
+  string reference_table
+  text notes
+  timestamp completed_at
+}
+CUSTOMER_PROFILES ||--o{ DAN_VERIFICATIONS : verified_by
+CUSTOMER_PROFILES ||--o{ HUR_DATA_SNAPSHOTS : employment_from
+CUSTOMER_PROFILES ||--o{ SAIN_SCORE_REQUESTS : scored_by
+CUSTOMER_PROFILES ||--o{ KYC_VERIFICATION_STEPS : tracks`
+},
+{
+  id:'credit', label:'Credit Scoring', title:'Credit scoring & borrowing limits',
+  desc:'Final credit score combines Sain Score and HUR data through a custom algorithm (versioned). Result determines per-product limits: one-tap, BNPL and SME. Utilisation is tracked live on LOAN_LIMITS.',
+  badges:[{t:'custom algorithm',c:'badge-purple'},{t:'versioned scoring',c:'badge-amber'},{t:'per-product limits',c:'badge-teal'}],
+  diagram:`erDiagram
+SAIN_SCORE_REQUESTS {
+  uuid id PK
+  uuid customer_id FK
+  decimal sain_score
+  string risk_grade
+  timestamp expires_at
+}
+HUR_DATA_SNAPSHOTS {
+  uuid id PK
+  uuid customer_id FK
+  decimal salary_amount
+  int social_security_months
+  string employment_type
+}
+CREDIT_SCORE_RESULTS {
+  uuid id PK
+  uuid customer_id FK
+  uuid sain_score_id FK
+  uuid hur_data_id FK
+  decimal final_score
+  string risk_grade
+  string algorithm_version
+  jsonb score_breakdown
+  timestamp calculated_at
+  timestamp valid_until
+  enum status "active|expired|superseded"
+}
+CREDIT_SCORING_FACTORS {
+  uuid id PK
+  uuid credit_score_id FK
+  string factor_name
+  decimal raw_value
+  decimal weight
+  decimal contribution
+  string explanation
+}
+LOAN_LIMITS {
+  uuid id PK
+  uuid customer_id FK
+  uuid credit_score_id FK
+  decimal max_total_limit
+  decimal one_tap_limit
+  decimal bnpl_limit
+  decimal sme_limit
+  string currency
+  decimal utilized_amount
+  decimal available_amount
+  timestamp valid_until
+  enum status "active|expired|suspended"
+  timestamp created_at
+}
+SAIN_SCORE_REQUESTS ||--o{ CREDIT_SCORE_RESULTS : feeds
+HUR_DATA_SNAPSHOTS ||--o{ CREDIT_SCORE_RESULTS : feeds
+CREDIT_SCORE_RESULTS ||--o{ CREDIT_SCORING_FACTORS : breaks_down
+CREDIT_SCORE_RESULTS ||--o| LOAN_LIMITS : determines`
+},
+{
+  id:'loans', label:'Loans', title:'Loan products, applications & disbursement',
+  desc:'Three product types share one product table with config JSON for per-product rules. Applications track the full approval workflow. Disbursed loans link to Polaris account mappings for core banking.',
+  badges:[{t:'one-tap',c:'badge-purple'},{t:'BNPL',c:'badge-teal'},{t:'SME',c:'badge-amber'}],
+  diagram:`erDiagram
+LOAN_PRODUCTS {
+  uuid id PK
+  enum product_type "one_tap|bnpl|sme"
+  string product_code UK
+  string name
+  decimal min_amount
+  decimal max_amount
+  decimal annual_interest_rate
+  int max_term_months
+  enum repayment_freq "daily|weekly|monthly"
+  jsonb product_config
+  boolean is_active
+  timestamp created_at
+}
+LOAN_APPLICATIONS {
+  uuid id PK
+  uuid customer_id FK
+  uuid product_id FK
+  uuid credit_score_id FK
+  decimal requested_amount
+  int requested_term_months
+  string purpose
+  enum status "draft|submitted|approved|rejected|disbursed|cancelled"
+  string rejection_reason
+  uuid processed_by_staff_id FK
+  timestamp applied_at
+  timestamp processed_at
+}
+LOANS {
+  uuid id PK
+  uuid application_id FK
+  uuid customer_id FK
+  uuid product_id FK
+  string loan_number UK
+  decimal principal_amount
+  decimal disbursed_amount
+  decimal interest_rate
+  int term_months
+  decimal total_payable
+  date maturity_date
+  enum status "active|closed|defaulted|written_off"
+  string polaris_loan_acc_no
+  timestamp disbursed_at
+  timestamp created_at
+}
+LOAN_ACCOUNT_MAPPINGS {
+  uuid id PK
+  uuid loan_id FK
+  string polaris_deposit_acc_no
+  string polaris_loan_acc_no
+  string polaris_repayment_pool_acc
+  string polaris_merchant_debt_acc
+  timestamp created_at
+}
+LOAN_PRODUCTS ||--o{ LOAN_APPLICATIONS : applied_for
+LOAN_APPLICATIONS ||--o| LOANS : creates
+LOANS ||--o| LOAN_ACCOUNT_MAPPINGS : mapped_to`
+},
+{
+  id:'bnpl', label:'BNPL Flow', title:'BNPL: Emart terminal QR payment flow',
+  desc:'Cashier creates a payment invoice → system generates QR → customer scans from terminal screen with mobile app → selects installment count → credit limit checked → loan approved → status callback sent to terminal. Full lifecycle tracked.',
+  badges:[{t:'QR generation',c:'badge-amber'},{t:'Emart terminal',c:'badge-teal'},{t:'installment split',c:'badge-purple'},{t:'callback to terminal',c:'badge-coral'}],
+  diagram:`erDiagram
+MERCHANT_PROFILES {
+  uuid id PK
+  string business_name
+  string business_reg_no
+}
+BNPL_TERMINALS {
+  uuid id PK
+  uuid merchant_id FK
+  string terminal_code UK
+  string terminal_name
+  string location_description
+  string api_endpoint
+  string secret_key_hash
+  enum status "active|inactive|maintenance"
+  timestamp registered_at
+}
+BNPL_PAYMENT_INVOICES {
+  uuid id PK
+  uuid terminal_id FK
+  uuid merchant_id FK
+  string cashier_reference
+  string invoice_number UK
+  decimal total_amount
+  string currency
+  jsonb items_snapshot
+  enum status "pending|qr_generated|processing|approved|rejected|expired|refunded"
+  timestamp created_at
+  timestamp expires_at
+  timestamp completed_at
+}
+BNPL_QR_CODES {
+  uuid id PK
+  uuid invoice_id FK
+  string qr_payload
+  string qr_image_url
+  uuid scanned_by_customer_id FK
+  int selected_installments
+  timestamp generated_at
+  timestamp expires_at
+  timestamp scanned_at
+}
+BNPL_TRANSACTIONS {
+  uuid id PK
+  uuid loan_id FK
+  uuid invoice_id FK
+  uuid customer_id FK
+  uuid merchant_id FK
+  decimal total_amount
+  int installment_count
+  decimal per_installment_amount
+  decimal interest_amount
+  enum status "processing|approved|rejected|disbursed"
+  timestamp approved_at
+  timestamp created_at
+}
+BNPL_TERMINAL_CALLBACKS {
+  uuid id PK
+  uuid transaction_id FK
+  uuid terminal_id FK
+  enum callback_type "approved|rejected|timeout"
+  jsonb payload
+  int http_status
+  int retry_count
+  enum status "pending|sent|acknowledged|failed"
+  timestamp sent_at
+  timestamp acknowledged_at
+}
+MERCHANT_PROFILES ||--o{ BNPL_TERMINALS : has
+BNPL_TERMINALS ||--o{ BNPL_PAYMENT_INVOICES : receives
+MERCHANT_PROFILES ||--o{ BNPL_PAYMENT_INVOICES : generates
+BNPL_PAYMENT_INVOICES ||--o{ BNPL_QR_CODES : produces
+BNPL_PAYMENT_INVOICES ||--o| BNPL_TRANSACTIONS : settled_by
+BNPL_TRANSACTIONS ||--o{ BNPL_TERMINAL_CALLBACKS : triggers`
+},
+{
+  id:'repayment', label:'Repayment', title:'Repayment schedules & QPAY tracking',
+  desc:'Schedule generated at disbursement per installment. Customers repay through QPAY invoices and callbacks; validated payments become repayment transactions referencing the Polaris transaction. Late payments generate penalty records which can be waived by staff.',
+  badges:[{t:'auto-schedule',c:'badge-teal'},{t:'QPAY invoices',c:'badge-purple'},{t:'QPAY callbacks',c:'badge-amber'},{t:'penalty tracking',c:'badge-coral'},{t:'Polaris sync',c:'badge-blue'}],
+  diagram:`erDiagram
+LOANS {
+  uuid id PK
+  string loan_number
+  decimal principal_amount
+  int term_months
+  enum status "active|closed|defaulted"
+}
+REPAYMENT_SCHEDULES {
+  uuid id PK
+  uuid loan_id FK
+  int installment_number
+  date due_date
+  decimal principal_amount
+  decimal interest_amount
+  decimal penalty_amount
+  decimal total_due
+  decimal paid_amount
+  decimal outstanding_amount
+  enum status "pending|partial|paid|overdue|waived"
+  timestamp paid_at
+}
+QPAY_REPAYMENT_INVOICES {
+  uuid id PK
+  uuid schedule_id FK
+  uuid loan_id FK
+  uuid customer_id FK
+  string invoice_number UK
+  string qpay_invoice_id UK
+  decimal amount
+  string currency
+  text qr_payload
+  string qr_image_url
+  string deep_link_url
+  enum status "pending|created|paid|expired|cancelled|failed"
+  jsonb request_payload
+  jsonb response_payload
+  timestamp expires_at
+  timestamp paid_at
+}
+QPAY_REPAYMENT_CALLBACKS {
+  uuid id PK
+  uuid qpay_repayment_invoice_id FK
+  string qpay_invoice_id
+  string qpay_payment_id
+  string payment_status
+  jsonb payload
+  enum status "received|processed|failed|ignored"
+  string error_message
+  timestamp received_at
+  timestamp processed_at
+}
+REPAYMENT_TRANSACTIONS {
+  uuid id PK
+  uuid schedule_id FK
+  uuid loan_id FK
+  uuid customer_id FK
+  decimal amount
+  decimal principal_portion
+  decimal interest_portion
+  decimal penalty_portion
+  uuid qpay_repayment_invoice_id FK
+  enum payment_channel "qpay"
+  string transaction_ref UK
+  string polaris_txn_ref
+  enum status "pending|completed|failed|reversed"
+  timestamp processed_at
+}
+PENALTY_RECORDS {
+  uuid id PK
+  uuid schedule_id FK
+  uuid loan_id FK
+  decimal penalty_amount
+  enum penalty_type "late_payment|early_exit"
+  int overdue_days
+  boolean is_waived
+  uuid waived_by_staff_id FK
+  string waiver_reason
+  timestamp created_at
+}
+LOANS ||--o{ REPAYMENT_SCHEDULES : has
+REPAYMENT_SCHEDULES ||--o{ QPAY_REPAYMENT_INVOICES : billed_by
+QPAY_REPAYMENT_INVOICES ||--o{ QPAY_REPAYMENT_CALLBACKS : receives
+QPAY_REPAYMENT_INVOICES ||--o| REPAYMENT_TRANSACTIONS : settles_as
+REPAYMENT_SCHEDULES ||--o{ REPAYMENT_TRANSACTIONS : recorded_by
+REPAYMENT_SCHEDULES ||--o{ PENALTY_RECORDS : incurs`
+},
+{
+  id:'polaris', label:'Polaris Core', title:'Polaris core banking integration',
+  desc:'POLARIS_ACCOUNTS stores all account numbers with usage labels: customer deposit, loan account, repayment pool, internal, merchant debt. Transactions are double-entry logged and synced via API. A sync queue handles retries.',
+  badges:[{t:'deposit account',c:'badge-blue'},{t:'loan account',c:'badge-purple'},{t:'repayment pool',c:'badge-teal'},{t:'merchant debt',c:'badge-amber'},{t:'API integration',c:'badge-gray'}],
+  diagram:`erDiagram
+POLARIS_ACCOUNTS {
+  uuid id PK
+  string account_number UK
+  enum account_type "customer_deposit|loan|repayment_pool|internal|merchant_debt"
+  enum owner_type "customer|merchant|system"
+  uuid owner_id
+  string product_ref
+  string currency
+  decimal current_balance
+  enum status "active|frozen|closed"
+  timestamp polaris_synced_at
+  timestamp created_at
+}
+POLARIS_TRANSACTIONS {
+  uuid id PK
+  uuid polaris_account_id FK
+  string transaction_ref UK
+  string polaris_txn_id
+  enum debit_credit "debit|credit"
+  decimal amount
+  decimal balance_after
+  string narration
+  string source_module
+  uuid source_ref_id
+  date value_date
+  timestamp posted_at
+  enum sync_status "pending|synced|failed"
+}
+POLARIS_API_LOGS {
+  uuid id PK
+  string endpoint
+  string http_method
+  jsonb request_payload
+  jsonb response_payload
+  int http_status_code
+  int duration_ms
+  string correlation_id
+  string error_message
+  boolean is_success
+  timestamp created_at
+}
+LOAN_ACCOUNT_MAPPINGS {
+  uuid id PK
+  uuid loan_id FK
+  string polaris_deposit_acc_no
+  string polaris_loan_acc_no
+  string polaris_repayment_pool_acc
+  string polaris_merchant_debt_acc
+  timestamp created_at
+}
+POLARIS_SYNC_QUEUE {
+  uuid id PK
+  string source_table
+  uuid source_id
+  enum operation "create_account|post_txn|update_balance|close_account"
+  jsonb payload
+  int retry_count
+  enum status "pending|processing|completed|dead_letter"
+  string error_message
+  timestamp created_at
+  timestamp processed_at
+}
+POLARIS_ACCOUNTS ||--o{ POLARIS_TRANSACTIONS : records
+LOAN_ACCOUNT_MAPPINGS }o--o{ POLARIS_ACCOUNTS : references
+POLARIS_SYNC_QUEUE ||--o{ POLARIS_API_LOGS : generates`
+},
+{
+  id:'merchant', label:'Merchant Portal', title:'Merchant portal: monitoring, refunds & returns',
+  desc:'Merchants access via their own portal users (admin/cashier/viewer roles). They can request full or partial refunds for BNPL transactions with item-level return details. Staff review refunds before processing. Settlement batches tracked.',
+  badges:[{t:'refund workflow',c:'badge-coral'},{t:'item returns',c:'badge-teal'},{t:'settlement batches',c:'badge-amber'},{t:'staff approval',c:'badge-gray'}],
+  diagram:`erDiagram
+MERCHANT_PROFILES {
+  uuid id PK
+  string business_name
+  string business_reg_no
+  enum status "active|suspended"
+}
+MERCHANT_PORTAL_USERS {
+  uuid id PK
+  uuid merchant_id FK
+  uuid user_id FK
+  enum role "admin|cashier|viewer"
+  jsonb permissions
+  enum status "active|suspended"
+  timestamp created_at
+}
+MERCHANT_REFUND_REQUESTS {
+  uuid id PK
+  uuid bnpl_transaction_id FK
+  uuid merchant_id FK
+  uuid requested_by_portal_user_id FK
+  decimal refund_amount
+  enum refund_type "full|partial"
+  string reason
+  enum status "pending|under_review|approved|rejected|processed"
+  uuid reviewed_by_staff_id FK
+  string staff_notes
+  string polaris_reversal_ref
+  timestamp requested_at
+  timestamp reviewed_at
+  timestamp processed_at
+}
+MERCHANT_RETURN_ITEMS {
+  uuid id PK
+  uuid refund_request_id FK
+  string item_code
+  string item_description
+  int quantity
+  decimal unit_price
+  decimal total_price
+}
+MERCHANT_SETTLEMENTS {
+  uuid id PK
+  uuid merchant_id FK
+  date settlement_date
+  decimal total_bnpl_amount
+  decimal total_refunds
+  decimal net_settlement
+  int transaction_count
+  enum status "pending|processing|completed|failed"
+  string polaris_txn_ref
+  timestamp created_at
+  timestamp settled_at
+}
+MERCHANT_PROFILES ||--o{ MERCHANT_PORTAL_USERS : has
+MERCHANT_PROFILES ||--o{ MERCHANT_REFUND_REQUESTS : requests
+MERCHANT_PROFILES ||--o{ MERCHANT_SETTLEMENTS : receives
+MERCHANT_PORTAL_USERS ||--o{ MERCHANT_REFUND_REQUESTS : creates
+MERCHANT_REFUND_REQUESTS ||--o{ MERCHANT_RETURN_ITEMS : contains`
+},
+{
+  id:'audit', label:'Audit & Logs', title:'Audit trail, notifications & system logs',
+  desc:'Every state change is written to AUDIT_LOGS with before/after JSON snapshots. Notifications are templated and tracked per channel delivery status. System events log by severity for operations monitoring.',
+  badges:[{t:'full before/after',c:'badge-purple'},{t:'SMS / push / email',c:'badge-teal'},{t:'templated notifications',c:'badge-amber'},{t:'compliance logs',c:'badge-gray'}],
+  diagram:`erDiagram
+AUDIT_LOGS {
+  uuid id PK
+  uuid user_id FK
+  string action
+  string entity_type
+  uuid entity_id
+  jsonb old_value
+  jsonb new_value
+  string ip_address
+  string user_agent
+  string session_id
+  string source_module
+  timestamp created_at
+}
+STAFF_ACTION_REVIEWS {
+  uuid id PK
+  uuid audit_log_id FK
+  uuid reviewer_staff_id FK
+  enum review_type "routine|escalated|compliance"
+  string outcome
+  text notes
+  timestamp reviewed_at
+}
+NOTIFICATION_TEMPLATES {
+  uuid id PK
+  string template_code UK
+  enum channel "sms|push|email|in_app"
+  string subject
+  text body_template
+  string language
+  boolean is_active
+  timestamp created_at
+}
+NOTIFICATION_LOGS {
+  uuid id PK
+  uuid user_id FK
+  uuid template_id FK
+  enum channel "sms|push|email|in_app"
+  string recipient_address
+  text rendered_content
+  enum status "queued|sent|delivered|read|failed"
+  string provider_message_id
+  string error_message
+  timestamp queued_at
+  timestamp sent_at
+  timestamp delivered_at
+  timestamp read_at
+}
+SYSTEM_EVENT_LOGS {
+  uuid id PK
+  string service_name
+  string event_type
+  enum severity "debug|info|warn|error|critical"
+  text message
+  jsonb metadata
+  string trace_id
+  string correlation_id
+  timestamp created_at
+}
+AUDIT_LOGS ||--o{ STAFF_ACTION_REVIEWS : escalated_to
+NOTIFICATION_TEMPLATES ||--o{ NOTIFICATION_LOGS : used_by`
+}
+];
+
+const navEl = document.getElementById('nav');
+const panelsEl = document.getElementById('panels');
+const done = new Set();
+const zoomByDomain = new Map();
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 3;
+const ZOOM_STEP = 0.15;
+const WHEEL_ZOOM_SPEED = 0.0015;
+
+domains.forEach((d, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'tab-btn' + (i === 0 ? ' on' : '');
+  btn.textContent = d.label;
+  btn.dataset.id = d.id;
+  btn.onclick = () => show(d.id);
+  navEl.appendChild(btn);
+
+  const panel = document.createElement('div');
+  panel.id = 'p-' + d.id;
+  panel.className = 'panel' + (i === 0 ? ' on' : '');
+  const badgeHTML = (d.badges || []).map(b => `<span class="badge ${b.c}">${b.t}</span>`).join('');
+  panel.innerHTML = `
+    <div class="ph">
+      <div class="pt">${d.title}</div>
+      <div class="pd">${d.desc}</div>
+      ${badgeHTML ? `<div class="badges">${badgeHTML}</div>` : ''}
+    </div>
+    <div class="diagram-tools" data-domain="${d.id}">
+      <button class="tool-btn" type="button" data-zoom-action="out" title="Zoom out" aria-label="Zoom out">-</button>
+      <span class="zoom-readout" id="zr-${d.id}">100%</span>
+      <button class="tool-btn" type="button" data-zoom-action="in" title="Zoom in" aria-label="Zoom in">+</button>
+      <button class="tool-btn" type="button" data-zoom-action="reset" title="Reset zoom" aria-label="Reset zoom">100%</button>
+      <button class="tool-btn" type="button" data-zoom-action="fit" title="Fit to width" aria-label="Fit to width">Fit</button>
+    </div>
+    <div class="econ" id="e-${d.id}"><div class="diagram-zoom" id="dz-${d.id}"><div class="loading">Rendering ERD...</div></div></div>`;
+  panelsEl.appendChild(panel);
+});
+
+function clamp(n, min, max) {
+  return Math.min(max, Math.max(min, n));
+}
+
+function currentZoom(id) {
+  return zoomByDomain.get(id) || 1;
+}
+
+function naturalSvgSize(svg) {
+  const viewBox = svg.getAttribute('viewBox')?.trim().split(/[\s,]+/).map(Number);
+  if (viewBox && viewBox.length === 4 && viewBox[2] && viewBox[3]) {
+    return { width: viewBox[2], height: viewBox[3] };
+  }
+  return {
+    width: parseFloat(svg.getAttribute('width')) || svg.getBoundingClientRect().width || 900,
+    height: parseFloat(svg.getAttribute('height')) || svg.getBoundingClientRect().height || 600
+  };
+}
+
+function applyZoom(id) {
+  const scale = currentZoom(id);
+  const svg = document.querySelector(`#dz-${id} svg`);
+  const readout = document.getElementById(`zr-${id}`);
+  if (svg) {
+    if (!svg.dataset.baseWidth || !svg.dataset.baseHeight) {
+      const size = naturalSvgSize(svg);
+      svg.dataset.baseWidth = size.width;
+      svg.dataset.baseHeight = size.height;
+    }
+    svg.style.width = `${Math.round(Number(svg.dataset.baseWidth) * scale)}px`;
+    svg.style.height = `${Math.round(Number(svg.dataset.baseHeight) * scale)}px`;
+  }
+  if (readout) readout.textContent = `${Math.round(scale * 100)}%`;
+}
+
+function setZoom(id, nextZoom) {
+  zoomByDomain.set(id, clamp(nextZoom, ZOOM_MIN, ZOOM_MAX));
+  applyZoom(id);
+}
+
+function setZoomAtPoint(id, nextZoom, clientX, clientY) {
+  const viewport = document.getElementById(`e-${id}`);
+  if (!viewport) {
+    setZoom(id, nextZoom);
+    return;
+  }
+  const oldZoom = currentZoom(id);
+  const rect = viewport.getBoundingClientRect();
+  const contentX = viewport.scrollLeft + clientX - rect.left;
+  const contentY = viewport.scrollTop + clientY - rect.top;
+  const anchorX = contentX / oldZoom;
+  const anchorY = contentY / oldZoom;
+  setZoom(id, nextZoom);
+  const newZoom = currentZoom(id);
+  viewport.scrollLeft = anchorX * newZoom - (clientX - rect.left);
+  viewport.scrollTop = anchorY * newZoom - (clientY - rect.top);
+}
+
+function fitToWidth(id) {
+  const viewport = document.getElementById(`e-${id}`);
+  const svg = document.querySelector(`#dz-${id} svg`);
+  if (!viewport || !svg) return;
+  if (!svg.dataset.baseWidth || !svg.dataset.baseHeight) {
+    const size = naturalSvgSize(svg);
+    svg.dataset.baseWidth = size.width;
+    svg.dataset.baseHeight = size.height;
+  }
+  setZoom(id, (viewport.clientWidth - 24) / Number(svg.dataset.baseWidth));
+}
+
+panelsEl.addEventListener('click', event => {
+  const btn = event.target.closest('[data-zoom-action]');
+  if (!btn) return;
+  const id = btn.closest('.diagram-tools')?.dataset.domain;
+  if (!id) return;
+  const action = btn.dataset.zoomAction;
+  if (action === 'in') setZoom(id, currentZoom(id) + ZOOM_STEP);
+  if (action === 'out') setZoom(id, currentZoom(id) - ZOOM_STEP);
+  if (action === 'reset') setZoom(id, 1);
+  if (action === 'fit') fitToWidth(id);
+});
+
+panelsEl.addEventListener('wheel', event => {
+  if (!event.ctrlKey && !event.metaKey) return;
+  const viewport = event.target.closest('.econ');
+  if (!viewport) return;
+  event.preventDefault();
+  const id = viewport.id.replace(/^e-/, '');
+  const multiplier = Math.exp(-event.deltaY * WHEEL_ZOOM_SPEED);
+  setZoomAtPoint(id, currentZoom(id) * multiplier, event.clientX, event.clientY);
+}, { passive: false });
+
+panelsEl.addEventListener('pointerdown', event => {
+  const viewport = event.target.closest('.econ');
+  if (!viewport || event.button !== 0) return;
+  const rect = viewport.getBoundingClientRect();
+  if (event.clientX > rect.right - 20 && event.clientY > rect.bottom - 20) return;
+  event.preventDefault();
+  viewport.classList.add('dragging');
+  viewport.setPointerCapture(event.pointerId);
+  viewport.dataset.dragStartX = event.clientX;
+  viewport.dataset.dragStartY = event.clientY;
+  viewport.dataset.dragScrollLeft = viewport.scrollLeft;
+  viewport.dataset.dragScrollTop = viewport.scrollTop;
+});
+
+panelsEl.addEventListener('pointermove', event => {
+  const viewport = event.target.closest('.econ.dragging');
+  if (!viewport) return;
+  event.preventDefault();
+  viewport.scrollLeft = Number(viewport.dataset.dragScrollLeft) - (event.clientX - Number(viewport.dataset.dragStartX));
+  viewport.scrollTop = Number(viewport.dataset.dragScrollTop) - (event.clientY - Number(viewport.dataset.dragStartY));
+});
+
+function stopDrag(event) {
+  const viewport = event.target.closest('.econ.dragging');
+  if (!viewport) return;
+  viewport.classList.remove('dragging');
+  if (viewport.hasPointerCapture?.(event.pointerId)) viewport.releasePointerCapture(event.pointerId);
+}
+
+panelsEl.addEventListener('pointerup', stopDrag);
+panelsEl.addEventListener('pointercancel', stopDrag);
+
+async function render(id) {
+  if (done.has(id)) return;
+  done.add(id);
+  const d = domains.find(x => x.id === id);
+  const el = document.getElementById('e-' + id);
+  const zoomEl = document.getElementById('dz-' + id);
+  try {
+    const { svg } = await mermaid.render('m-' + id, d.diagram);
+    zoomEl.innerHTML = svg;
+    el.querySelectorAll('svg .node').forEach(node => {
+      const p = node.querySelector('path[d]');
+      if (!p) return;
+      const nums = p.getAttribute('d').match(/-?[\d.]+/g)?.map(Number);
+      if (!nums || nums.length < 8) return;
+      const xs = [nums[0],nums[2],nums[4],nums[6]];
+      const ys = [nums[1],nums[3],nums[5],nums[7]];
+      const x = Math.min(...xs), y = Math.min(...ys);
+      const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+      const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      rect.setAttribute('x',x); rect.setAttribute('y',y);
+      rect.setAttribute('width',w); rect.setAttribute('height',h);
+      rect.setAttribute('rx','8');
+      for (const a of ['fill','stroke','stroke-width','class','style']) {
+        if (p.hasAttribute(a)) rect.setAttribute(a, p.getAttribute(a));
+      }
+      p.replaceWith(rect);
+    });
+    el.querySelectorAll('svg .row-rect-odd path, svg .row-rect-even path').forEach(p => {
+      p.setAttribute('stroke','none');
+    });
+    applyZoom(id);
+  } catch(e) {
+    zoomEl.innerHTML = `<div style="color:#a32d2d;font-size:12px;padding:16px">Render error: ${e.message}</div>`;
+  }
+}
+
+function show(id) {
+  navEl.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('on', b.dataset.id === id));
+  panelsEl.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.id === 'p-' + id));
+  render(id);
+}
+
+render('overview');
+</script>
+</body>
+</html>
