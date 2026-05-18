@@ -424,6 +424,7 @@ CREATE TYPE product_type_enum   AS ENUM ('one_tap', 'bnpl', 'sme');
 CREATE TYPE loan_app_status     AS ENUM ('draft','submitted','approved','rejected','disbursed','cancelled');
 CREATE TYPE loan_status_enum    AS ENUM ('active','closed','defaulted','written_off');
 CREATE TYPE repayment_freq_enum AS ENUM ('daily','weekly','monthly');
+CREATE TYPE loan_duration_unit_enum AS ENUM ('day','month');
 
 CREATE TABLE loan_products (
     id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -440,19 +441,71 @@ CREATE TABLE loan_products (
     created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- User-selectable loan durations configured per product, e.g. 7 days, 30 days, 3 months
+CREATE TABLE loan_product_duration_options (
+    id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    product_id            UUID NOT NULL REFERENCES loan_products(id) ON DELETE CASCADE,
+    duration_value        INT NOT NULL CHECK (duration_value > 0),
+    duration_unit         loan_duration_unit_enum NOT NULL,
+    label                 VARCHAR(100) NOT NULL,
+    repayment_freq        repayment_freq_enum,
+    min_amount            NUMERIC(14,2),
+    max_amount            NUMERIC(14,2),
+    annual_interest_rate  NUMERIC(6,4),
+    fee_rate              NUMERIC(6,4) NOT NULL DEFAULT 0,
+    fee_amount            NUMERIC(14,2) NOT NULL DEFAULT 0,
+    is_default            BOOLEAN NOT NULL DEFAULT FALSE,
+    sort_order            INT NOT NULL DEFAULT 0,
+    is_active             BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (min_amount IS NULL OR max_amount IS NULL OR max_amount >= min_amount),
+    UNIQUE (product_id, duration_value, duration_unit)
+);
+
+-- User-selectable BNPL split-count options configured per BNPL product
+CREATE TABLE bnpl_installment_options (
+    id                              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    product_id                      UUID NOT NULL REFERENCES loan_products(id) ON DELETE CASCADE,
+    installment_count               INT NOT NULL CHECK (installment_count > 0),
+    label                           VARCHAR(100) NOT NULL,
+    min_amount                      NUMERIC(14,2),
+    max_amount                      NUMERIC(14,2),
+    first_payment_due_value         INT NOT NULL DEFAULT 0 CHECK (first_payment_due_value >= 0),
+    first_payment_due_unit          loan_duration_unit_enum NOT NULL DEFAULT 'day',
+    installment_interval_value      INT NOT NULL DEFAULT 1 CHECK (installment_interval_value > 0),
+    installment_interval_unit       loan_duration_unit_enum NOT NULL DEFAULT 'month',
+    annual_interest_rate            NUMERIC(6,4),
+    fee_rate                        NUMERIC(6,4) NOT NULL DEFAULT 0,
+    fee_amount                      NUMERIC(14,2) NOT NULL DEFAULT 0,
+    is_default                      BOOLEAN NOT NULL DEFAULT FALSE,
+    sort_order                      INT NOT NULL DEFAULT 0,
+    is_active                       BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at                      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (min_amount IS NULL OR max_amount IS NULL OR max_amount >= min_amount),
+    UNIQUE (product_id, installment_count)
+);
+
 CREATE TABLE loan_applications (
     id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     customer_id           UUID NOT NULL REFERENCES customer_profiles(id),
     product_id            UUID NOT NULL REFERENCES loan_products(id),
     credit_score_id       UUID NOT NULL REFERENCES credit_score_results(id),
     requested_amount      NUMERIC(14,2) NOT NULL,
-    requested_term_months INT NOT NULL,
+    duration_option_id    UUID REFERENCES loan_product_duration_options(id),
+    requested_duration_value INT CHECK (requested_duration_value IS NULL OR requested_duration_value > 0),
+    requested_duration_unit  loan_duration_unit_enum,
+    requested_term_months INT,        -- legacy/monthly products; prefer duration_option_id + requested_duration_*
+    bnpl_installment_option_id UUID REFERENCES bnpl_installment_options(id),
     purpose               VARCHAR(200),
     status                loan_app_status NOT NULL DEFAULT 'draft',
     rejection_reason      TEXT,
     processed_by_staff_id UUID REFERENCES staff_profiles(id),
     applied_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    processed_at          TIMESTAMPTZ
+    processed_at          TIMESTAMPTZ,
+    CHECK (
+        (requested_duration_value IS NULL AND requested_duration_unit IS NULL)
+        OR (requested_duration_value IS NOT NULL AND requested_duration_unit IS NOT NULL)
+    )
 );
 
 CREATE TABLE loans (
@@ -464,13 +517,21 @@ CREATE TABLE loans (
     principal_amount    NUMERIC(14,2) NOT NULL,
     disbursed_amount    NUMERIC(14,2),
     interest_rate       NUMERIC(6,4) NOT NULL,
-    term_months         INT NOT NULL,
+    duration_option_id  UUID REFERENCES loan_product_duration_options(id),
+    duration_value      INT CHECK (duration_value IS NULL OR duration_value > 0),
+    duration_unit       loan_duration_unit_enum,
+    term_months         INT,          -- legacy/monthly products; prefer duration_value + duration_unit
+    bnpl_installment_option_id UUID REFERENCES bnpl_installment_options(id),
     total_payable       NUMERIC(14,2),
     maturity_date       DATE,
     status              loan_status_enum NOT NULL DEFAULT 'active',
     polaris_loan_acc_no VARCHAR(30),
     disbursed_at        TIMESTAMPTZ,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (
+        (duration_value IS NULL AND duration_unit IS NULL)
+        OR (duration_value IS NOT NULL AND duration_unit IS NOT NULL)
+    )
 );
 
 -- Maps a loan to all Polaris account numbers used in its lifecycle
@@ -486,6 +547,14 @@ CREATE TABLE loan_account_mappings (
 
 CREATE INDEX idx_loans_customer     ON loans(customer_id);
 CREATE INDEX idx_loan_apps_customer ON loan_applications(customer_id);
+CREATE INDEX idx_duration_options_product ON loan_product_duration_options(product_id, is_active, sort_order);
+CREATE UNIQUE INDEX idx_duration_options_default ON loan_product_duration_options(product_id) WHERE is_default = TRUE;
+CREATE INDEX idx_bnpl_installment_options_product ON bnpl_installment_options(product_id, is_active, sort_order);
+CREATE UNIQUE INDEX idx_bnpl_installment_options_default ON bnpl_installment_options(product_id) WHERE is_default = TRUE;
+CREATE INDEX idx_loan_apps_duration_option ON loan_applications(duration_option_id);
+CREATE INDEX idx_loan_apps_bnpl_option ON loan_applications(bnpl_installment_option_id);
+CREATE INDEX idx_loans_duration_option ON loans(duration_option_id);
+CREATE INDEX idx_loans_bnpl_option ON loans(bnpl_installment_option_id);
 
 
 -- ============================================================
@@ -532,7 +601,8 @@ CREATE TABLE bnpl_qr_codes (
     qr_payload              TEXT NOT NULL,
     qr_image_url            TEXT,
     scanned_by_customer_id  UUID REFERENCES customer_profiles(id),
-    selected_installments   INT,        -- how many splits customer chose
+    selected_installment_option_id UUID REFERENCES bnpl_installment_options(id),
+    selected_installments   INT,        -- denormalized split count shown/selected by customer
     generated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at              TIMESTAMPTZ NOT NULL,
     scanned_at              TIMESTAMPTZ
@@ -545,6 +615,7 @@ CREATE TABLE bnpl_transactions (
     invoice_id              UUID NOT NULL UNIQUE REFERENCES bnpl_payment_invoices(id),
     customer_id             UUID NOT NULL REFERENCES customer_profiles(id),
     merchant_id             UUID NOT NULL REFERENCES merchant_profiles(id),
+    installment_option_id   UUID REFERENCES bnpl_installment_options(id),
     total_amount            NUMERIC(14,2) NOT NULL,
     installment_count       INT NOT NULL,
     per_installment_amount  NUMERIC(14,2) NOT NULL,
@@ -572,7 +643,9 @@ CREATE TABLE bnpl_terminal_callbacks (
 CREATE INDEX idx_invoices_terminal  ON bnpl_payment_invoices(terminal_id);
 CREATE INDEX idx_invoices_merchant  ON bnpl_payment_invoices(merchant_id);
 CREATE INDEX idx_qr_invoice         ON bnpl_qr_codes(invoice_id);
+CREATE INDEX idx_qr_installment_option ON bnpl_qr_codes(selected_installment_option_id);
 CREATE INDEX idx_bnpl_txn_customer  ON bnpl_transactions(customer_id);
+CREATE INDEX idx_bnpl_txn_installment_option ON bnpl_transactions(installment_option_id);
 
 
 -- ============================================================
@@ -1060,6 +1133,59 @@ WHERE status = 'active'
   AND starts_at <= NOW()
   AND (ends_at IS NULL OR ends_at > NOW())
 ORDER BY starts_at DESC;
+
+-- Active loan duration options to show customers when applying for non-BNPL loans
+CREATE VIEW v_active_loan_duration_options AS
+SELECT
+    lp.id AS product_id,
+    lp.product_code,
+    lp.product_type,
+    lp.name AS product_name,
+    ldo.id AS duration_option_id,
+    ldo.label,
+    ldo.duration_value,
+    ldo.duration_unit,
+    ldo.repayment_freq,
+    COALESCE(ldo.min_amount, lp.min_amount) AS min_amount,
+    COALESCE(ldo.max_amount, lp.max_amount) AS max_amount,
+    COALESCE(ldo.annual_interest_rate, lp.annual_interest_rate) AS annual_interest_rate,
+    ldo.fee_rate,
+    ldo.fee_amount,
+    ldo.is_default,
+    ldo.sort_order
+FROM loan_products lp
+JOIN loan_product_duration_options ldo ON ldo.product_id = lp.id
+WHERE lp.is_active = TRUE
+  AND ldo.is_active = TRUE
+  AND lp.product_type <> 'bnpl'
+ORDER BY lp.product_code, ldo.sort_order, ldo.duration_unit, ldo.duration_value;
+
+-- Active BNPL installment split options to show customers at checkout
+CREATE VIEW v_active_bnpl_installment_options AS
+SELECT
+    lp.id AS product_id,
+    lp.product_code,
+    lp.name AS product_name,
+    bio.id AS installment_option_id,
+    bio.label,
+    bio.installment_count,
+    COALESCE(bio.min_amount, lp.min_amount) AS min_amount,
+    COALESCE(bio.max_amount, lp.max_amount) AS max_amount,
+    bio.first_payment_due_value,
+    bio.first_payment_due_unit,
+    bio.installment_interval_value,
+    bio.installment_interval_unit,
+    COALESCE(bio.annual_interest_rate, lp.annual_interest_rate) AS annual_interest_rate,
+    bio.fee_rate,
+    bio.fee_amount,
+    bio.is_default,
+    bio.sort_order
+FROM loan_products lp
+JOIN bnpl_installment_options bio ON bio.product_id = lp.id
+WHERE lp.is_active = TRUE
+  AND bio.is_active = TRUE
+  AND lp.product_type = 'bnpl'
+ORDER BY lp.product_code, bio.sort_order, bio.installment_count;
 
 -- Customer loan summary
 CREATE VIEW v_customer_loan_summary AS
