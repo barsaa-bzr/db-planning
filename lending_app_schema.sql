@@ -29,6 +29,7 @@ CREATE TYPE otp_purpose_enum       AS ENUM ('login', 'register', 'kyc', 'txn_con
 CREATE TYPE calpro_msg_type_enum   AS ENUM ('otp', 'loan_alert', 'repayment_due', 'marketing');
 CREATE TYPE msg_status_enum        AS ENUM ('queued', 'sent', 'delivered', 'failed');
 CREATE TYPE reg_status_enum        AS ENUM ('pending', 'kyc_verified', 'active', 'rejected');
+CREATE TYPE customer_kind_enum     AS ENUM ('person', 'company');
 
 CREATE TABLE users (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -44,6 +45,8 @@ CREATE TABLE users (
 CREATE TABLE customer_profiles (
     id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id           UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    customer_kind     customer_kind_enum NOT NULL DEFAULT 'person',
+    polaris_customer_id VARCHAR(100) UNIQUE,  -- customer reference returned by Polaris core system
     national_id       VARCHAR(20) NOT NULL UNIQUE,
     first_name        VARCHAR(100) NOT NULL,
     last_name         VARCHAR(100) NOT NULL,
@@ -118,6 +121,8 @@ CREATE TABLE calpro_message_logs (
 );
 
 CREATE INDEX idx_users_phone         ON users(phone_number);
+CREATE INDEX idx_customer_kind       ON customer_profiles(customer_kind);
+CREATE INDEX idx_customer_polaris_id ON customer_profiles(polaris_customer_id);
 CREATE INDEX idx_otp_phone_purpose   ON otp_sessions(phone_number, purpose);
 CREATE INDEX idx_sessions_user       ON user_sessions(user_id);
 CREATE INDEX idx_calpro_user         ON calpro_message_logs(user_id);
