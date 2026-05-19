@@ -29,7 +29,7 @@ CREATE TYPE otp_purpose_enum       AS ENUM ('login', 'register', 'kyc', 'txn_con
 CREATE TYPE msg_type_enum          AS ENUM ('otp', 'loan_alert', 'repayment_due', 'marketing');
 CREATE TYPE msg_status_enum        AS ENUM ('queued', 'sent', 'delivered', 'failed');
 CREATE TYPE reg_status_enum        AS ENUM ('pending', 'kyc_verified', 'active', 'rejected');
-CREATE TYPE customer_kind_enum     AS ENUM ('person', 'company');
+CREATE TYPE customer_type_enum     AS ENUM ('person', 'company');
 
 CREATE TABLE users (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -45,7 +45,7 @@ CREATE TABLE users (
 CREATE TABLE customer_profiles (
     id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id           UUID NOT NULL UNIQUE REFERENCES users(id),
-    customer_kind     customer_kind_enum NOT NULL DEFAULT 'person',
+    customer_type     customer_type_enum NOT NULL DEFAULT 'person',
     polaris_cust_code VARCHAR(100) UNIQUE,  -- Polaris/OI custCode
     national_id_encrypted BYTEA NOT NULL,
     national_id_hash  BYTEA NOT NULL UNIQUE,
@@ -123,7 +123,7 @@ CREATE TABLE message_logs (
 );
 
 CREATE INDEX idx_users_phone         ON users(phone_number);
-CREATE INDEX idx_customer_kind       ON customer_profiles(customer_kind);
+CREATE INDEX idx_customer_type       ON customer_profiles(customer_type);
 CREATE INDEX idx_customer_polaris_cust_code ON customer_profiles(polaris_cust_code);
 CREATE INDEX idx_otp_phone_purpose   ON otp_sessions(phone_number, purpose);
 CREATE INDEX idx_sessions_user       ON user_sessions(user_id);
