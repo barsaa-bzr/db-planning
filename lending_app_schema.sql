@@ -26,6 +26,10 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TYPE user_type_enum         AS ENUM ('customer', 'merchant', 'staff');
 CREATE TYPE user_status_enum       AS ENUM ('active', 'suspended', 'deleted');
 CREATE TYPE otp_purpose_enum       AS ENUM ('login', 'register', 'kyc', 'txn_confirm');
+CREATE TYPE auth_factor_status_enum AS ENUM ('active','locked','disabled','revoked');
+CREATE TYPE login_auth_method_enum AS ENUM ('password','otp','biometric');
+CREATE TYPE txn_auth_method_enum   AS ENUM ('pin','biometric');
+CREATE TYPE txn_auth_status_enum   AS ENUM ('pending','authorized','failed','expired','cancelled');
 CREATE TYPE msg_type_enum          AS ENUM ('otp', 'loan_alert', 'repayment_due', 'marketing');
 CREATE TYPE msg_status_enum        AS ENUM ('queued', 'sent', 'delivered', 'failed');
 CREATE TYPE reg_status_enum        AS ENUM ('pending', 'kyc_verified', 'active', 'rejected');
@@ -81,6 +85,41 @@ CREATE TABLE staff_profiles (
     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Customer transaction PIN. The raw four-digit PIN is validated by the app and never stored.
+CREATE TABLE customer_pin_credentials (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id          UUID NOT NULL UNIQUE REFERENCES customer_profiles(id),
+    pin_hash             VARCHAR(255) NOT NULL, -- KMS-peppered hash of the four-digit PIN
+    pin_key_version      VARCHAR(50),
+    pin_length           SMALLINT NOT NULL DEFAULT 4 CHECK (pin_length = 4),
+    status               auth_factor_status_enum NOT NULL DEFAULT 'active',
+    failed_attempt_count INT NOT NULL DEFAULT 0 CHECK (failed_attempt_count >= 0),
+    locked_until         TIMESTAMPTZ,
+    last_verified_at     TIMESTAMPTZ,
+    changed_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Device biometric/passkey credentials. No biometric template is stored server-side.
+CREATE TABLE customer_biometric_credentials (
+    id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id             UUID NOT NULL REFERENCES customer_profiles(id),
+    credential_id_hash      BYTEA NOT NULL UNIQUE,
+    credential_public_key   BYTEA NOT NULL,
+    authenticator_aaguid    UUID,
+    device_id               VARCHAR(255) NOT NULL,
+    device_name             VARCHAR(100),
+    platform                VARCHAR(50),
+    sign_count              BIGINT NOT NULL DEFAULT 0 CHECK (sign_count >= 0),
+    enabled_for_login       BOOLEAN NOT NULL DEFAULT TRUE,
+    enabled_for_transactions BOOLEAN NOT NULL DEFAULT TRUE,
+    status                  auth_factor_status_enum NOT NULL DEFAULT 'active',
+    last_used_at            TIMESTAMPTZ,
+    revoked_at              TIMESTAMPTZ,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (customer_id, id)
+);
+
 CREATE TABLE otp_sessions (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id         UUID REFERENCES users(id),
@@ -101,10 +140,42 @@ CREATE TABLE user_sessions (
     token_hash   VARCHAR(255) NOT NULL UNIQUE,
     device_id    VARCHAR(255),
     device_type  VARCHAR(50),
+    login_method  login_auth_method_enum NOT NULL DEFAULT 'otp',
+    biometric_credential_id UUID REFERENCES customer_biometric_credentials(id),
     ip_address   INET,
     expires_at   TIMESTAMPTZ NOT NULL,
     revoked_at   TIMESTAMPTZ,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (login_method <> 'biometric' OR biometric_credential_id IS NOT NULL)
+);
+
+-- Records customer authorization for money-moving actions using PIN or biometric.
+CREATE TABLE customer_transaction_authorizations (
+    id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id             UUID NOT NULL REFERENCES customer_profiles(id),
+    session_id              UUID REFERENCES user_sessions(id),
+    source_table            VARCHAR(100) NOT NULL,
+    source_id               UUID NOT NULL,
+    authorization_ref       VARCHAR(100) NOT NULL UNIQUE,
+    auth_method             txn_auth_method_enum NOT NULL,
+    biometric_credential_id UUID,
+    amount                  NUMERIC(14,2),
+    currency                VARCHAR(10) NOT NULL DEFAULT 'MNT',
+    status                  txn_auth_status_enum NOT NULL DEFAULT 'pending',
+    failure_reason          TEXT,
+    authorized_at           TIMESTAMPTZ,
+    expires_at              TIMESTAMPTZ,
+    metadata                JSONB NOT NULL DEFAULT '{}',
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (customer_id, id),
+    FOREIGN KEY (customer_id, biometric_credential_id)
+        REFERENCES customer_biometric_credentials(customer_id, id),
+    CHECK (
+        (auth_method = 'biometric' AND biometric_credential_id IS NOT NULL)
+        OR (auth_method = 'pin' AND biometric_credential_id IS NULL)
+    ),
+    CHECK (amount IS NULL OR amount >= 0),
+    CHECK (status <> 'authorized' OR authorized_at IS NOT NULL)
 );
 
 -- Message logs
@@ -125,8 +196,20 @@ CREATE TABLE message_logs (
 CREATE INDEX idx_users_phone         ON users(phone_number);
 CREATE INDEX idx_customer_type       ON customer_profiles(customer_type);
 CREATE INDEX idx_customer_polaris_cust_code ON customer_profiles(polaris_cust_code);
+CREATE INDEX idx_customer_pin_credentials_status ON customer_pin_credentials(customer_id, status);
+CREATE INDEX idx_customer_biometric_credentials_customer ON customer_biometric_credentials(customer_id, status);
+CREATE UNIQUE INDEX idx_customer_biometric_credentials_active_device
+    ON customer_biometric_credentials(customer_id, device_id)
+    WHERE status = 'active';
 CREATE INDEX idx_otp_phone_purpose   ON otp_sessions(phone_number, purpose);
 CREATE INDEX idx_sessions_user       ON user_sessions(user_id);
+CREATE INDEX idx_sessions_biometric_credential ON user_sessions(biometric_credential_id);
+CREATE INDEX idx_txn_auth_customer_status ON customer_transaction_authorizations(customer_id, status);
+CREATE INDEX idx_txn_auth_source ON customer_transaction_authorizations(source_table, source_id);
+CREATE INDEX idx_txn_auth_session ON customer_transaction_authorizations(session_id);
+CREATE UNIQUE INDEX idx_txn_auth_authorized_source
+    ON customer_transaction_authorizations(source_table, source_id)
+    WHERE status = 'authorized';
 
 
 -- ============================================================
@@ -737,6 +820,45 @@ CREATE TYPE qpay_invoice_status_enum AS ENUM ('pending','created','paid','expire
 CREATE TYPE qpay_callback_status_enum AS ENUM ('received','processed','failed','ignored');
 CREATE TYPE repay_txn_status    AS ENUM ('pending','completed','failed','reversed');
 CREATE TYPE penalty_type_enum   AS ENUM ('late_payment','early_exit');
+CREATE TYPE cashback_calc_base_enum AS ENUM ('paid_amount','principal_portion','interest_portion','total_due');
+CREATE TYPE cashback_reward_type_enum AS ENUM ('fixed_amount','percentage');
+CREATE TYPE cashback_record_status_enum AS ENUM ('pending','credited','failed','cancelled','reversed');
+CREATE TYPE cashback_wallet_status_enum AS ENUM ('active','frozen','closed');
+CREATE TYPE cashback_wallet_txn_type_enum AS ENUM (
+    'cashback_credit',
+    'repayment_offset',
+    'redemption',
+    'adjustment_credit',
+    'adjustment_debit',
+    'reversal',
+    'expiry'
+);
+CREATE TYPE cashback_wallet_txn_status_enum AS ENUM ('pending','posted','failed','reversed','cancelled');
+
+-- Automatic repayment cashback rules. product_id/product_type are optional so rules can be
+-- product-specific, product-type-wide, or global; priority resolves overlapping active rules.
+CREATE TABLE repayment_cashback_configs (
+    id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    config_code                 VARCHAR(50) NOT NULL UNIQUE,
+    name                        VARCHAR(100) NOT NULL,
+    product_id                  UUID REFERENCES loan_products(id),
+    product_type                product_type_enum,
+    reward_type                 cashback_reward_type_enum NOT NULL,
+    reward_value                NUMERIC(14,4) NOT NULL,
+    calculation_base            cashback_calc_base_enum NOT NULL DEFAULT 'paid_amount',
+    max_cashback_amount         NUMERIC(14,2),
+    min_payment_amount          NUMERIC(14,2),
+    grace_days                  INT NOT NULL DEFAULT 0,
+    applies_to_installment_number INT,
+    requires_full_installment_payment BOOLEAN NOT NULL DEFAULT TRUE,
+    currency                    VARCHAR(10) NOT NULL DEFAULT 'MNT',
+    effective_from              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    effective_until             TIMESTAMPTZ,
+    is_active                   BOOLEAN NOT NULL DEFAULT TRUE,
+    priority                    INT NOT NULL DEFAULT 0,
+    metadata                    JSONB NOT NULL DEFAULT '{}',
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 -- Generated at disbursement; one row per installment
 CREATE TABLE repayment_schedules (
@@ -826,6 +948,130 @@ CREATE TABLE penalty_records (
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Customer-facing reward wallet where on-time repayment cashback is collected.
+-- Balance is app-owned; backing_polaris_account_id can point to the pooled/core account if needed.
+CREATE TABLE customer_cashback_wallets (
+    id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id                 UUID NOT NULL REFERENCES customer_profiles(id),
+    currency                    VARCHAR(10) NOT NULL DEFAULT 'MNT',
+    available_balance           NUMERIC(14,2) NOT NULL DEFAULT 0,
+    pending_balance             NUMERIC(14,2) NOT NULL DEFAULT 0,
+    lifetime_earned             NUMERIC(14,2) NOT NULL DEFAULT 0,
+    lifetime_redeemed           NUMERIC(14,2) NOT NULL DEFAULT 0,
+    backing_polaris_account_id  UUID,
+    status                      cashback_wallet_status_enum NOT NULL DEFAULT 'active',
+    opened_at                   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    closed_at                   TIMESTAMPTZ,
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (customer_id, currency),
+    UNIQUE (customer_id, id),
+    UNIQUE (id, currency)
+);
+
+-- Ledger of reward wallet movements. Credits come from cashback records; debits can be
+-- repayment offsets, redemptions, expiry, reversals, or staff adjustments.
+CREATE TABLE customer_cashback_wallet_transactions (
+    id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    wallet_id                   UUID NOT NULL REFERENCES customer_cashback_wallets(id),
+    customer_id                 UUID NOT NULL REFERENCES customer_profiles(id),
+    authorization_id            UUID REFERENCES customer_transaction_authorizations(id),
+    transaction_type            cashback_wallet_txn_type_enum NOT NULL,
+    status                      cashback_wallet_txn_status_enum NOT NULL DEFAULT 'pending',
+    amount                      NUMERIC(14,2) NOT NULL,
+    currency                    VARCHAR(10) NOT NULL DEFAULT 'MNT',
+    balance_before              NUMERIC(14,2),
+    balance_after               NUMERIC(14,2),
+    source_table                VARCHAR(100),
+    source_id                   UUID,
+    ledger_journal_id           UUID,
+    reversal_of_transaction_id  UUID REFERENCES customer_cashback_wallet_transactions(id),
+    idempotency_key             VARCHAR(100),
+    failure_reason              TEXT,
+    expires_at                  TIMESTAMPTZ,
+    posted_at                   TIMESTAMPTZ,
+    failed_at                   TIMESTAMPTZ,
+    reversed_at                 TIMESTAMPTZ,
+    metadata                    JSONB NOT NULL DEFAULT '{}',
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (wallet_id, id),
+    UNIQUE (wallet_id, id, currency)
+);
+
+-- One audit row per on-time installment cashback decision/credit. The automatic processor
+-- creates records from completed repayment_transactions and the due_date/grace_days rule.
+CREATE TABLE repayment_cashback_records (
+    id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    config_id                   UUID NOT NULL REFERENCES repayment_cashback_configs(id),
+    schedule_id                 UUID NOT NULL REFERENCES repayment_schedules(id),
+    repayment_transaction_id    UUID NOT NULL REFERENCES repayment_transactions(id),
+    loan_id                     UUID NOT NULL REFERENCES loans(id),
+    customer_id                 UUID NOT NULL REFERENCES customer_profiles(id),
+    cashback_wallet_id          UUID REFERENCES customer_cashback_wallets(id),
+    wallet_transaction_id       UUID REFERENCES customer_cashback_wallet_transactions(id),
+    reversal_wallet_transaction_id UUID REFERENCES customer_cashback_wallet_transactions(id),
+    destination_polaris_account_id UUID,
+    ledger_journal_id           UUID,
+    reversal_ledger_journal_id  UUID,
+    idempotency_key             VARCHAR(100),
+    reward_type                 cashback_reward_type_enum NOT NULL,
+    reward_value                NUMERIC(14,4) NOT NULL,
+    calculation_base            cashback_calc_base_enum NOT NULL,
+    calculation_base_amount     NUMERIC(14,2) NOT NULL,
+    cashback_amount             NUMERIC(14,2) NOT NULL,
+    currency                    VARCHAR(10) NOT NULL DEFAULT 'MNT',
+    due_date                    DATE NOT NULL,
+    paid_at                     TIMESTAMPTZ NOT NULL,
+    grace_days_applied          INT NOT NULL DEFAULT 0,
+    status                      cashback_record_status_enum NOT NULL DEFAULT 'pending',
+    failure_reason              TEXT,
+    metadata                    JSONB NOT NULL DEFAULT '{}',
+    credited_at                 TIMESTAMPTZ,
+    reversed_at                 TIMESTAMPTZ,
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (schedule_id, config_id)
+);
+
+ALTER TABLE customer_cashback_wallet_transactions
+    ADD CONSTRAINT fk_cashback_wallet_txn_customer_wallet
+    FOREIGN KEY (customer_id, wallet_id) REFERENCES customer_cashback_wallets(customer_id, id);
+
+ALTER TABLE customer_cashback_wallet_transactions
+    ADD CONSTRAINT fk_cashback_wallet_txn_wallet_currency
+    FOREIGN KEY (wallet_id, currency) REFERENCES customer_cashback_wallets(id, currency);
+
+ALTER TABLE customer_cashback_wallet_transactions
+    ADD CONSTRAINT fk_cashback_wallet_txn_customer_authorization
+    FOREIGN KEY (customer_id, authorization_id)
+    REFERENCES customer_transaction_authorizations(customer_id, id);
+
+ALTER TABLE repayment_cashback_records
+    ADD CONSTRAINT fk_cashback_record_customer_wallet
+    FOREIGN KEY (customer_id, cashback_wallet_id) REFERENCES customer_cashback_wallets(customer_id, id);
+
+ALTER TABLE repayment_cashback_records
+    ADD CONSTRAINT fk_cashback_record_wallet_currency
+    FOREIGN KEY (cashback_wallet_id, currency) REFERENCES customer_cashback_wallets(id, currency);
+
+ALTER TABLE repayment_cashback_records
+    ADD CONSTRAINT fk_cashback_record_wallet_txn
+    FOREIGN KEY (cashback_wallet_id, wallet_transaction_id)
+    REFERENCES customer_cashback_wallet_transactions(wallet_id, id);
+
+ALTER TABLE repayment_cashback_records
+    ADD CONSTRAINT fk_cashback_record_wallet_txn_currency
+    FOREIGN KEY (cashback_wallet_id, wallet_transaction_id, currency)
+    REFERENCES customer_cashback_wallet_transactions(wallet_id, id, currency);
+
+ALTER TABLE repayment_cashback_records
+    ADD CONSTRAINT fk_cashback_record_reversal_wallet_txn
+    FOREIGN KEY (cashback_wallet_id, reversal_wallet_transaction_id)
+    REFERENCES customer_cashback_wallet_transactions(wallet_id, id);
+
+ALTER TABLE repayment_cashback_records
+    ADD CONSTRAINT fk_cashback_record_reversal_wallet_txn_currency
+    FOREIGN KEY (cashback_wallet_id, reversal_wallet_transaction_id, currency)
+    REFERENCES customer_cashback_wallet_transactions(wallet_id, id, currency);
+
 CREATE INDEX idx_sched_loan         ON repayment_schedules(loan_id);
 CREATE INDEX idx_sched_due_date     ON repayment_schedules(due_date);
 CREATE INDEX idx_qpay_invoice_loan  ON qpay_repayment_invoices(loan_id);
@@ -833,6 +1079,34 @@ CREATE INDEX idx_qpay_invoice_sched ON qpay_repayment_invoices(schedule_id);
 CREATE INDEX idx_qpay_cb_invoice    ON qpay_repayment_callbacks(qpay_repayment_invoice_id);
 CREATE INDEX idx_repay_txn_loan     ON repayment_transactions(loan_id);
 CREATE INDEX idx_repay_txn_qpay_inv ON repayment_transactions(qpay_repayment_invoice_id);
+CREATE INDEX idx_cashback_configs_active
+    ON repayment_cashback_configs(is_active, effective_from, effective_until);
+CREATE INDEX idx_cashback_configs_product
+    ON repayment_cashback_configs(product_id, is_active, priority);
+CREATE INDEX idx_cashback_configs_product_type
+    ON repayment_cashback_configs(product_type, is_active, priority);
+CREATE INDEX idx_cashback_wallets_customer
+    ON customer_cashback_wallets(customer_id, status);
+CREATE INDEX idx_cashback_wallet_transactions_wallet
+    ON customer_cashback_wallet_transactions(wallet_id, created_at DESC);
+CREATE INDEX idx_cashback_wallet_transactions_customer
+    ON customer_cashback_wallet_transactions(customer_id, status, created_at DESC);
+CREATE INDEX idx_cashback_wallet_transactions_source
+    ON customer_cashback_wallet_transactions(source_table, source_id);
+CREATE INDEX idx_cashback_wallet_transactions_authorization
+    ON customer_cashback_wallet_transactions(authorization_id);
+CREATE INDEX idx_cashback_wallet_transactions_status
+    ON customer_cashback_wallet_transactions(status, created_at);
+CREATE INDEX idx_cashback_records_customer
+    ON repayment_cashback_records(customer_id, status, created_at DESC);
+CREATE INDEX idx_cashback_records_wallet
+    ON repayment_cashback_records(cashback_wallet_id, status);
+CREATE INDEX idx_cashback_records_schedule
+    ON repayment_cashback_records(schedule_id);
+CREATE INDEX idx_cashback_records_transaction
+    ON repayment_cashback_records(repayment_transaction_id);
+CREATE INDEX idx_cashback_records_status
+    ON repayment_cashback_records(status, created_at);
 
 
 -- ============================================================
@@ -923,6 +1197,26 @@ CREATE TABLE ledger_entries (
 ALTER TABLE repayment_transactions
     ADD CONSTRAINT fk_repay_txn_ledger_journal
     FOREIGN KEY (ledger_journal_id) REFERENCES ledger_journals(id);
+
+ALTER TABLE customer_cashback_wallets
+    ADD CONSTRAINT fk_cashback_wallet_backing_polaris_account
+    FOREIGN KEY (backing_polaris_account_id) REFERENCES polaris_accounts(id);
+
+ALTER TABLE customer_cashback_wallet_transactions
+    ADD CONSTRAINT fk_cashback_wallet_txn_ledger_journal
+    FOREIGN KEY (ledger_journal_id) REFERENCES ledger_journals(id);
+
+ALTER TABLE repayment_cashback_records
+    ADD CONSTRAINT fk_cashback_destination_polaris_account
+    FOREIGN KEY (destination_polaris_account_id) REFERENCES polaris_accounts(id);
+
+ALTER TABLE repayment_cashback_records
+    ADD CONSTRAINT fk_cashback_ledger_journal
+    FOREIGN KEY (ledger_journal_id) REFERENCES ledger_journals(id);
+
+ALTER TABLE repayment_cashback_records
+    ADD CONSTRAINT fk_cashback_reversal_ledger_journal
+    FOREIGN KEY (reversal_ledger_journal_id) REFERENCES ledger_journals(id);
 
 -- Full log of every Polaris API call (request + response).
 -- Persist sanitized payloads only; redact account/register values before insert.
@@ -1149,6 +1443,7 @@ CREATE TYPE review_type_enum AS ENUM ('routine','escalated','compliance');
 CREATE TYPE service_pause_scope_enum AS ENUM (
     'all',
     'repayment',
+    'cashback',
     'bnpl',
     'loan_disbursement',
     'polaris_sync',
@@ -1399,6 +1694,9 @@ DECLARE
 BEGIN
     FOREACH v_table IN ARRAY ARRAY[
         'otp_sessions',
+        'customer_pin_credentials',
+        'customer_biometric_credentials',
+        'customer_transaction_authorizations',
         'message_logs',
         'nationalities',
         'merchant_profiles',
@@ -1421,6 +1719,10 @@ BEGIN
         'pos_qr_codes',
         'pos_terminal_callbacks',
         'qpay_repayment_callbacks',
+        'repayment_cashback_configs',
+        'customer_cashback_wallets',
+        'customer_cashback_wallet_transactions',
+        'repayment_cashback_records',
         'penalty_records',
         'polaris_accounts',
         'polaris_sync_queue',
@@ -1450,6 +1752,9 @@ BEGIN
         'otp_sessions',
         'user_sessions',
         'customer_profiles',
+        'customer_pin_credentials',
+        'customer_biometric_credentials',
+        'customer_transaction_authorizations',
         'merchant_profiles',
         'staff_profiles',
         'kyc_personal_details',
@@ -1579,6 +1884,97 @@ ALTER TABLE repayment_transactions
         AND principal_portion + interest_portion + penalty_portion = amount
     );
 
+ALTER TABLE repayment_cashback_configs
+    ADD CONSTRAINT chk_cashback_configs_values CHECK (
+        reward_value > 0
+        AND (reward_type <> 'percentage' OR reward_value <= 1)
+        AND (max_cashback_amount IS NULL OR max_cashback_amount > 0)
+        AND (min_payment_amount IS NULL OR min_payment_amount >= 0)
+        AND grace_days >= 0
+        AND (applies_to_installment_number IS NULL OR applies_to_installment_number > 0)
+        AND (product_id IS NULL OR product_type IS NULL)
+        AND (effective_until IS NULL OR effective_until > effective_from)
+    );
+
+ALTER TABLE customer_cashback_wallets
+    ADD CONSTRAINT chk_cashback_wallets_balances CHECK (
+        available_balance >= 0
+        AND pending_balance >= 0
+        AND lifetime_earned >= 0
+        AND lifetime_redeemed >= 0
+        AND lifetime_earned >= lifetime_redeemed
+        AND (status <> 'closed' OR closed_at IS NOT NULL)
+    );
+
+ALTER TABLE customer_cashback_wallet_transactions
+    ADD CONSTRAINT chk_cashback_wallet_transactions_values CHECK (
+        amount > 0
+        AND (balance_before IS NULL OR balance_before >= 0)
+        AND (balance_after IS NULL OR balance_after >= 0)
+        AND (
+            (source_table IS NULL AND source_id IS NULL)
+            OR (source_table IS NOT NULL AND source_id IS NOT NULL)
+        )
+        AND (
+            status <> 'posted'
+            OR (
+                posted_at IS NOT NULL
+                AND balance_before IS NOT NULL
+                AND balance_after IS NOT NULL
+                AND ledger_journal_id IS NOT NULL
+            )
+        )
+        AND (status <> 'failed' OR failed_at IS NOT NULL)
+        AND (status <> 'reversed' OR reversed_at IS NOT NULL)
+        AND (transaction_type <> 'reversal' OR reversal_of_transaction_id IS NOT NULL)
+        AND (
+            transaction_type NOT IN ('repayment_offset', 'redemption')
+            OR authorization_id IS NOT NULL
+        )
+        AND (
+            status <> 'posted'
+            OR transaction_type = 'reversal'
+            OR (
+                transaction_type IN ('cashback_credit', 'adjustment_credit')
+                AND balance_after >= balance_before
+            )
+            OR (
+                transaction_type IN ('repayment_offset', 'redemption', 'adjustment_debit', 'expiry')
+                AND balance_after <= balance_before
+            )
+        )
+    );
+
+ALTER TABLE repayment_cashback_records
+    ADD CONSTRAINT chk_cashback_records_values CHECK (
+        reward_value > 0
+        AND (reward_type <> 'percentage' OR reward_value <= 1)
+        AND calculation_base_amount > 0
+        AND cashback_amount > 0
+        AND grace_days_applied >= 0
+        AND (
+            status <> 'credited'
+            OR (
+                credited_at IS NOT NULL
+                AND cashback_wallet_id IS NOT NULL
+                AND wallet_transaction_id IS NOT NULL
+                AND ledger_journal_id IS NOT NULL
+            )
+        )
+        AND (
+            status <> 'reversed'
+            OR (
+                credited_at IS NOT NULL
+                AND cashback_wallet_id IS NOT NULL
+                AND wallet_transaction_id IS NOT NULL
+                AND ledger_journal_id IS NOT NULL
+                AND reversed_at IS NOT NULL
+                AND reversal_wallet_transaction_id IS NOT NULL
+                AND reversal_ledger_journal_id IS NOT NULL
+            )
+        )
+    );
+
 ALTER TABLE penalty_records
     ADD CONSTRAINT chk_penalty_records_amounts CHECK (
         penalty_amount >= 0
@@ -1622,6 +2018,11 @@ ALTER TABLE customer_bank_accounts
     ADD CONSTRAINT chk_customer_bank_account_hashes CHECK (
         octet_length(account_number_hash) = 32
         AND (iban_hash IS NULL OR octet_length(iban_hash) = 32)
+    );
+
+ALTER TABLE customer_biometric_credentials
+    ADD CONSTRAINT chk_customer_biometric_credential_hash CHECK (
+        octet_length(credential_id_hash) = 32
     );
 
 ALTER TABLE loan_applications
@@ -1695,6 +2096,20 @@ CREATE UNIQUE INDEX idx_repay_txn_completed_invoice
     ON repayment_transactions(qpay_repayment_invoice_id)
     WHERE qpay_repayment_invoice_id IS NOT NULL
       AND status = 'completed';
+
+CREATE UNIQUE INDEX idx_cashback_wallet_transactions_idempotency
+    ON customer_cashback_wallet_transactions(idempotency_key)
+    WHERE idempotency_key IS NOT NULL;
+
+CREATE UNIQUE INDEX idx_cashback_wallet_transactions_source_unique
+    ON customer_cashback_wallet_transactions(source_table, source_id, transaction_type)
+    WHERE source_table IS NOT NULL
+      AND source_id IS NOT NULL
+      AND status <> 'cancelled';
+
+CREATE UNIQUE INDEX idx_cashback_records_idempotency
+    ON repayment_cashback_records(idempotency_key)
+    WHERE idempotency_key IS NOT NULL;
 
 CREATE UNIQUE INDEX idx_loan_apps_polaris_los_acnt_code_hash
     ON loan_applications(polaris_los_acnt_code_hash)
@@ -1812,6 +2227,42 @@ AFTER INSERT OR UPDATE OR DELETE ON ledger_entries
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW EXECUTE FUNCTION validate_posted_ledger_journal_balance();
 
+CREATE OR REPLACE FUNCTION validate_cashback_wallet_transaction_authorization()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_auth customer_transaction_authorizations%ROWTYPE;
+BEGIN
+    IF NEW.transaction_type IN ('repayment_offset', 'redemption')
+       AND NEW.status IN ('pending', 'posted') THEN
+        SELECT *
+        INTO v_auth
+        FROM customer_transaction_authorizations
+        WHERE id = NEW.authorization_id
+          AND customer_id = NEW.customer_id;
+
+        IF NOT FOUND
+           OR v_auth.status <> 'authorized'
+           OR v_auth.currency <> NEW.currency
+           OR (v_auth.amount IS NOT NULL AND v_auth.amount < NEW.amount)
+           OR (v_auth.expires_at IS NOT NULL AND v_auth.expires_at <= NOW())
+           OR v_auth.source_table <> 'customer_cashback_wallet_transactions'
+           OR v_auth.source_id <> NEW.id THEN
+            RAISE EXCEPTION 'Cashback wallet transaction % is not covered by a valid customer authorization', NEW.id
+                USING ERRCODE = '23514';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_validate_cashback_wallet_txn_authorization
+BEFORE INSERT OR UPDATE OF transaction_type, authorization_id, customer_id, amount, currency, status
+ON customer_cashback_wallet_transactions
+FOR EACH ROW EXECUTE FUNCTION validate_cashback_wallet_transaction_authorization();
+
 
 -- ============================================================
 -- OPERATIONAL PAUSE GUARDS
@@ -1857,6 +2308,18 @@ FOR EACH ROW EXECUTE FUNCTION prevent_when_service_paused('repayment');
 CREATE TRIGGER trg_pause_repayment_transaction
 BEFORE INSERT OR UPDATE ON repayment_transactions
 FOR EACH ROW EXECUTE FUNCTION prevent_when_service_paused('repayment');
+
+CREATE TRIGGER trg_pause_cashback_wallet
+BEFORE INSERT OR UPDATE ON customer_cashback_wallets
+FOR EACH ROW EXECUTE FUNCTION prevent_when_service_paused('cashback');
+
+CREATE TRIGGER trg_pause_cashback_wallet_transaction
+BEFORE INSERT OR UPDATE ON customer_cashback_wallet_transactions
+FOR EACH ROW EXECUTE FUNCTION prevent_when_service_paused('cashback');
+
+CREATE TRIGGER trg_pause_repayment_cashback_record
+BEFORE INSERT OR UPDATE ON repayment_cashback_records
+FOR EACH ROW EXECUTE FUNCTION prevent_when_service_paused('cashback');
 
 CREATE TRIGGER trg_pause_pos_payment_invoice
 BEFORE INSERT OR UPDATE ON pos_payment_invoices
@@ -1968,6 +2431,9 @@ AS $$
 $$;
 
 ALTER TABLE customer_profiles   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customer_pin_credentials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customer_biometric_credentials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customer_transaction_authorizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_personal_details ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_contact_infos    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customer_bank_accounts ENABLE ROW LEVEL SECURITY;
@@ -1983,6 +2449,10 @@ ALTER TABLE loans               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE repayment_schedules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE qpay_repayment_invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE repayment_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE repayment_cashback_configs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customer_cashback_wallets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customer_cashback_wallet_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE repayment_cashback_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pos_transactions    ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pol_customer_profiles_select ON customer_profiles
@@ -1998,6 +2468,9 @@ DECLARE
     v_table TEXT;
 BEGIN
     FOREACH v_table IN ARRAY ARRAY[
+        'customer_pin_credentials',
+        'customer_biometric_credentials',
+        'customer_transaction_authorizations',
         'kyc_personal_details',
         'kyc_contact_infos',
         'customer_bank_accounts',
@@ -2071,6 +2544,38 @@ CREATE POLICY pol_repayment_transactions_select ON repayment_transactions
 CREATE POLICY pol_repayment_transactions_insert ON repayment_transactions
     FOR INSERT WITH CHECK (is_current_staff());
 CREATE POLICY pol_repayment_transactions_update ON repayment_transactions
+    FOR UPDATE USING (is_current_staff())
+    WITH CHECK (is_current_staff());
+
+CREATE POLICY pol_repayment_cashback_configs_select ON repayment_cashback_configs
+    FOR SELECT USING (is_current_staff());
+CREATE POLICY pol_repayment_cashback_configs_insert ON repayment_cashback_configs
+    FOR INSERT WITH CHECK (is_current_staff());
+CREATE POLICY pol_repayment_cashback_configs_update ON repayment_cashback_configs
+    FOR UPDATE USING (is_current_staff())
+    WITH CHECK (is_current_staff());
+
+CREATE POLICY pol_customer_cashback_wallets_select ON customer_cashback_wallets
+    FOR SELECT USING (is_current_staff() OR is_current_customer(customer_id));
+CREATE POLICY pol_customer_cashback_wallets_insert ON customer_cashback_wallets
+    FOR INSERT WITH CHECK (is_current_staff());
+CREATE POLICY pol_customer_cashback_wallets_update ON customer_cashback_wallets
+    FOR UPDATE USING (is_current_staff())
+    WITH CHECK (is_current_staff());
+
+CREATE POLICY pol_customer_cashback_wallet_transactions_select ON customer_cashback_wallet_transactions
+    FOR SELECT USING (is_current_staff() OR is_current_customer(customer_id));
+CREATE POLICY pol_customer_cashback_wallet_transactions_insert ON customer_cashback_wallet_transactions
+    FOR INSERT WITH CHECK (is_current_staff());
+CREATE POLICY pol_customer_cashback_wallet_transactions_update ON customer_cashback_wallet_transactions
+    FOR UPDATE USING (is_current_staff())
+    WITH CHECK (is_current_staff());
+
+CREATE POLICY pol_repayment_cashback_records_select ON repayment_cashback_records
+    FOR SELECT USING (is_current_staff() OR is_current_customer(customer_id));
+CREATE POLICY pol_repayment_cashback_records_insert ON repayment_cashback_records
+    FOR INSERT WITH CHECK (is_current_staff());
+CREATE POLICY pol_repayment_cashback_records_update ON repayment_cashback_records
     FOR UPDATE USING (is_current_staff())
     WITH CHECK (is_current_staff());
 
