@@ -329,9 +329,9 @@ function getDomain(tableName) {
 function layoutTables(tables) {
   const positions = {};
   const CARD_W = 260, CARD_H_BASE = 74, ROW_H = 26;
-  const DOMAIN_PAD = 90, COL_GAP = 48, ROW_GAP = 52;
-  const COLS_PER_DOMAIN = 3;
-  const MAX_GROUP_COLUMN_HEIGHT = 3400;
+  const HEADER_H = 44, COL_GAP = 44, ROW_GAP = 36;
+  const GROUP_GAP_X = 120, GROUP_GAP_Y = 120;
+  const GROUPS_PER_ROW = 3;
 
   // Group by domain
   const groups = {};
@@ -341,7 +341,7 @@ function layoutTables(tables) {
     groups[d.id].tables.push(name);
   }
 
-  let gx = 60, gy = 60;
+  let rowX = 60, rowY = 90, rowHeight = 0, groupIndexInRow = 0;
   const orderedGroupIds = [
     ...DOMAINS.map(d => d.id).filter(id => groups[id]),
     ...Object.keys(groups).filter(id => !DOMAINS.some(d => d.id === id)).sort(),
@@ -349,28 +349,30 @@ function layoutTables(tables) {
 
   for (const gid of orderedGroupIds) {
     const grp = groups[gid];
-    const colCount = Math.min(COLS_PER_DOMAIN, grp.tables.length);
+    const colCount = Math.min(grp.tables.length, grp.tables.length >= 9 ? 3 : 2);
     const colHeights = Array(colCount).fill(0);
-
-    grp.tables.sort((a, b) => {
-      const heightDelta = tables[b].columns.length - tables[a].columns.length;
-      return heightDelta || a.localeCompare(b);
-    });
 
     for (const name of grp.tables) {
       const col = colHeights.indexOf(Math.min(...colHeights));
       const h = CARD_H_BASE + tables[name].columns.length * ROW_H;
-      const x = gx + col * (CARD_W + COL_GAP);
-      const y = gy + colHeights[col];
+      const x = rowX + col * (CARD_W + COL_GAP);
+      const y = rowY + HEADER_H + colHeights[col];
       positions[name] = { x, y, w: CARD_W, h };
       colHeights[col] += h + ROW_GAP;
     }
 
-    const groupHeight = Math.max(...colHeights, 0);
-    gy += groupHeight + DOMAIN_PAD;
-    if (gy > MAX_GROUP_COLUMN_HEIGHT) {
-      gy = 60;
-      gx += (CARD_W + COL_GAP) * COLS_PER_DOMAIN + 130;
+    const groupWidth = colCount * CARD_W + (colCount - 1) * COL_GAP;
+    const groupHeight = HEADER_H + Math.max(...colHeights, 0);
+    rowHeight = Math.max(rowHeight, groupHeight);
+    groupIndexInRow++;
+
+    if (groupIndexInRow >= GROUPS_PER_ROW) {
+      rowX = 60;
+      rowY += rowHeight + GROUP_GAP_Y;
+      rowHeight = 0;
+      groupIndexInRow = 0;
+    } else {
+      rowX += groupWidth + GROUP_GAP_X;
     }
   }
 
@@ -506,6 +508,20 @@ const html = /* html */`<!DOCTYPE html>
   .edge-path:hover { opacity: 1; stroke-width: 2.5px; }
   .edge-path.highlighted { opacity: 0.9; stroke-width: 2px; }
   .edge-path.dimmed { opacity: 0.05; }
+
+  .domain-label {
+    position: absolute;
+    height: 28px;
+    display: flex; align-items: center; gap: 8px;
+    color: var(--text); font-size: 12px; font-weight: 600;
+    letter-spacing: 0.02em; pointer-events: none;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+  }
+  .domain-label::before {
+    content: ''; width: 12px; height: 12px; border-radius: 4px;
+    background: currentColor; box-shadow: 0 0 0 4px rgba(255,255,255,0.03);
+  }
+  .domain-label span { color: var(--text-muted); font-size: 10px; font-weight: 400; }
 
   /* ── TABLE CARDS ── */
   .table-card {
@@ -895,6 +911,7 @@ function replaceObjectContents(target, source) {
 
 function removeTableCards() {
   document.querySelectorAll('.table-card').forEach(el => el.remove());
+  document.querySelectorAll('.domain-label').forEach(el => el.remove());
   for (const key of Object.keys(cardEls)) delete cardEls[key];
 }
 
@@ -1023,7 +1040,30 @@ function renderEmpty() {
   return '<div class="dp-empty">None</div>';
 }
 
+function buildDomainLabels() {
+  document.querySelectorAll('.domain-label').forEach(el => el.remove());
+  const grouped = {};
+  for (const [name, pos] of Object.entries(cardPos)) {
+    const d = getDomain(name);
+    if (!grouped[d.id]) grouped[d.id] = { domain: d, count: 0, minX: Infinity, minY: Infinity };
+    grouped[d.id].count++;
+    grouped[d.id].minX = Math.min(grouped[d.id].minX, pos.x);
+    grouped[d.id].minY = Math.min(grouped[d.id].minY, pos.y);
+  }
+  for (const group of Object.values(grouped)) {
+    const label = document.createElement('div');
+    label.className = 'domain-label';
+    label.dataset.domain = group.domain.id;
+    label.style.left = group.minX + 'px';
+    label.style.top = Math.max(8, group.minY - 38) + 'px';
+    label.style.color = group.domain.color;
+    label.innerHTML = \`\${esc(group.domain.label)} <span>\${group.count} tables</span>\`;
+    canvas.appendChild(label);
+  }
+}
+
 function buildCards() {
+  buildDomainLabels();
   for (const [name, tdata] of Object.entries(TABLES)) {
     const d = getDomain(name);
     const pos = cardPos[name] || { x:0, y:0, w:260 };
@@ -1218,6 +1258,10 @@ function applyFilters() {
     const nameMatch = !q || haystack.includes(q);
     el.style.display = (domMatch && nameMatch) ? '' : 'none';
   }
+  document.querySelectorAll('.domain-label').forEach(label => {
+    const visible = !filterDomain || label.dataset.domain === filterDomain;
+    label.style.display = visible ? '' : 'none';
+  });
   renderEdges();
 }
 
