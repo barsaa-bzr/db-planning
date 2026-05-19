@@ -26,7 +26,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TYPE user_type_enum         AS ENUM ('customer', 'merchant', 'staff');
 CREATE TYPE user_status_enum       AS ENUM ('active', 'suspended', 'deleted');
 CREATE TYPE otp_purpose_enum       AS ENUM ('login', 'register', 'kyc', 'txn_confirm');
-CREATE TYPE msg_type_enum          AS ENUM ('otp', 'loan_alert', 'repayment_due', 'marketing');
+CREATE TYPE calpro_msg_type_enum   AS ENUM ('otp', 'loan_alert', 'repayment_due', 'marketing');
 CREATE TYPE msg_status_enum        AS ENUM ('queued', 'sent', 'delivered', 'failed');
 CREATE TYPE reg_status_enum        AS ENUM ('pending', 'kyc_verified', 'active', 'rejected');
 CREATE TYPE customer_kind_enum     AS ENUM ('person', 'company');
@@ -46,7 +46,7 @@ CREATE TABLE customer_profiles (
     id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id           UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     customer_kind     customer_kind_enum NOT NULL DEFAULT 'person',
-    cif_id            VARCHAR(100) UNIQUE,  -- customer reference returned by Polaris core system
+    polaris_customer_id VARCHAR(100) UNIQUE,  -- customer reference returned by Polaris core system
     national_id       VARCHAR(20) NOT NULL UNIQUE,
     first_name        VARCHAR(100) NOT NULL,
     last_name         VARCHAR(100) NOT NULL,
@@ -105,12 +105,12 @@ CREATE TABLE user_sessions (
     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Message logs
-CREATE TABLE message_logs (
+-- Calpro SMS/OTP delivery log
+CREATE TABLE calpro_message_logs (
     id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id            UUID REFERENCES users(id),
     phone_number       VARCHAR(20) NOT NULL,
-    msg_type           msg_type_enum NOT NULL,
+    msg_type           calpro_msg_type_enum NOT NULL,
     template_id        VARCHAR(100),
     content            TEXT,
     status             msg_status_enum NOT NULL DEFAULT 'queued',
@@ -125,6 +125,7 @@ CREATE INDEX idx_customer_kind       ON customer_profiles(customer_kind);
 CREATE INDEX idx_customer_polaris_id ON customer_profiles(polaris_customer_id);
 CREATE INDEX idx_otp_phone_purpose   ON otp_sessions(phone_number, purpose);
 CREATE INDEX idx_sessions_user       ON user_sessions(user_id);
+CREATE INDEX idx_calpro_user         ON calpro_message_logs(user_id);
 
 
 -- ============================================================
@@ -138,14 +139,10 @@ CREATE TYPE address_type_enum     AS ENUM ('registered','residential','mailing',
 CREATE TYPE education_level_enum  AS ENUM ('primary','secondary','vocational','bachelor','master','doctorate','other');
 CREATE TYPE education_status_enum AS ENUM ('in_progress','completed','dropped','unknown');
 CREATE TYPE employment_status_enum AS ENUM ('employed','self_employed','unemployed','student','retired','contract','other');
-CREATE TYPE kyc_file_type_enum    AS ENUM ('image','pdf','document','video','audio','archive','other');
-CREATE TYPE kyc_file_purpose_enum AS ENUM ('portrait','selfie','id_front','id_back','passport','proof_of_address','proof_of_income','bank_statement','contract','other');
+CREATE TYPE kyc_image_type_enum   AS ENUM ('portrait','selfie','id_front','id_back','passport','proof_of_address','proof_of_income','other');
 CREATE TYPE relationship_type_enum AS ENUM ('spouse','parent','child','sibling','guardian','co_borrower','emergency_contact','employer','other');
 CREATE TYPE kyc_record_status_enum AS ENUM ('pending','verified','rejected','expired');
 CREATE TYPE bank_account_status_enum AS ENUM ('pending','verified','rejected','disabled');
-CREATE TYPE hur_data_type_enum    AS ENUM ('marital_status','employment','salary','social_health_insurance','other');
-CREATE TYPE register_number_type_enum AS ENUM ('mongolian_register','foreign_register','passport','taxpayer','other');
-CREATE TYPE id_card_number_type_enum AS ENUM ('national_id_card','passport','residence_permit','driver_license','other');
 
 -- Multiple personal identity/detail records are allowed for aliases, document variants and history
 CREATE TABLE kyc_personal_details (
@@ -157,9 +154,7 @@ CREATE TABLE kyc_personal_details (
     nickname            VARCHAR(100),
     gender              kyc_gender_enum DEFAULT 'unknown',
     nationality         VARCHAR(100),
-    register_number_type register_number_type_enum,
     register_number     VARCHAR(30),
-    id_card_number_type id_card_number_type_enum,
     id_card_number      VARCHAR(50),
     birth_date          DATE,
     customer_segment    customer_segment_enum,
@@ -262,14 +257,12 @@ CREATE TABLE kyc_employments (
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- KYC files such as images, PDFs, documents, videos and proof files
-CREATE TABLE kyc_customer_files (
+-- KYC images such as portrait, selfie, ID card, passport and proofs
+CREATE TABLE kyc_customer_images (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     customer_id         UUID NOT NULL REFERENCES customer_profiles(id) ON DELETE CASCADE,
-    file_type           kyc_file_type_enum NOT NULL DEFAULT 'image',
-    file_purpose        kyc_file_purpose_enum NOT NULL,
-    file_url            TEXT NOT NULL,
-    file_name           VARCHAR(255),
+    image_type          kyc_image_type_enum NOT NULL,
+    image_url           TEXT NOT NULL,
     file_hash           VARCHAR(128),
     mime_type           VARCHAR(100),
     captured_at         TIMESTAMPTZ,
@@ -328,22 +321,17 @@ CREATE TABLE dan_verifications (
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- HUR — universal extracted data rows; one HUR fetch may create many rows sharing request_ref
+-- HUR — employment, salary and social security data
 CREATE TABLE hur_data_snapshots (
     id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     customer_id           UUID NOT NULL REFERENCES customer_profiles(id),
-    request_ref           VARCHAR(100) NOT NULL,
-    data_type             hur_data_type_enum NOT NULL,
-    record_key            VARCHAR(150),
-    period_start          DATE,
-    period_end            DATE,
-    effective_date        DATE,
-    amount                NUMERIC(14,2),
-    currency              VARCHAR(10) NOT NULL DEFAULT 'MNT',
-    text_value            TEXT,
-    numeric_value         NUMERIC(18,4),
-    date_value            DATE,
-    payload               JSONB NOT NULL DEFAULT '{}',
+    request_ref           VARCHAR(100) NOT NULL UNIQUE,
+    employer_name         VARCHAR(200),
+    job_title             VARCHAR(150),
+    employment_type       VARCHAR(30),  -- full_time|part_time|contract|self_employed
+    salary_amount         NUMERIC(14,2),
+    salary_currency       VARCHAR(10) NOT NULL DEFAULT 'MNT',
+    social_security_months INT,
     snapshot_date         DATE NOT NULL,
     raw_response          JSONB,
     fetched_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -378,11 +366,6 @@ CREATE TABLE kyc_verification_steps (
 
 CREATE INDEX idx_dan_customer      ON dan_verifications(customer_id);
 CREATE INDEX idx_hur_customer      ON hur_data_snapshots(customer_id);
-CREATE INDEX idx_hur_request_ref   ON hur_data_snapshots(request_ref);
-CREATE INDEX idx_hur_customer_type ON hur_data_snapshots(customer_id, data_type);
-CREATE INDEX idx_hur_period        ON hur_data_snapshots(customer_id, data_type, period_start, period_end);
-CREATE INDEX idx_hur_record_key    ON hur_data_snapshots(data_type, record_key);
-CREATE INDEX idx_hur_payload_gin   ON hur_data_snapshots USING GIN (payload);
 CREATE INDEX idx_sain_customer     ON sain_score_requests(customer_id);
 CREATE INDEX idx_kyc_steps_cust    ON kyc_verification_steps(customer_id);
 CREATE INDEX idx_kyc_personal_customer    ON kyc_personal_details(customer_id);
@@ -400,8 +383,7 @@ CREATE UNIQUE INDEX idx_kyc_address_primary ON kyc_addresses(customer_id, addres
 CREATE INDEX idx_kyc_education_customer   ON kyc_educations(customer_id);
 CREATE INDEX idx_kyc_employment_customer  ON kyc_employments(customer_id);
 CREATE INDEX idx_kyc_employment_current   ON kyc_employments(customer_id, is_current);
-CREATE INDEX idx_kyc_files_customer       ON kyc_customer_files(customer_id);
-CREATE INDEX idx_kyc_files_type_purpose   ON kyc_customer_files(file_type, file_purpose);
+CREATE INDEX idx_kyc_images_customer      ON kyc_customer_images(customer_id);
 CREATE INDEX idx_kyc_related_customer     ON kyc_related_customers(customer_id);
 CREATE INDEX idx_kyc_related_linked       ON kyc_related_customers(related_customer_id);
 CREATE INDEX idx_kyc_signature_customer   ON kyc_signature_images(customer_id);
@@ -559,8 +541,6 @@ CREATE TABLE loans (
     application_id      UUID NOT NULL UNIQUE REFERENCES loan_applications(id),
     customer_id         UUID NOT NULL REFERENCES customer_profiles(id),
     product_id          UUID NOT NULL REFERENCES loan_products(id),
-    polaris_deposit_acc_no      VARCHAR(30),  -- customer's deposit account to disburse into
-    polaris_account_id  UUID NOT NULL REFERENCES  polaris_accounts(id),
     loan_number         VARCHAR(40) NOT NULL UNIQUE,
     principal_amount    NUMERIC(14,2) NOT NULL,
     disbursed_amount    NUMERIC(14,2),
@@ -585,16 +565,16 @@ CREATE TABLE loans (
         REFERENCES customer_bank_accounts(customer_id, id)
 );
 
--- -- Maps a loan to all Polaris account numbers used in its lifecycle
--- CREATE TABLE loan_account_mappings (
---     id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
---     loan_id                     UUID NOT NULL UNIQUE REFERENCES loans(id),
---     polaris_deposit_acc_no      VARCHAR(30),  -- customer's deposit account to disburse into
---     polaris_loan_acc_no         VARCHAR(30),  -- loan balance account in Polaris
---     polaris_repayment_pool_acc  VARCHAR(30),  -- internal repayment collection account
---     polaris_merchant_debt_acc   VARCHAR(30),  -- BNPL: account to pay Emart
---     created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
--- );
+-- Maps a loan to all Polaris account numbers used in its lifecycle
+CREATE TABLE loan_account_mappings (
+    id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    loan_id                     UUID NOT NULL UNIQUE REFERENCES loans(id),
+    polaris_deposit_acc_no      VARCHAR(30),  -- customer's deposit account to disburse into
+    polaris_loan_acc_no         VARCHAR(30),  -- loan balance account in Polaris
+    polaris_repayment_pool_acc  VARCHAR(30),  -- internal repayment collection account
+    polaris_merchant_debt_acc   VARCHAR(30),  -- BNPL: account to pay Emart
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 CREATE INDEX idx_loans_customer     ON loans(customer_id);
 CREATE INDEX idx_loan_apps_customer ON loan_applications(customer_id);
@@ -617,9 +597,9 @@ CREATE INDEX idx_loans_disbursement_bank ON loans(disbursement_bank_account_id);
 CREATE TYPE invoice_status_enum  AS ENUM ('pending','qr_generated','processing','approved','rejected','expired','refunded');
 CREATE TYPE callback_type_enum   AS ENUM ('approved','rejected','timeout');
 CREATE TYPE callback_status_enum AS ENUM ('pending','sent','acknowledged','failed');
-CREATE TYPE pos_txn_status_enum AS ENUM ('processing','approved','rejected','disbursed');
+CREATE TYPE bnpl_txn_status_enum AS ENUM ('processing','approved','rejected','disbursed');
 
-CREATE TABLE pos_terminals (
+CREATE TABLE bnpl_terminals (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     merchant_id          UUID NOT NULL REFERENCES merchant_profiles(id),
     terminal_code        VARCHAR(50) NOT NULL UNIQUE,
@@ -632,9 +612,9 @@ CREATE TABLE pos_terminals (
 );
 
 -- Payment invoice created when cashier requests BNPL payment at terminal
-CREATE TABLE pos_payment_invoices (
+CREATE TABLE bnpl_payment_invoices (
     id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    terminal_id       UUID NOT NULL REFERENCES pos_terminals(id),
+    terminal_id       UUID NOT NULL REFERENCES bnpl_terminals(id),
     merchant_id       UUID NOT NULL REFERENCES merchant_profiles(id),
     cashier_reference VARCHAR(100),
     invoice_number    VARCHAR(50) NOT NULL UNIQUE,
@@ -648,9 +628,9 @@ CREATE TABLE pos_payment_invoices (
 );
 
 -- QR code generated for each invoice, displayed on terminal screen
-CREATE TABLE pos_qr_codes (
+CREATE TABLE bnpl_qr_codes (
     id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    invoice_id              UUID NOT NULL REFERENCES pos_payment_invoices(id),
+    invoice_id              UUID NOT NULL REFERENCES bnpl_payment_invoices(id),
     qr_payload              TEXT NOT NULL,
     qr_image_url            TEXT,
     scanned_by_customer_id  UUID REFERENCES customer_profiles(id),
@@ -662,27 +642,27 @@ CREATE TABLE pos_qr_codes (
 );
 
 -- BNPL transaction record (linked to the loan created for it)
-CREATE TABLE pos_transactions (
+CREATE TABLE bnpl_transactions (
     id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     loan_id                 UUID REFERENCES loans(id),
-    invoice_id              UUID NOT NULL UNIQUE REFERENCES pos_payment_invoices(id),
+    invoice_id              UUID NOT NULL UNIQUE REFERENCES bnpl_payment_invoices(id),
     customer_id             UUID NOT NULL REFERENCES customer_profiles(id),
     merchant_id             UUID NOT NULL REFERENCES merchant_profiles(id),
-    installment_option_id   UUID REFERENCES pos_installment_options(id),
+    installment_option_id   UUID REFERENCES bnpl_installment_options(id),
     total_amount            NUMERIC(14,2) NOT NULL,
     installment_count       INT NOT NULL,
     per_installment_amount  NUMERIC(14,2) NOT NULL,
     interest_amount         NUMERIC(14,2) NOT NULL DEFAULT 0,
-    status                  pos_txn_status_enum NOT NULL DEFAULT 'processing',
+    status                  bnpl_txn_status_enum NOT NULL DEFAULT 'processing',
     approved_at             TIMESTAMPTZ,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Callbacks sent back to the terminal after approval/rejection
-CREATE TABLE pos_terminal_callbacks (
+CREATE TABLE bnpl_terminal_callbacks (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    transaction_id  UUID NOT NULL REFERENCES pos_transactions(id),
-    terminal_id     UUID NOT NULL REFERENCES pos_terminals(id),
+    transaction_id  UUID NOT NULL REFERENCES bnpl_transactions(id),
+    terminal_id     UUID NOT NULL REFERENCES bnpl_terminals(id),
     callback_type   callback_type_enum NOT NULL,
     payload         JSONB NOT NULL,
     http_status     INT,
@@ -693,12 +673,12 @@ CREATE TABLE pos_terminal_callbacks (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_invoices_terminal  ON pos_payment_invoices(terminal_id);
-CREATE INDEX idx_invoices_merchant  ON pos_payment_invoices(merchant_id);
-CREATE INDEX idx_qr_invoice         ON pos_qr_codes(invoice_id);
-CREATE INDEX idx_qr_installment_option ON pos_qr_codes(selected_installment_option_id);
-CREATE INDEX idx_pos_txn_customer  ON pos_transactions(customer_id);
-CREATE INDEX idx_pos_txn_installment_option ON pos_transactions(installment_option_id);
+CREATE INDEX idx_invoices_terminal  ON bnpl_payment_invoices(terminal_id);
+CREATE INDEX idx_invoices_merchant  ON bnpl_payment_invoices(merchant_id);
+CREATE INDEX idx_qr_invoice         ON bnpl_qr_codes(invoice_id);
+CREATE INDEX idx_qr_installment_option ON bnpl_qr_codes(selected_installment_option_id);
+CREATE INDEX idx_bnpl_txn_customer  ON bnpl_transactions(customer_id);
+CREATE INDEX idx_bnpl_txn_installment_option ON bnpl_transactions(installment_option_id);
 
 
 -- ============================================================
@@ -1156,7 +1136,7 @@ ALTER TABLE customer_bank_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_addresses        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_educations       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_employments      ENABLE ROW LEVEL SECURITY;
-ALTER TABLE kyc_customer_files   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kyc_customer_images  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_related_customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_signature_images ENABLE ROW LEVEL SECURITY;
 ALTER TABLE merchant_profiles   ENABLE ROW LEVEL SECURITY;

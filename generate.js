@@ -308,7 +308,7 @@ const DOMAINS = [
   { id: 'kyc',      label: 'KYC & 3rd-Party',     color: '#a78bfa', tables: ['dan_verifications','hur_data_snapshots','sain_score_requests','kyc_verification_steps'] },
   { id: 'credit',   label: 'Credit & Limits',      color: '#34d399', tables: ['credit_score_results','credit_scoring_factors','loan_limits'] },
   { id: 'loans',    label: 'Loans & Products',     color: '#f59e0b', tables: ['loan_products','loan_applications','loans','loan_account_mappings'] },
-  { id: 'bnpl',     label: 'BNPL Flow',            color: '#f97316', tables: ['bnpl_terminals','bnpl_payment_invoices','bnpl_qr_codes','bnpl_transactions','bnpl_terminal_callbacks'] },
+  { id: 'pos',     label: 'POS Flow',            color: '#f97316', tables: ['pos_terminals','pos_payment_invoices','pos_qr_codes','pos_transactions','pos_terminal_callbacks'] },
   { id: 'repay',    label: 'Repayment & QPay',     color: '#ec4899', tables: ['repayment_schedules','qpay_repayment_invoices','qpay_repayment_callbacks','repayment_transactions','penalty_records'] },
   { id: 'polaris',  label: 'Polaris Core Banking', color: '#06b6d4', tables: ['polaris_accounts','polaris_transactions','polaris_api_logs','polaris_sync_queue'] },
   { id: 'merchant', label: 'Merchant Portal',      color: '#84cc16', tables: ['merchant_portal_users','merchant_refund_requests','merchant_return_items','merchant_settlements'] },
@@ -396,6 +396,7 @@ const viewData    = JSON.stringify(views);
 const posData     = JSON.stringify(positions);
 const edgeData    = JSON.stringify(edges);
 const domainData  = JSON.stringify(DOMAINS);
+const originalSqlData = JSON.stringify(sql);
 
 const html = /* html */`<!DOCTYPE html>
 <html lang="en">
@@ -605,6 +606,59 @@ const html = /* html */`<!DOCTYPE html>
     border-radius: 8px; overflow: hidden; z-index: 100;
   }
   #minimap canvas { width: 100%; height: 100%; }
+
+  /* ── EDITOR ── */
+  #editor-panel {
+    position: fixed; top: var(--header-h); right: -560px;
+    width: 540px; bottom: 0;
+    background: rgba(17,24,39,0.98); backdrop-filter: blur(16px);
+    border-left: 1px solid var(--border);
+    z-index: 101; transition: right 0.25s cubic-bezier(0.4,0,0.2,1);
+    display: grid; grid-template-rows: auto auto 1fr auto;
+    box-shadow: -12px 0 40px rgba(0,0,0,0.35);
+  }
+  #editor-panel.open { right: 0; }
+  .editor-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .editor-title { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800; color: #fff; }
+  .editor-note { color: var(--text-muted); font-size: 10px; line-height: 1.45; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  .editor-tabs { display: flex; gap: 4px; padding: 10px 16px 0; }
+  .editor-tab { border: 1px solid var(--border); background: var(--surface2); color: var(--text-muted); border-radius: 7px; padding: 6px 10px; font: inherit; font-size: 11px; cursor: pointer; }
+  .editor-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .editor-body { min-height: 0; overflow: auto; padding: 10px 16px 16px; }
+  .editor-pane { display: none; height: 100%; }
+  .editor-pane.active { display: block; }
+  #sql-editor {
+    width: 100%; height: calc(100vh - 255px); min-height: 360px; resize: none;
+    background: #070b13; color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px; font: 11px/1.55 'JetBrains Mono', monospace;
+    outline: none; user-select: text;
+  }
+  #sql-editor:focus { border-color: var(--accent); }
+  .editor-status { min-height: 18px; margin-top: 8px; font-size: 10px; color: var(--text-muted); }
+  .editor-status.error { color: #fca5a5; }
+  .editor-status.ok { color: #6ee7b7; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
+  .form-grid .full { grid-column: 1 / -1; }
+  .form-field { display: grid; gap: 5px; }
+  .form-field.full { grid-column: 1 / -1; }
+  .form-field label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .form-field input, .form-field select {
+    width: 100%; background: #070b13; color: var(--text); border: 1px solid var(--border);
+    border-radius: 7px; padding: 8px 9px; font: 11px 'JetBrains Mono', monospace; outline: none;
+  }
+  .form-field input:focus, .form-field select:focus { border-color: var(--accent); }
+  .check-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 0; }
+  .check-row label { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 10px; }
+  .check-row input { accent-color: var(--accent); }
+  .editor-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
+  .editor-actions-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .editor-btn {
+    border: 1px solid var(--border); background: var(--surface2); color: var(--text);
+    border-radius: 7px; padding: 7px 10px; font: inherit; font-size: 11px; cursor: pointer;
+  }
+  .editor-btn:hover { border-color: var(--accent); }
+  .editor-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .editor-empty { color: var(--text-muted); font-size: 11px; line-height: 1.5; padding: 12px; border: 1px dashed var(--border); border-radius: 8px; }
 </style>
 </head>
 <body>
@@ -653,11 +707,93 @@ const html = /* html */`<!DOCTYPE html>
   <div id="dp-views"></div>
 </div>
 
+<div id="editor-panel">
+  <div class="editor-head">
+    <div class="editor-title">Schema Editor</div>
+    <button class="editor-btn" id="close-editor">Close</button>
+  </div>
+  <div class="editor-note" id="editor-note">
+    Static mode cannot overwrite the source SQL file directly. Use Download SQL to export the edited schema as <b>lending_app_schema.updated.sql</b>.
+  </div>
+  <div class="editor-tabs">
+    <button class="editor-tab active" data-editor-tab="sql">SQL</button>
+    <button class="editor-tab" data-editor-tab="form">Table Form</button>
+  </div>
+  <div class="editor-body">
+    <div class="editor-pane active" id="editor-pane-sql">
+      <textarea id="sql-editor" spellcheck="false"></textarea>
+      <div class="editor-status" id="editor-status"></div>
+    </div>
+    <div class="editor-pane" id="editor-pane-form">
+      <div id="form-empty" class="editor-empty">Choose a table and column to edit common column-level SQL fields. Use the SQL tab for advanced PostgreSQL definitions.</div>
+      <div id="schema-form" class="form-grid" style="display:none;">
+        <div class="form-field">
+          <label for="form-table">Table</label>
+          <select id="form-table"></select>
+        </div>
+        <div class="form-field">
+          <label for="form-table-name">Table name</label>
+          <input id="form-table-name" autocomplete="off"/>
+        </div>
+        <div class="form-field">
+          <label for="form-column">Column</label>
+          <select id="form-column"></select>
+        </div>
+        <div class="form-field">
+          <label for="form-column-name">Column name</label>
+          <input id="form-column-name" autocomplete="off"/>
+        </div>
+        <div class="form-field">
+          <label for="form-column-type">Type</label>
+          <input id="form-column-type" autocomplete="off"/>
+        </div>
+        <div class="form-field">
+          <label for="form-default">Default</label>
+          <input id="form-default" autocomplete="off" placeholder="NULL / empty for none"/>
+        </div>
+        <div class="form-field">
+          <label for="form-ref-table">References table</label>
+          <select id="form-ref-table"></select>
+        </div>
+        <div class="form-field">
+          <label for="form-ref-column">References column</label>
+          <input id="form-ref-column" autocomplete="off" placeholder="id"/>
+        </div>
+        <div class="form-field">
+          <label for="form-on-delete">On delete</label>
+          <select id="form-on-delete">
+            <option value="">None</option>
+            <option>CASCADE</option>
+            <option>RESTRICT</option>
+            <option>SET NULL</option>
+            <option>SET DEFAULT</option>
+            <option>NO ACTION</option>
+          </select>
+        </div>
+        <div class="check-row full">
+          <label><input id="form-pk" type="checkbox"/> Primary key</label>
+          <label><input id="form-not-null" type="checkbox"/> Not null</label>
+          <label><input id="form-unique" type="checkbox"/> Unique</label>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="editor-actions">
+    <div class="editor-actions-group">
+      <button class="editor-btn primary" id="btn-download-sql">Download SQL</button>
+      <button class="editor-btn" id="btn-download-html">Download HTML</button>
+    </div>
+    <button class="editor-btn" id="btn-reparse">Re-parse SQL</button>
+  </div>
+</div>
+
 <div id="toolbar">
   <button class="tool-btn" id="btn-fit" title="Fit to screen">⊞ Fit</button>
   <div class="tool-divider"></div>
   <button class="tool-btn" id="btn-zoom-in">＋</button>
   <button class="tool-btn" id="btn-zoom-out">－</button>
+  <div class="tool-divider"></div>
+  <button class="tool-btn" id="btn-editor" title="Edit schema">✎ Editor</button>
   <div class="tool-divider"></div>
   <button class="tool-btn" id="btn-edges" title="Toggle FK lines">⇢ Edges</button>
   <button class="tool-btn" id="btn-reset" title="Reset selection">⟳ Reset</button>
@@ -666,14 +802,34 @@ const html = /* html */`<!DOCTYPE html>
 <canvas id="minimap"></canvas>
 
 <script>
+// ── BROWSER SQL PARSER ────────────────────────────────────────────────────
+${parseSchema.toString()}
+${parseTables.toString()}
+${splitTopLevel.toString()}
+${stripSqlComments.toString()}
+${csvNames.toString()}
+${unquoteSqlString.toString()}
+${parseEnums.toString()}
+${parseDefault.toString()}
+${parseGenerated.toString()}
+${parseReferentialActions.toString()}
+${parseIndexes.toString()}
+${parseViews.toString()}
+${escapeRegex.toString()}
+${normalizeType.toString()}
+${layoutTables.toString()}
+
 // ── DATA ──────────────────────────────────────────────────────────────────
-const TABLES  = ${tableData};
-const ENUMS   = ${enumData};
-const INDEXES = ${indexData};
-const VIEWS   = ${viewData};
-const POSITIONS = ${posData};
-const EDGES   = ${edgeData};
+let TABLES  = ${tableData};
+let ENUMS   = ${enumData};
+let INDEXES = ${indexData};
+let VIEWS   = ${viewData};
+let POSITIONS = ${posData};
+let EDGES   = ${edgeData};
 const DOMAINS = ${domainData};
+const ORIGINAL_SQL = ${originalSqlData};
+let currentSql = ORIGINAL_SQL;
+let lastValidSql = ORIGINAL_SQL;
 
 // ── STATE ─────────────────────────────────────────────────────────────────
 let scale = 0.55, tx = 40, ty = 40;
@@ -694,9 +850,95 @@ const wrap      = document.getElementById('canvas-wrap');
 const edgeLayer = document.getElementById('edge-layer');
 const search    = document.getElementById('search');
 const panel     = document.getElementById('detail-panel');
+const editorPanel = document.getElementById('editor-panel');
+const sqlEditor = document.getElementById('sql-editor');
+const editorStatus = document.getElementById('editor-status');
 
 function setTransform() {
   canvas.style.transform = \`translate(\${tx}px,\${ty}px) scale(\${scale})\`;
+}
+
+function buildEdgesFromTables(tables) {
+  const edges = [];
+  for (const [tname, tdata] of Object.entries(tables)) {
+    for (const fk of tdata.foreignKeys || []) {
+      if (tables[fk.refTable]) {
+        edges.push({ from: tname, to: fk.refTable, cols: fk.columns, refCols: fk.refColumns, onDelete: fk.onDelete || null, onUpdate: fk.onUpdate || null });
+      }
+    }
+  }
+  return edges;
+}
+
+function validateParsedSql(sqlText, parsed) {
+  const createTableCount = (stripSqlComments(sqlText).match(/CREATE\\s+TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?\\w+\\s*\\(/gi) || []).length;
+  const parsedCount = Object.keys(parsed.tables || {}).length;
+  if (createTableCount && parsedCount === 0) throw new Error('No complete CREATE TABLE blocks could be parsed.');
+  if (createTableCount > parsedCount) throw new Error(\`Parsed \${parsedCount} of \${createTableCount} CREATE TABLE blocks. Check for an incomplete table definition.\`);
+}
+
+function replaceObjectContents(target, source) {
+  for (const key of Object.keys(target)) delete target[key];
+  for (const [key, value] of Object.entries(source)) target[key] = value;
+}
+
+function removeTableCards() {
+  document.querySelectorAll('.table-card').forEach(el => el.remove());
+  for (const key of Object.keys(cardEls)) delete cardEls[key];
+}
+
+function refreshSchema(schema, options = {}) {
+  const nextPositions = layoutTables(schema.tables);
+  const mergedPositions = {};
+  for (const [name, pos] of Object.entries(nextPositions)) mergedPositions[name] = cardPos[name] ? { ...cardPos[name] } : { ...pos };
+
+  TABLES = schema.tables;
+  ENUMS = schema.enums;
+  INDEXES = schema.indexes;
+  VIEWS = schema.views;
+  EDGES = buildEdgesFromTables(TABLES);
+  POSITIONS = mergedPositions;
+
+  replaceObjectContents(cardPos, mergedPositions);
+  removeTableCards();
+  buildCards();
+  updateStats();
+  applyFilters();
+
+  if (selectedTable && TABLES[selectedTable]) {
+    highlightRelated(selectedTable);
+    openPanel(selectedTable);
+  } else if (selectedTable) {
+    clearHighlight();
+    closePanel();
+  }
+  populateSchemaForm();
+  if (options.fit) setTimeout(fitScreen, 60);
+}
+
+function tryParseCurrentSql(options = {}) {
+  const nextSql = sqlEditor.value;
+  try {
+    const nextSchema = parseSchema(nextSql);
+    validateParsedSql(nextSql, nextSchema);
+    currentSql = nextSql;
+    lastValidSql = nextSql;
+    refreshSchema(nextSchema, options);
+    if (!options.silentSave) {
+      setEditorStatus(liveServiceAvailable ? 'Live preview updated. Saving...' : 'Live preview updated.', 'ok');
+      scheduleServerSave();
+    }
+    return true;
+  } catch (err) {
+    currentSql = nextSql;
+    setEditorStatus(err.message || String(err), 'error');
+    return false;
+  }
+}
+
+function setEditorStatus(message, kind = '') {
+  editorStatus.textContent = message || '';
+  editorStatus.className = \`editor-status \${kind}\`.trim();
 }
 
 // ── LEGEND ────────────────────────────────────────────────────────────────
@@ -804,6 +1046,14 @@ function buildCards() {
       const badges = formatColumnBadges(name, col);
       row.title = columnTooltip(name, col);
       row.innerHTML = \`\${badges.join('')}<span class="col-name">\${esc(col.name)}</span><span class="col-type">\${esc(col.type)}</span>\`;
+      row.addEventListener('dblclick', e => {
+        editTable(name);
+        setTimeout(() => {
+          document.getElementById('form-column').value = col.name;
+          loadSelectedColumnIntoForm();
+        }, 0);
+        e.stopPropagation();
+      });
       colWrap.appendChild(row);
     }
     card.appendChild(colWrap);
@@ -823,6 +1073,10 @@ function buildCards() {
     card.addEventListener('click', e => {
       if (draggingCard) return;
       selectTable(name);
+      e.stopPropagation();
+    });
+    card.addEventListener('dblclick', e => {
+      editTable(name);
       e.stopPropagation();
     });
 
@@ -910,6 +1164,7 @@ function selectTable(name) {
   if (!selectedTable) { clearHighlight(); closePanel(); return; }
   highlightRelated(selectedTable);
   openPanel(selectedTable);
+  if (editorPanel.classList.contains('open')) populateSchemaForm(selectedTable);
 }
 
 function highlightRelated(name) {
@@ -973,6 +1228,14 @@ function renderIndex(idx) {
 
 function renderView(view) {
   return \`<div class="dp-card"><div class="dp-card-title">\${esc(view.name)}</div>\${esc(view.definition)}</div>\`;
+}
+
+function editTable(name) {
+  if (!TABLES[name]) return;
+  selectedTable = name;
+  openEditor();
+  setActiveEditorTab('form');
+  populateSchemaForm(name);
 }
 
 function openPanel(name) {
@@ -1053,6 +1316,14 @@ function openPanel(name) {
 
   const viewsEl = document.getElementById('dp-views');
   viewsEl.innerHTML = views.length ? views.map(renderView).join('') : renderEmpty();
+
+  const editBtn = document.createElement('button');
+  editBtn.className = 'editor-btn primary';
+  editBtn.style.width = '100%';
+  editBtn.style.marginTop = '12px';
+  editBtn.textContent = 'Edit table';
+  editBtn.addEventListener('click', () => editTable(name));
+  viewsEl.appendChild(editBtn);
 
   panel.classList.add('open');
 }
@@ -1145,14 +1416,263 @@ function fitScreen() {
 // ── SEARCH ────────────────────────────────────────────────────────────────
 search.addEventListener('input', applyFilters);
 
+// ── LIVE EDITOR ───────────────────────────────────────────────────────────
+let sqlEditTimer = null;
+let formEditTimer = null;
+let isPopulatingForm = false;
+let liveServiceAvailable = false;
+let saveTimer = null;
+let lastSavedSql = ORIGINAL_SQL;
+
+function setActiveEditorTab(tab) {
+  document.querySelectorAll('.editor-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.editorTab === tab));
+  document.querySelectorAll('.editor-pane').forEach(pane => pane.classList.remove('active'));
+  document.getElementById(\`editor-pane-\${tab}\`).classList.add('active');
+  if (tab === 'form') populateSchemaForm();
+}
+
+function openEditor() {
+  sqlEditor.value = currentSql;
+  populateSchemaForm();
+  editorPanel.classList.add('open');
+  document.getElementById('btn-editor').classList.add('active');
+}
+
+function closeEditor() {
+  editorPanel.classList.remove('open');
+  document.getElementById('btn-editor').classList.remove('active');
+}
+
+async function detectLiveService() {
+  try {
+    const response = await fetch('/api/schema', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Schema API unavailable');
+    const payload = await response.json();
+    if (typeof payload.sql !== 'string') throw new Error('Schema API returned no SQL');
+    liveServiceAvailable = true;
+    currentSql = payload.sql;
+    lastValidSql = payload.sql;
+    lastSavedSql = payload.sql;
+    sqlEditor.value = payload.sql;
+    document.getElementById('editor-note').innerHTML = 'Live service mode is active. Valid edits save directly to <b>lending_app_schema.sql</b> and regenerate this HTML file.';
+    document.getElementById('btn-download-sql').textContent = 'Save SQL';
+    tryParseCurrentSql({ silentSave: true });
+    setEditorStatus('Live service connected.', 'ok');
+  } catch {
+    liveServiceAvailable = false;
+  }
+}
+
+async function saveCurrentSqlToServer() {
+  if (!liveServiceAvailable || currentSql === lastSavedSql) return;
+  try {
+    setEditorStatus('Saving to lending_app_schema.sql...', '');
+    const response = await fetch('/api/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql: currentSql }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.ok) throw new Error(payload.error || 'Save failed');
+    lastSavedSql = currentSql;
+    setEditorStatus('Saved to lending_app_schema.sql and regenerated index.html.', 'ok');
+  } catch (err) {
+    setEditorStatus(err.message || String(err), 'error');
+  }
+}
+
+function scheduleServerSave() {
+  if (!liveServiceAvailable) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveCurrentSqlToServer, 400);
+}
+
+function findCreateTableBlock(sqlText, tableName) {
+  const tableRe = /CREATE\\s+TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?(\\w+)\\s*\\(([\\s\\S]*?)\\)\\s*(?:PARTITION\\s+BY[^;]+)?;/gi;
+  let match;
+  while ((match = tableRe.exec(sqlText)) !== null) {
+    if (match[1] === tableName) {
+      return { start: match.index, end: tableRe.lastIndex, full: match[0], name: match[1], body: match[2] };
+    }
+  }
+  return null;
+}
+
+function columnDefinitionFromForm() {
+  const name = document.getElementById('form-column-name').value.trim();
+  const type = document.getElementById('form-column-type').value.trim();
+  if (!/^\\w+$/.test(name)) throw new Error('Column name must use letters, numbers, or underscore.');
+  if (!type) throw new Error('Column type is required.');
+  const parts = [name, type];
+  if (document.getElementById('form-pk').checked) parts.push('PRIMARY KEY');
+  if (document.getElementById('form-not-null').checked) parts.push('NOT NULL');
+  if (document.getElementById('form-unique').checked && !document.getElementById('form-pk').checked) parts.push('UNIQUE');
+  const defaultValue = document.getElementById('form-default').value.trim();
+  if (defaultValue) parts.push('DEFAULT ' + defaultValue);
+  const refTable = document.getElementById('form-ref-table').value;
+  if (refTable) {
+    const refColumn = document.getElementById('form-ref-column').value.trim() || 'id';
+    parts.push(\`REFERENCES \${refTable}(\${refColumn})\`);
+    const onDelete = document.getElementById('form-on-delete').value;
+    if (onDelete) parts.push('ON DELETE ' + onDelete);
+  }
+  return parts.join(' ');
+}
+
+function updateSqlFromForm() {
+  if (isPopulatingForm) return;
+  const originalTable = document.getElementById('form-table').value;
+  const originalColumn = document.getElementById('form-column').value;
+  if (!originalTable || !originalColumn) return;
+  clearTimeout(formEditTimer);
+  formEditTimer = setTimeout(() => {
+    try {
+      const nextTableName = document.getElementById('form-table-name').value.trim();
+      if (!/^\\w+$/.test(nextTableName)) throw new Error('Table name must use letters, numbers, or underscore.');
+      const block = findCreateTableBlock(currentSql, originalTable);
+      if (!block) throw new Error(\`Could not locate CREATE TABLE block for \${originalTable}.\`);
+      const clauses = splitTopLevel(block.body);
+      let replacedColumn = false;
+      const nextColumnDefinition = columnDefinitionFromForm();
+      const nextClauses = clauses.map(clause => {
+        const trimmed = clause.trim();
+        const columnMatch = /^(\\w+)\\s+/s.exec(trimmed);
+        if (columnMatch && columnMatch[1] === originalColumn) {
+          replacedColumn = true;
+          const indent = /^\\s*/.exec(clause)?.[0] || '    ';
+          return indent + nextColumnDefinition;
+        }
+        return clause;
+      });
+      if (!replacedColumn) throw new Error(\`Could not locate column \${originalColumn} in \${originalTable}.\`);
+
+      let nextBlock = block.full.replace(block.body, nextClauses.join(',\\n'));
+      if (nextTableName !== originalTable) {
+        nextBlock = nextBlock.replace(new RegExp(\`(CREATE\\\\s+TABLE\\\\s+(?:IF\\\\s+NOT\\\\s+EXISTS\\\\s+)?)\${originalTable}\\\\b\`, 'i'), \`$1\${nextTableName}\`);
+      }
+      let nextSql = currentSql.slice(0, block.start) + nextBlock + currentSql.slice(block.end);
+      if (nextTableName !== originalTable) {
+        nextSql = nextSql.replace(new RegExp(\`(REFERENCES\\\\s+)\${originalTable}\\\\b\`, 'gi'), \`$1\${nextTableName}\`);
+      }
+      sqlEditor.value = nextSql;
+      tryParseCurrentSql();
+      document.getElementById('form-table').value = TABLES[nextTableName] ? nextTableName : originalTable;
+      populateSchemaForm();
+    } catch (err) {
+      setEditorStatus(err.message || String(err), 'error');
+    }
+  }, 250);
+}
+
+function populateSchemaForm(preferredTable = null) {
+  const tableNames = Object.keys(TABLES);
+  const form = document.getElementById('schema-form');
+  const empty = document.getElementById('form-empty');
+  if (!tableNames.length) {
+    form.style.display = 'none';
+    empty.style.display = '';
+    return;
+  }
+
+  isPopulatingForm = true;
+  empty.style.display = 'none';
+  form.style.display = '';
+
+  const tableSelect = document.getElementById('form-table');
+  const previousTable = tableSelect.value;
+  tableSelect.innerHTML = tableNames.map(name => \`<option value="\${esc(name)}">\${esc(name)}</option>\`).join('');
+  const selectedTableName = TABLES[preferredTable] ? preferredTable : (TABLES[previousTable] ? previousTable : (selectedTable || tableNames[0]));
+  tableSelect.value = TABLES[selectedTableName] ? selectedTableName : tableNames[0];
+
+  const tableName = tableSelect.value;
+  document.getElementById('form-table-name').value = tableName;
+
+  const columnSelect = document.getElementById('form-column');
+  const columns = TABLES[tableName].columns || [];
+  const previousColumn = columnSelect.value;
+  columnSelect.innerHTML = columns.map(col => \`<option value="\${esc(col.name)}">\${esc(col.name)}</option>\`).join('');
+  columnSelect.value = columns.some(col => col.name === previousColumn) ? previousColumn : (columns[0]?.name || '');
+
+  const tableOptions = [''].concat(tableNames).map(name => \`<option value="\${esc(name)}">\${name ? esc(name) : 'None'}</option>\`).join('');
+  document.getElementById('form-ref-table').innerHTML = tableOptions;
+
+  loadSelectedColumnIntoForm();
+  isPopulatingForm = false;
+}
+
+function loadSelectedColumnIntoForm() {
+  const tableName = document.getElementById('form-table').value;
+  const columnName = document.getElementById('form-column').value;
+  const col = TABLES[tableName]?.columns.find(c => c.name === columnName);
+  if (!col) return;
+  document.getElementById('form-column-name').value = col.name;
+  document.getElementById('form-column-type').value = col.type;
+  document.getElementById('form-default').value = col.defaultValue || '';
+  document.getElementById('form-ref-table').value = col.fk?.refTable || '';
+  document.getElementById('form-ref-column').value = col.fk?.refColumn || 'id';
+  document.getElementById('form-on-delete').value = col.fk?.onDelete || '';
+  document.getElementById('form-pk').checked = Boolean(col.isPK);
+  document.getElementById('form-not-null').checked = Boolean(col.isNotNull);
+  document.getElementById('form-unique').checked = Boolean(col.isUnique);
+}
+
+function updateStats() {
+  document.getElementById('stat-tables').textContent = Object.keys(TABLES).length;
+  document.getElementById('stat-edges').textContent  = EDGES.length;
+  const totalCols = Object.values(TABLES).reduce((s,t) => s + t.columns.length, 0);
+  document.getElementById('stat-cols').textContent   = totalCols;
+  document.getElementById('stat-enums').textContent  = Object.keys(ENUMS).length;
+  document.getElementById('stat-indexes').textContent = Object.values(INDEXES).reduce((sum, list) => sum + list.length, 0);
+  document.getElementById('stat-views').textContent  = Object.keys(VIEWS).length;
+}
+
+function downloadText(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function currentHtmlForDownload() {
+  const clone = document.documentElement.cloneNode(true);
+  const textarea = clone.querySelector('#sql-editor');
+  if (textarea) textarea.textContent = currentSql;
+  const scripts = clone.querySelectorAll('script');
+  const source = '<!DOCTYPE html>\\n' + clone.outerHTML;
+  return source
+    .replace(/const ORIGINAL_SQL = [\\s\\S]*?;\\nlet currentSql = ORIGINAL_SQL;\\nlet lastValidSql = ORIGINAL_SQL;/, \`const ORIGINAL_SQL = \${JSON.stringify(currentSql)};\\nlet currentSql = ORIGINAL_SQL;\\nlet lastValidSql = ORIGINAL_SQL;\`);
+}
+
+document.querySelectorAll('.editor-tab').forEach(btn => btn.addEventListener('click', () => setActiveEditorTab(btn.dataset.editorTab)));
+document.getElementById('btn-editor').addEventListener('click', () => editorPanel.classList.contains('open') ? closeEditor() : openEditor());
+document.getElementById('close-editor').addEventListener('click', closeEditor);
+document.getElementById('btn-reparse').addEventListener('click', () => tryParseCurrentSql({ fit: false }));
+document.getElementById('btn-download-sql').addEventListener('click', () => liveServiceAvailable ? saveCurrentSqlToServer() : downloadText('lending_app_schema.updated.sql', currentSql, 'text/sql'));
+document.getElementById('btn-download-html').addEventListener('click', () => downloadText('lending_app_schema.updated.html', currentHtmlForDownload(), 'text/html'));
+
+sqlEditor.value = currentSql;
+sqlEditor.addEventListener('input', () => {
+  clearTimeout(sqlEditTimer);
+  setEditorStatus('Parsing...', '');
+  sqlEditTimer = setTimeout(() => tryParseCurrentSql(), 350);
+});
+
+document.getElementById('form-table').addEventListener('change', () => { isPopulatingForm = true; populateSchemaForm(); isPopulatingForm = false; });
+document.getElementById('form-column').addEventListener('change', () => { isPopulatingForm = true; loadSelectedColumnIntoForm(); isPopulatingForm = false; });
+['form-table-name','form-column-name','form-column-type','form-default','form-ref-table','form-ref-column','form-on-delete','form-pk','form-not-null','form-unique'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateSqlFromForm);
+  document.getElementById(id).addEventListener('change', updateSqlFromForm);
+});
+
+detectLiveService();
+
 // ── STATS ─────────────────────────────────────────────────────────────────
-document.getElementById('stat-tables').textContent = Object.keys(TABLES).length;
-document.getElementById('stat-edges').textContent  = EDGES.length;
-const totalCols = Object.values(TABLES).reduce((s,t) => s + t.columns.length, 0);
-document.getElementById('stat-cols').textContent   = totalCols;
-document.getElementById('stat-enums').textContent  = Object.keys(ENUMS).length;
-document.getElementById('stat-indexes').textContent = Object.values(INDEXES).reduce((sum, list) => sum + list.length, 0);
-document.getElementById('stat-views').textContent  = Object.keys(VIEWS).length;
+updateStats();
 
 // ── INIT ──────────────────────────────────────────────────────────────────
 buildCards();
