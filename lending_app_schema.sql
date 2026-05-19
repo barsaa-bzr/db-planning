@@ -46,7 +46,7 @@ CREATE TABLE customer_profiles (
     id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id           UUID NOT NULL UNIQUE REFERENCES users(id),
     customer_kind     customer_kind_enum NOT NULL DEFAULT 'person',
-    cif_id            VARCHAR(100) UNIQUE,  -- customer reference returned by Polaris core system
+    polaris_cust_code VARCHAR(100) UNIQUE,  -- Polaris/OI custCode
     national_id_encrypted BYTEA NOT NULL,
     national_id_hash  BYTEA NOT NULL UNIQUE,
     first_name        VARCHAR(100) NOT NULL,
@@ -124,7 +124,7 @@ CREATE TABLE message_logs (
 
 CREATE INDEX idx_users_phone         ON users(phone_number);
 CREATE INDEX idx_customer_kind       ON customer_profiles(customer_kind);
-CREATE INDEX idx_customer_cif_id     ON customer_profiles(cif_id);
+CREATE INDEX idx_customer_polaris_cust_code ON customer_profiles(polaris_cust_code);
 CREATE INDEX idx_otp_phone_purpose   ON otp_sessions(phone_number, purpose);
 CREATE INDEX idx_sessions_user       ON user_sessions(user_id);
 
@@ -149,10 +149,11 @@ CREATE TYPE hur_data_type_enum    AS ENUM ('marital_status','employment','salary
 CREATE TYPE register_number_type_enum AS ENUM ('mongolian_register','foreign_register','passport','taxpayer','other');
 CREATE TYPE id_card_number_type_enum AS ENUM ('national_id_card','passport','residence_permit','driver_license','other');
 
--- Nationality/country lookup; country_code maps to Polaris countryCode.
+-- Nationality/country lookup; country_code maps to Polaris/OI countryCode.
 CREATE TABLE nationalities (
     id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     country_code   VARCHAR(10) NOT NULL UNIQUE,
+    polaris_nationality_id INT UNIQUE,       -- Polaris/OI nationalityId
     country_name   VARCHAR(150) NOT NULL,
     is_active      BOOLEAN NOT NULL DEFAULT TRUE,
     created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -556,6 +557,8 @@ CREATE TABLE loan_applications (
     customer_id           UUID NOT NULL REFERENCES customer_profiles(id),
     product_id            UUID NOT NULL REFERENCES loan_products(id),
     credit_score_id       UUID NOT NULL REFERENCES credit_score_results(id),
+    polaris_los_acnt_code_encrypted BYTEA,  -- Polaris/OI losAcntCode from /loan/createLos
+    polaris_los_acnt_code_hash BYTEA,
     requested_amount      NUMERIC(14,2) NOT NULL,
     requested_disbursement_bank_account_id UUID REFERENCES customer_bank_accounts(id),
     duration_option_id    UUID REFERENCES loan_product_duration_options(id),
@@ -586,9 +589,8 @@ CREATE TABLE loans (
     application_id      UUID NOT NULL UNIQUE REFERENCES loan_applications(id),
     customer_id         UUID NOT NULL REFERENCES customer_profiles(id),
     product_id          UUID NOT NULL REFERENCES loan_products(id),
-    polaris_deposit_acc_no_encrypted BYTEA,  -- customer's deposit account to disburse into
-    polaris_deposit_acc_no_hash BYTEA,
-    polaris_account_id  UUID NOT NULL,
+    polaris_loan_account_id UUID NOT NULL,   -- Polaris/OI loan acntCode in polaris_accounts
+    polaris_deposit_account_id UUID,         -- Polaris/OI deposit acntCode used for disbursement/collection
     loan_number         VARCHAR(40) NOT NULL UNIQUE,
     principal_amount    NUMERIC(14,2) NOT NULL,
     disbursed_amount    NUMERIC(14,2),
@@ -602,8 +604,6 @@ CREATE TABLE loans (
     total_payable       NUMERIC(14,2),
     maturity_date       DATE,
     status              loan_status_enum NOT NULL DEFAULT 'active',
-    polaris_loan_acc_no_encrypted BYTEA,
-    polaris_loan_acc_no_hash BYTEA,
     disbursed_at        TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CHECK (
@@ -618,21 +618,6 @@ CREATE TABLE loans (
         REFERENCES bnpl_installment_options(product_id, id)
 );
 
--- -- Maps a loan to all Polaris account numbers used in its lifecycle
--- CREATE TABLE loan_account_mappings (
---     id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
---     loan_id                     UUID NOT NULL UNIQUE REFERENCES loans(id),
---     polaris_deposit_acc_no_encrypted BYTEA,  -- customer's deposit account to disburse into
---     polaris_deposit_acc_no_hash BYTEA,
---     polaris_loan_acc_no_encrypted BYTEA,     -- loan balance account in Polaris
---     polaris_loan_acc_no_hash BYTEA,
---     polaris_repayment_pool_acc_encrypted BYTEA,  -- internal repayment collection account
---     polaris_repayment_pool_acc_hash BYTEA,
---     polaris_merchant_debt_acc_encrypted BYTEA,   -- BNPL: account to pay Emart
---     polaris_merchant_debt_acc_hash BYTEA,
---     created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
--- );
-
 CREATE INDEX idx_loans_customer     ON loans(customer_id);
 CREATE INDEX idx_loan_apps_customer ON loan_applications(customer_id);
 CREATE INDEX idx_loan_apps_disbursement_bank ON loan_applications(requested_disbursement_bank_account_id);
@@ -645,6 +630,8 @@ CREATE INDEX idx_loan_apps_bnpl_option ON loan_applications(bnpl_installment_opt
 CREATE INDEX idx_loans_duration_option ON loans(duration_option_id);
 CREATE INDEX idx_loans_bnpl_option ON loans(bnpl_installment_option_id);
 CREATE INDEX idx_loans_disbursement_bank ON loans(disbursement_bank_account_id);
+CREATE INDEX idx_loans_polaris_loan_account ON loans(polaris_loan_account_id);
+CREATE INDEX idx_loans_polaris_deposit_account ON loans(polaris_deposit_account_id);
 
 
 -- ============================================================
@@ -859,15 +846,18 @@ CREATE TYPE reconciliation_status_enum AS ENUM ('unreconciled','matched','mismat
 CREATE TYPE queue_op_enum     AS ENUM ('create_account','post_txn','update_balance','close_account');
 CREATE TYPE queue_status_enum AS ENUM ('pending','processing','completed','dead_letter');
 
--- Master registry of all Polaris account numbers used by the system
+-- Master registry of all Polaris/OI account numbers used by the system.
+-- Polaris/OI acntCode, txnAcntCode and contAcntCode values are stored here.
 CREATE TABLE polaris_accounts (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    account_number_encrypted BYTEA NOT NULL,
-    account_number_hash BYTEA NOT NULL UNIQUE,
+    polaris_acnt_code_encrypted BYTEA NOT NULL,
+    polaris_acnt_code_hash BYTEA NOT NULL UNIQUE,
     account_type        polaris_acc_type NOT NULL,
     owner_type          VARCHAR(20) NOT NULL,  -- customer|merchant|system
     owner_id            UUID,                  -- references the relevant profile id
-    product_ref         VARCHAR(50),
+    polaris_prod_code   VARCHAR(50),           -- Polaris/OI prodCode
+    polaris_brch_code   VARCHAR(50),           -- Polaris/OI brchCode
+    polaris_sys_no      INT,                   -- Polaris/OI sysNo
     currency            VARCHAR(10) NOT NULL DEFAULT 'MNT',
     current_balance     NUMERIC(18,2) NOT NULL DEFAULT 0,
     status              VARCHAR(20) NOT NULL DEFAULT 'active',  -- active|frozen|closed
@@ -876,8 +866,12 @@ CREATE TABLE polaris_accounts (
 );
 
 ALTER TABLE loans
-    ADD CONSTRAINT fk_loans_polaris_account
-    FOREIGN KEY (polaris_account_id) REFERENCES polaris_accounts(id);
+    ADD CONSTRAINT fk_loans_polaris_loan_account
+    FOREIGN KEY (polaris_loan_account_id) REFERENCES polaris_accounts(id);
+
+ALTER TABLE loans
+    ADD CONSTRAINT fk_loans_polaris_deposit_account
+    FOREIGN KEY (polaris_deposit_account_id) REFERENCES polaris_accounts(id);
 
 -- Double-entry journal header for all money movement posted or reconciled with Polaris
 CREATE TABLE ledger_journals (
@@ -892,6 +886,7 @@ CREATE TABLE ledger_journals (
     currency              VARCHAR(10) NOT NULL DEFAULT 'MNT',
     status                ledger_journal_status_enum NOT NULL DEFAULT 'pending',
     polaris_batch_ref     VARCHAR(100),
+    polaris_jrno          BIGINT,              -- Polaris/OI jrno numeric journal number
     polaris_txn_ref       VARCHAR(100),
     reconciliation_status reconciliation_status_enum NOT NULL DEFAULT 'unreconciled',
     reconciled_at         TIMESTAMPTZ,
@@ -929,7 +924,8 @@ ALTER TABLE repayment_transactions
     ADD CONSTRAINT fk_repay_txn_ledger_journal
     FOREIGN KEY (ledger_journal_id) REFERENCES ledger_journals(id);
 
--- Full log of every Polaris API call (request + response)
+-- Full log of every Polaris API call (request + response).
+-- Persist sanitized payloads only; redact account/register values before insert.
 CREATE TABLE polaris_api_logs (
     id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     endpoint         VARCHAR(255) NOT NULL,
@@ -1628,6 +1624,11 @@ ALTER TABLE customer_bank_accounts
         AND (iban_hash IS NULL OR octet_length(iban_hash) = 32)
     );
 
+ALTER TABLE loan_applications
+    ADD CONSTRAINT chk_loan_applications_polaris_los_acnt_code_hash CHECK (
+        polaris_los_acnt_code_hash IS NULL OR octet_length(polaris_los_acnt_code_hash) = 32
+    );
+
 ALTER TABLE kyc_related_customers
     ADD CONSTRAINT chk_kyc_related_customer_hashes CHECK (
         register_number_hash IS NULL OR octet_length(register_number_hash) = 32
@@ -1649,17 +1650,11 @@ ALTER TABLE sain_score_requests
         raw_response_hash IS NULL OR octet_length(raw_response_hash) = 32
     );
 
-ALTER TABLE loans
-    ADD CONSTRAINT chk_loans_account_hashes CHECK (
-        (polaris_deposit_acc_no_hash IS NULL OR octet_length(polaris_deposit_acc_no_hash) = 32)
-        AND (polaris_loan_acc_no_hash IS NULL OR octet_length(polaris_loan_acc_no_hash) = 32)
-    );
-
 ALTER TABLE notification_logs
     ADD CONSTRAINT chk_notification_recipient_hash CHECK (octet_length(recipient_address_hash) = 32);
 
 ALTER TABLE polaris_accounts
-    ADD CONSTRAINT chk_polaris_account_hash CHECK (octet_length(account_number_hash) = 32);
+    ADD CONSTRAINT chk_polaris_acnt_code_hash CHECK (octet_length(polaris_acnt_code_hash) = 32);
 
 CREATE UNIQUE INDEX idx_otp_sessions_idempotency
     ON otp_sessions(idempotency_key)
@@ -1701,9 +1696,17 @@ CREATE UNIQUE INDEX idx_repay_txn_completed_invoice
     WHERE qpay_repayment_invoice_id IS NOT NULL
       AND status = 'completed';
 
+CREATE UNIQUE INDEX idx_loan_apps_polaris_los_acnt_code_hash
+    ON loan_applications(polaris_los_acnt_code_hash)
+    WHERE polaris_los_acnt_code_hash IS NOT NULL;
+
 CREATE UNIQUE INDEX idx_ledger_journals_polaris_txn_ref
     ON ledger_journals(polaris_txn_ref)
     WHERE polaris_txn_ref IS NOT NULL;
+
+CREATE UNIQUE INDEX idx_ledger_journals_polaris_jrno
+    ON ledger_journals(polaris_jrno)
+    WHERE polaris_jrno IS NOT NULL;
 
 CREATE UNIQUE INDEX idx_ledger_entries_polaris_line_ref
     ON ledger_entries(polaris_line_ref)
