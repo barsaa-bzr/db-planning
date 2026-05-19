@@ -304,20 +304,21 @@ function normalizeType(t) {
 // ─── DOMAIN DETECTION ──────────────────────────────────────────────────────
 
 const DOMAINS = [
-  { id: 'auth',     label: 'Users & Auth',        color: '#4f8ef7', tables: ['users','customer_profiles','merchant_profiles','staff_profiles','otp_sessions','user_sessions','calpro_message_logs'] },
-  { id: 'kyc',      label: 'KYC & 3rd-Party',     color: '#a78bfa', tables: ['dan_verifications','hur_data_snapshots','sain_score_requests','kyc_verification_steps'] },
-  { id: 'credit',   label: 'Credit & Limits',      color: '#34d399', tables: ['credit_score_results','credit_scoring_factors','loan_limits'] },
-  { id: 'loans',    label: 'Loans & Products',     color: '#f59e0b', tables: ['loan_products','loan_applications','loans','loan_account_mappings'] },
-  { id: 'pos',     label: 'POS Flow',            color: '#f97316', tables: ['pos_terminals','pos_payment_invoices','pos_qr_codes','pos_transactions','pos_terminal_callbacks'] },
-  { id: 'repay',    label: 'Repayment & QPay',     color: '#ec4899', tables: ['repayment_schedules','qpay_repayment_invoices','qpay_repayment_callbacks','repayment_transactions','penalty_records'] },
-  { id: 'polaris',  label: 'Polaris Core Banking', color: '#06b6d4', tables: ['polaris_accounts','polaris_transactions','polaris_api_logs','polaris_sync_queue'] },
-  { id: 'merchant', label: 'Merchant Portal',      color: '#84cc16', tables: ['merchant_portal_users','merchant_refund_requests','merchant_return_items','merchant_settlements'] },
-  { id: 'audit',    label: 'Audit & Notifications',color: '#94a3b8', tables: ['audit_logs','staff_action_reviews','service_pause_windows','notification_templates','notification_logs','system_event_logs'] },
+  { id: 'auth',     label: 'Users & Auth',        color: '#4f8ef7', tables: ['users','customer_profiles','merchant_profiles','staff_profiles','otp_sessions','user_sessions'], prefixes: ['user_','otp_','staff_'] },
+  { id: 'kyc',      label: 'KYC & 3rd-Party',     color: '#a78bfa', tables: ['nationalities','customer_bank_accounts','dan_verifications','hur_data_snapshots','sain_score_requests','kyc_verification_steps'], prefixes: ['kyc_','dan_','hur_','sain_','customer_bank_'] },
+  { id: 'credit',   label: 'Credit & Limits',      color: '#34d399', tables: ['credit_score_results','credit_scoring_factors','loan_limits'], prefixes: ['credit_','loan_limit'] },
+  { id: 'loans',    label: 'Loans & Products',     color: '#f59e0b', tables: ['loan_products','loan_product_duration_options','bnpl_installment_options','loan_applications','loans','loan_account_mappings','loan_application_status_history','loan_status_history'], prefixes: ['loan_','bnpl_installment_'] },
+  { id: 'pos',      label: 'POS Flow',             color: '#f97316', tables: ['pos_terminals','pos_payment_invoices','pos_qr_codes','pos_transactions','pos_terminal_callbacks'], prefixes: ['pos_'] },
+  { id: 'repay',    label: 'Repayment & QPay',     color: '#ec4899', tables: ['repayment_schedules','qpay_repayment_invoices','qpay_repayment_callbacks','repayment_transactions','penalty_records','repayment_schedule_status_history','repayment_transaction_status_history'], prefixes: ['repayment_','qpay_','penalty_'] },
+  { id: 'polaris',  label: 'Polaris & Ledger',     color: '#06b6d4', tables: ['polaris_accounts','ledger_journals','ledger_entries','polaris_api_logs','polaris_sync_queue'], prefixes: ['polaris_','ledger_'] },
+  { id: 'merchant', label: 'Merchant Portal',      color: '#84cc16', tables: ['merchant_portal_users','merchant_refund_requests','merchant_return_items','merchant_settlements','merchant_refund_status_history','merchant_settlement_status_history'], prefixes: ['merchant_'] },
+  { id: 'audit',    label: 'Audit & Notifications',color: '#94a3b8', tables: ['message_logs','audit_logs','staff_action_reviews','service_pause_windows','notification_templates','notification_logs','system_event_logs'], prefixes: ['audit_','notification_','system_','service_pause_','message_'] },
 ];
 
 function getDomain(tableName) {
   for (const d of DOMAINS) {
     if (d.tables.includes(tableName)) return d;
+    if ((d.prefixes || []).some(prefix => tableName.startsWith(prefix))) return d;
   }
   return { id: 'other', label: 'Other', color: '#64748b' };
 }
@@ -327,8 +328,10 @@ function getDomain(tableName) {
 
 function layoutTables(tables) {
   const positions = {};
-  const CARD_W = 260, CARD_H_BASE = 80, ROW_H = 22;
-  const DOMAIN_PAD = 40, COL_GAP = 40, ROW_GAP = 40;
+  const CARD_W = 260, CARD_H_BASE = 74, ROW_H = 26;
+  const DOMAIN_PAD = 90, COL_GAP = 48, ROW_GAP = 52;
+  const COLS_PER_DOMAIN = 3;
+  const MAX_GROUP_COLUMN_HEIGHT = 3400;
 
   // Group by domain
   const groups = {};
@@ -339,28 +342,36 @@ function layoutTables(tables) {
   }
 
   let gx = 60, gy = 60;
-  const COLS_PER_DOMAIN = 3;
+  const orderedGroupIds = [
+    ...DOMAINS.map(d => d.id).filter(id => groups[id]),
+    ...Object.keys(groups).filter(id => !DOMAINS.some(d => d.id === id)).sort(),
+  ];
 
-  for (const gid of Object.keys(groups)) {
+  for (const gid of orderedGroupIds) {
     const grp = groups[gid];
     const colCount = Math.min(COLS_PER_DOMAIN, grp.tables.length);
-    let maxRowHeight = 0;
+    const colHeights = Array(colCount).fill(0);
 
-    grp.tables.forEach((name, i) => {
-      const col = i % colCount;
-      const row = Math.floor(i / colCount);
-      const h = CARD_H_BASE + tables[name].columns.length * ROW_H;
-      const x = gx + col * (CARD_W + COL_GAP);
-      const y = gy + row * (Math.max(maxRowHeight, h) + ROW_GAP);
-      positions[name] = { x, y, w: CARD_W, h };
-      if (col === colCount - 1) maxRowHeight = 0;
-      else maxRowHeight = Math.max(maxRowHeight, h);
+    grp.tables.sort((a, b) => {
+      const heightDelta = tables[b].columns.length - tables[a].columns.length;
+      return heightDelta || a.localeCompare(b);
     });
 
-    const rowCount = Math.ceil(grp.tables.length / colCount);
-    const groupHeight = rowCount * (CARD_H_BASE + 200 + ROW_GAP);
-    gy += groupHeight + DOMAIN_PAD * 2;
-    if (gy > 4000) { gy = 60; gx += (CARD_W + COL_GAP) * COLS_PER_DOMAIN + 100; }
+    for (const name of grp.tables) {
+      const col = colHeights.indexOf(Math.min(...colHeights));
+      const h = CARD_H_BASE + tables[name].columns.length * ROW_H;
+      const x = gx + col * (CARD_W + COL_GAP);
+      const y = gy + colHeights[col];
+      positions[name] = { x, y, w: CARD_W, h };
+      colHeights[col] += h + ROW_GAP;
+    }
+
+    const groupHeight = Math.max(...colHeights, 0);
+    gy += groupHeight + DOMAIN_PAD;
+    if (gy > MAX_GROUP_COLUMN_HEIGHT) {
+      gy = 60;
+      gx += (CARD_W + COL_GAP) * COLS_PER_DOMAIN + 130;
+    }
   }
 
   return positions;

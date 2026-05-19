@@ -5,7 +5,7 @@
  * Usage:
  *   node server.js [schema.sql] [index.html] [port]
  *
- * Open the printed localhost URL. Edits made from that page can save directly
+ * Open the printed localhost URL. Valid edits made from that page save directly
  * back to the SQL file because the browser is talking to this local service.
  */
 
