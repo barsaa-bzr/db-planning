@@ -51,6 +51,12 @@ CREATE TABLE customer_profiles (
     user_id           UUID NOT NULL UNIQUE REFERENCES users(id),
     customer_type     customer_type_enum NOT NULL DEFAULT 'person',
     polaris_cust_code VARCHAR(100) UNIQUE,  -- Polaris/OI custCode
+    primary_deposit_account_id UUID,        -- FK added after Polaris account registry is created
+    polaris_cif_status VARCHAR(30) NOT NULL DEFAULT 'pending', -- pending|synced|failed|pending_reconcile
+    polaris_cif_synced_at TIMESTAMPTZ,
+    polaris_kyc_sync_status VARCHAR(30) NOT NULL DEFAULT 'pending',
+    polaris_kyc_synced_at TIMESTAMPTZ,
+    polaris_sync_error TEXT,
     national_id_encrypted BYTEA NOT NULL,
     national_id_hash  BYTEA NOT NULL UNIQUE,
     first_name        VARCHAR(100) NOT NULL,
@@ -68,6 +74,8 @@ CREATE TABLE merchant_profiles (
     user_id          UUID NOT NULL UNIQUE REFERENCES users(id),
     business_name    VARCHAR(200) NOT NULL,
     business_reg_no  VARCHAR(50) NOT NULL UNIQUE,
+    polaris_merchant_passive_account_id UUID,
+    polaris_settlement_account_id UUID,
     business_type    VARCHAR(100),
     contact_person   VARCHAR(150),
     address          TEXT,
@@ -523,10 +531,16 @@ CREATE TABLE credit_score_results (
     customer_id         UUID NOT NULL REFERENCES customer_profiles(id),
     sain_score_id       UUID NOT NULL REFERENCES sain_score_requests(id),
     hur_data_id         UUID NOT NULL REFERENCES hur_data_snapshots(id),
+    fico_score          NUMERIC(6,2),
+    custom_score        NUMERIC(6,2),
     final_score         NUMERIC(6,2) NOT NULL,
     risk_grade          VARCHAR(5),
     algorithm_version   VARCHAR(20) NOT NULL,
+    custom_model_version VARCHAR(50),
     score_breakdown     JSONB,
+    polaris_score_sync_status VARCHAR(30) NOT NULL DEFAULT 'pending',
+    polaris_score_synced_at TIMESTAMPTZ,
+    polaris_score_sync_error TEXT,
     calculated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     valid_until         TIMESTAMPTZ,
     status              VARCHAR(20) NOT NULL DEFAULT 'active'  -- active|expired|superseded
@@ -548,6 +562,7 @@ CREATE TABLE loan_limits (
     id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     customer_id      UUID NOT NULL REFERENCES customer_profiles(id),
     credit_score_id  UUID NOT NULL REFERENCES credit_score_results(id),
+    active_credit_line_account_id UUID,
     max_total_limit  NUMERIC(14,2) NOT NULL,
     one_tap_limit    NUMERIC(14,2) NOT NULL DEFAULT 0,
     bnpl_limit       NUMERIC(14,2) NOT NULL DEFAULT 0,
@@ -569,8 +584,31 @@ CREATE INDEX idx_limits_customer ON loan_limits(customer_id);
 -- ============================================================
 
 CREATE TYPE product_type_enum   AS ENUM ('one_tap', 'bnpl', 'sme');
-CREATE TYPE loan_app_status     AS ENUM ('draft','submitted','approved','rejected','disbursed','cancelled');
-CREATE TYPE loan_status_enum    AS ENUM ('active','closed','defaulted','written_off');
+CREATE TYPE loan_app_status     AS ENUM (
+    'draft',
+    'submitted',
+    'approved',
+    'pending_core_setup',
+    'pending_grant',
+    'pending_reconcile',
+    'disbursed',
+    'rejected',
+    'cancelled'
+);
+CREATE TYPE loan_status_enum    AS ENUM (
+    'pending_core_setup',
+    'pending_schedule',
+    'pending_line_link',
+    'pending_grant',
+    'pending_bnpl_transfer',
+    'pending_reconcile',
+    'active',
+    'closed',
+    'defaulted',
+    'written_off',
+    'failed',
+    'cancelled'
+);
 CREATE TYPE repayment_freq_enum AS ENUM ('daily','weekly','monthly');
 CREATE TYPE loan_duration_unit_enum AS ENUM ('day','month');
 
@@ -578,6 +616,7 @@ CREATE TABLE loan_products (
     id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     product_type          product_type_enum NOT NULL,
     product_code          VARCHAR(20) NOT NULL UNIQUE,
+    polaris_product_config_id UUID,          -- FK added after Polaris product config table is created
     name                  VARCHAR(100) NOT NULL,
     min_amount            NUMERIC(14,2) NOT NULL,
     max_amount            NUMERIC(14,2) NOT NULL,
@@ -640,10 +679,10 @@ CREATE TABLE loan_applications (
     customer_id           UUID NOT NULL REFERENCES customer_profiles(id),
     product_id            UUID NOT NULL REFERENCES loan_products(id),
     credit_score_id       UUID NOT NULL REFERENCES credit_score_results(id),
-    polaris_los_acnt_code_encrypted BYTEA,  -- Polaris/OI losAcntCode from /loan/createLos
-    polaris_los_acnt_code_hash BYTEA,
+    requested_customer_deposit_account_id UUID,
+    credit_line_account_id UUID,
+    credit_limit_reservation_id UUID,
     requested_amount      NUMERIC(14,2) NOT NULL,
-    requested_disbursement_bank_account_id UUID REFERENCES customer_bank_accounts(id),
     duration_option_id    UUID REFERENCES loan_product_duration_options(id),
     requested_duration_value INT CHECK (requested_duration_value IS NULL OR requested_duration_value > 0),
     requested_duration_unit  loan_duration_unit_enum,
@@ -659,8 +698,6 @@ CREATE TABLE loan_applications (
         (requested_duration_value IS NULL AND requested_duration_unit IS NULL)
         OR (requested_duration_value IS NOT NULL AND requested_duration_unit IS NOT NULL)
     ),
-    FOREIGN KEY (customer_id, requested_disbursement_bank_account_id)
-        REFERENCES customer_bank_accounts(customer_id, id),
     FOREIGN KEY (product_id, duration_option_id)
         REFERENCES loan_product_duration_options(product_id, id),
     FOREIGN KEY (product_id, bnpl_installment_option_id)
@@ -672,12 +709,15 @@ CREATE TABLE loans (
     application_id      UUID NOT NULL UNIQUE REFERENCES loan_applications(id),
     customer_id         UUID NOT NULL REFERENCES customer_profiles(id),
     product_id          UUID NOT NULL REFERENCES loan_products(id),
-    polaris_loan_account_id UUID NOT NULL,   -- Polaris/OI loan acntCode in polaris_accounts
-    polaris_deposit_account_id UUID,         -- Polaris/OI deposit acntCode used for disbursement/collection
+    polaris_product_config_id UUID NOT NULL, -- child loan account product config selected at approval
+    polaris_loan_account_id UUID,            -- Polaris/OI child loan acntCode in polaris_accounts
+    polaris_deposit_account_id UUID,         -- Customer Polaris CASA/deposit acntCode used for grant/repayment
+    customer_deposit_account_id UUID,
+    credit_line_account_id UUID,
+    credit_limit_reservation_id UUID UNIQUE,
     loan_number         VARCHAR(40) NOT NULL UNIQUE,
     principal_amount    NUMERIC(14,2) NOT NULL,
     disbursed_amount    NUMERIC(14,2),
-    disbursement_bank_account_id UUID REFERENCES customer_bank_accounts(id),
     interest_rate       NUMERIC(6,4) NOT NULL,
     duration_option_id  UUID REFERENCES loan_product_duration_options(id),
     duration_value      INT CHECK (duration_value IS NULL OR duration_value > 0),
@@ -686,15 +726,23 @@ CREATE TABLE loans (
     bnpl_installment_option_id UUID REFERENCES bnpl_installment_options(id),
     total_payable       NUMERIC(14,2),
     maturity_date       DATE,
-    status              loan_status_enum NOT NULL DEFAULT 'active',
+    status              loan_status_enum NOT NULL DEFAULT 'pending_core_setup',
+    schedule_status     VARCHAR(30) NOT NULL DEFAULT 'not_started',
+    line_link_status    VARCHAR(30) NOT NULL DEFAULT 'not_started',
+    grant_status        VARCHAR(30) NOT NULL DEFAULT 'not_started',
+    bnpl_merchant_transfer_status VARCHAR(30) NOT NULL DEFAULT 'not_required',
+    polaris_schedule_created_at TIMESTAMPTZ,
+    polaris_line_linked_at TIMESTAMPTZ,
+    grant_ledger_journal_id UUID,
+    grant_polaris_jrno  BIGINT,
+    bnpl_merchant_transfer_journal_id UUID,
+    bnpl_merchant_transfer_polaris_jrno BIGINT,
     disbursed_at        TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CHECK (
         (duration_value IS NULL AND duration_unit IS NULL)
         OR (duration_value IS NOT NULL AND duration_unit IS NOT NULL)
     ),
-    FOREIGN KEY (customer_id, disbursement_bank_account_id)
-        REFERENCES customer_bank_accounts(customer_id, id),
     FOREIGN KEY (product_id, duration_option_id)
         REFERENCES loan_product_duration_options(product_id, id),
     FOREIGN KEY (product_id, bnpl_installment_option_id)
@@ -703,7 +751,9 @@ CREATE TABLE loans (
 
 CREATE INDEX idx_loans_customer     ON loans(customer_id);
 CREATE INDEX idx_loan_apps_customer ON loan_applications(customer_id);
-CREATE INDEX idx_loan_apps_disbursement_bank ON loan_applications(requested_disbursement_bank_account_id);
+CREATE INDEX idx_loan_apps_customer_deposit ON loan_applications(requested_customer_deposit_account_id);
+CREATE INDEX idx_loan_apps_credit_line ON loan_applications(credit_line_account_id);
+CREATE INDEX idx_loan_apps_limit_reservation ON loan_applications(credit_limit_reservation_id);
 CREATE INDEX idx_duration_options_product ON loan_product_duration_options(product_id, is_active, sort_order);
 CREATE UNIQUE INDEX idx_duration_options_default ON loan_product_duration_options(product_id) WHERE is_default = TRUE;
 CREATE INDEX idx_bnpl_installment_options_product ON bnpl_installment_options(product_id, is_active, sort_order);
@@ -712,7 +762,9 @@ CREATE INDEX idx_loan_apps_duration_option ON loan_applications(duration_option_
 CREATE INDEX idx_loan_apps_bnpl_option ON loan_applications(bnpl_installment_option_id);
 CREATE INDEX idx_loans_duration_option ON loans(duration_option_id);
 CREATE INDEX idx_loans_bnpl_option ON loans(bnpl_installment_option_id);
-CREATE INDEX idx_loans_disbursement_bank ON loans(disbursement_bank_account_id);
+CREATE INDEX idx_loans_customer_deposit ON loans(customer_deposit_account_id);
+CREATE INDEX idx_loans_credit_line ON loans(credit_line_account_id);
+CREATE INDEX idx_loans_polaris_product_config ON loans(polaris_product_config_id);
 CREATE INDEX idx_loans_polaris_loan_account ON loans(polaris_loan_account_id);
 CREATE INDEX idx_loans_polaris_deposit_account ON loans(polaris_deposit_account_id);
 
@@ -724,7 +776,16 @@ CREATE INDEX idx_loans_polaris_deposit_account ON loans(polaris_deposit_account_
 CREATE TYPE invoice_status_enum  AS ENUM ('pending','qr_generated','processing','approved','rejected','expired','refunded');
 CREATE TYPE callback_type_enum   AS ENUM ('approved','rejected','timeout');
 CREATE TYPE callback_status_enum AS ENUM ('pending','sent','acknowledged','failed');
-CREATE TYPE pos_txn_status_enum AS ENUM ('processing','approved','rejected','disbursed');
+CREATE TYPE pos_txn_status_enum AS ENUM (
+    'processing',
+    'pending_loan',
+    'pending_grant',
+    'pending_merchant_transfer',
+    'pending_reconcile',
+    'approved',
+    'rejected',
+    'failed'
+);
 
 CREATE TABLE pos_terminals (
     id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -781,6 +842,10 @@ CREATE TABLE pos_transactions (
     installment_count       INT NOT NULL,
     per_installment_amount  NUMERIC(14,2) NOT NULL,
     interest_amount         NUMERIC(14,2) NOT NULL DEFAULT 0,
+    merchant_passive_account_id UUID,
+    merchant_transfer_ledger_journal_id UUID,
+    merchant_transfer_polaris_jrno BIGINT,
+    merchant_transfer_status VARCHAR(30) NOT NULL DEFAULT 'not_started',
     status                  pos_txn_status_enum NOT NULL DEFAULT 'processing',
     approved_at             TIMESTAMPTZ,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -791,7 +856,7 @@ CREATE TABLE pos_terminal_callbacks (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     transaction_id  UUID NOT NULL REFERENCES pos_transactions(id),
     terminal_id     UUID NOT NULL REFERENCES pos_terminals(id),
-    idempotency_key VARCHAR(100),
+    idempotency_key VARCHAR(100) NOT NULL,
     callback_type   callback_type_enum NOT NULL,
     payload         JSONB NOT NULL,
     http_status     INT,
@@ -808,6 +873,7 @@ CREATE INDEX idx_qr_invoice         ON pos_qr_codes(invoice_id);
 CREATE INDEX idx_qr_installment_option ON pos_qr_codes(selected_installment_option_id);
 CREATE INDEX idx_pos_txn_customer  ON pos_transactions(customer_id);
 CREATE INDEX idx_pos_txn_installment_option ON pos_transactions(installment_option_id);
+CREATE INDEX idx_pos_txn_merchant_transfer_status ON pos_transactions(merchant_transfer_status);
 
 
 -- ============================================================
@@ -815,10 +881,10 @@ CREATE INDEX idx_pos_txn_installment_option ON pos_transactions(installment_opti
 -- ============================================================
 
 CREATE TYPE sched_status_enum   AS ENUM ('pending','partial','paid','overdue','waived');
-CREATE TYPE payment_chan_enum   AS ENUM ('qpay');
+CREATE TYPE payment_chan_enum   AS ENUM ('qpay','bank_transfer','manual_adjustment');
 CREATE TYPE qpay_invoice_status_enum AS ENUM ('pending','created','paid','expired','cancelled','failed');
 CREATE TYPE qpay_callback_status_enum AS ENUM ('received','processed','failed','ignored');
-CREATE TYPE repay_txn_status    AS ENUM ('pending','completed','failed','reversed');
+CREATE TYPE repay_txn_status    AS ENUM ('pending','processing','pending_reconcile','completed','failed','reversed');
 CREATE TYPE penalty_type_enum   AS ENUM ('late_payment','early_exit');
 CREATE TYPE cashback_calc_base_enum AS ENUM ('paid_amount','principal_portion','interest_portion','total_due');
 CREATE TYPE cashback_reward_type_enum AS ENUM ('fixed_amount','percentage');
@@ -873,6 +939,8 @@ CREATE TABLE repayment_schedules (
     paid_amount          NUMERIC(14,2) NOT NULL DEFAULT 0,
     outstanding_amount   NUMERIC(14,2) GENERATED ALWAYS AS (principal_amount + interest_amount + penalty_amount - paid_amount) STORED,
     status               sched_status_enum NOT NULL DEFAULT 'pending',
+    allocation_locked_at TIMESTAMPTZ,
+    allocation_locked_by VARCHAR(100),
     paid_at              TIMESTAMPTZ,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (loan_id, installment_number)
@@ -921,17 +989,38 @@ CREATE TABLE repayment_transactions (
     schedule_id         UUID REFERENCES repayment_schedules(id),
     loan_id             UUID NOT NULL REFERENCES loans(id),
     customer_id         UUID NOT NULL REFERENCES customer_profiles(id),
+    customer_deposit_account_id UUID,
     amount              NUMERIC(14,2) NOT NULL,
     principal_portion   NUMERIC(14,2) NOT NULL DEFAULT 0,
     interest_portion    NUMERIC(14,2) NOT NULL DEFAULT 0,
     penalty_portion     NUMERIC(14,2) NOT NULL DEFAULT 0,
     qpay_repayment_invoice_id UUID REFERENCES qpay_repayment_invoices(id),
     ledger_journal_id  UUID,
+    inbound_ledger_journal_id UUID,
+    loan_payment_ledger_journal_id UUID,
+    inbound_polaris_jrno BIGINT,
+    loan_payment_polaris_jrno BIGINT,
+    reconciliation_status VARCHAR(30) NOT NULL DEFAULT 'unreconciled',
     payment_channel     payment_chan_enum NOT NULL DEFAULT 'qpay',
     transaction_ref     VARCHAR(100) NOT NULL UNIQUE,
     status              repay_txn_status NOT NULL DEFAULT 'pending',
+    reversal_of_repayment_transaction_id UUID REFERENCES repayment_transactions(id),
     processed_at        TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Exact allocation of one repayment transaction across one or many schedules.
+CREATE TABLE repayment_allocations (
+    id                       UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    repayment_transaction_id UUID NOT NULL REFERENCES repayment_transactions(id),
+    schedule_id              UUID NOT NULL REFERENCES repayment_schedules(id),
+    principal_amount         NUMERIC(14,2) NOT NULL DEFAULT 0,
+    interest_amount          NUMERIC(14,2) NOT NULL DEFAULT 0,
+    penalty_amount           NUMERIC(14,2) NOT NULL DEFAULT 0,
+    total_amount             NUMERIC(14,2) GENERATED ALWAYS AS (principal_amount + interest_amount + penalty_amount) STORED,
+    allocation_order         INT NOT NULL DEFAULT 1 CHECK (allocation_order > 0),
+    created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (repayment_transaction_id, schedule_id)
 );
 
 -- Late payment / early exit penalties (can be waived by staff)
@@ -1079,6 +1168,9 @@ CREATE INDEX idx_qpay_invoice_sched ON qpay_repayment_invoices(schedule_id);
 CREATE INDEX idx_qpay_cb_invoice    ON qpay_repayment_callbacks(qpay_repayment_invoice_id);
 CREATE INDEX idx_repay_txn_loan     ON repayment_transactions(loan_id);
 CREATE INDEX idx_repay_txn_qpay_inv ON repayment_transactions(qpay_repayment_invoice_id);
+CREATE INDEX idx_repay_txn_customer_deposit ON repayment_transactions(customer_deposit_account_id);
+CREATE INDEX idx_repay_alloc_txn    ON repayment_allocations(repayment_transaction_id);
+CREATE INDEX idx_repay_alloc_sched  ON repayment_allocations(schedule_id);
 CREATE INDEX idx_cashback_configs_active
     ON repayment_cashback_configs(is_active, effective_from, effective_until);
 CREATE INDEX idx_cashback_configs_product
@@ -1113,12 +1205,196 @@ CREATE INDEX idx_cashback_records_status
 -- 7. POLARIS CORE BANKING INTEGRATION
 -- ============================================================
 
-CREATE TYPE polaris_acc_type  AS ENUM ('customer_deposit','loan','repayment_pool','internal','merchant_debt');
-CREATE TYPE ledger_journal_status_enum AS ENUM ('draft','pending','posted','failed','reversed');
+CREATE TYPE polaris_acc_type  AS ENUM (
+    'customer_deposit',
+    'line_loan',
+    'loan',
+    'internal_funding',
+    'repayment_pool',
+    'merchant_passive',
+    'merchant_settlement',
+    'internal',
+    'merchant_debt'
+);
+CREATE TYPE polaris_product_config_kind AS ENUM (
+    'customer_deposit',
+    'line_loan',
+    'child_loan',
+    'merchant_passive',
+    'internal_account'
+);
+CREATE TYPE polaris_txn_config_kind AS ENUM (
+    'loan_grant',
+    'bnpl_merchant_transfer',
+    'repayment_inbound',
+    'loan_repayment',
+    'loan_close',
+    'reversal',
+    'merchant_settlement'
+);
+CREATE TYPE customer_deposit_account_status_enum AS ENUM (
+    'pending_create',
+    'created',
+    'pending_open',
+    'active',
+    'frozen',
+    'closed',
+    'failed',
+    'pending_reconcile'
+);
+CREATE TYPE credit_line_status_enum AS ENUM (
+    'pending_create',
+    'created',
+    'pending_open',
+    'active',
+    'suspended',
+    'closed',
+    'failed',
+    'pending_reconcile'
+);
+CREATE TYPE credit_reservation_status_enum AS ENUM (
+    'reserved',
+    'consumed',
+    'released',
+    'expired',
+    'failed'
+);
+CREATE TYPE loan_core_step_enum AS ENUM (
+    'create_customer_deposit',
+    'open_customer_deposit',
+    'sync_customer_kyc',
+    'sync_credit_score',
+    'create_line_account',
+    'open_line_account',
+    'adjust_line_limit',
+    'create_loan_account',
+    'open_loan_account',
+    'calculate_schedule',
+    'create_schedule',
+    'link_line_account_to_loan',
+    'grant_loan',
+    'bnpl_merchant_transfer',
+    'repayment_inbound',
+    'loan_repayment',
+    'close_loan',
+    'reverse_transaction'
+);
+CREATE TYPE loan_core_step_status_enum AS ENUM (
+    'pending',
+    'processing',
+    'succeeded',
+    'failed',
+    'pending_reconcile',
+    'skipped',
+    'cancelled'
+);
+CREATE TYPE ledger_journal_status_enum AS ENUM ('draft','pending','pending_reconcile','posted','failed','reversed');
 CREATE TYPE ledger_entry_side_enum AS ENUM ('debit','credit');
 CREATE TYPE reconciliation_status_enum AS ENUM ('unreconciled','matched','mismatched','reconciled','failed');
-CREATE TYPE queue_op_enum     AS ENUM ('create_account','post_txn','update_balance','close_account');
-CREATE TYPE queue_status_enum AS ENUM ('pending','processing','completed','dead_letter');
+CREATE TYPE queue_op_enum     AS ENUM (
+    'create_account',
+    'post_txn',
+    'update_balance',
+    'close_account',
+    'create_cif_person',
+    'update_cif_person',
+    'create_customer_deposit_account',
+    'open_customer_deposit_account',
+    'sync_kyc_to_polaris',
+    'sync_credit_score_to_polaris',
+    'create_line_account',
+    'open_line_account',
+    'adjust_line_limit',
+    'create_loan_account',
+    'open_loan_account',
+    'calculate_repayment_schedule',
+    'create_repayment_schedule',
+    'link_line_account_to_loan',
+    'grant_loan_non_cash',
+    'bnpl_merchant_transfer',
+    'repayment_inbound_transfer',
+    'loan_payment_non_cash',
+    'close_loan_account',
+    'reverse_transaction',
+    'reconcile_account',
+    'reconcile_journal'
+);
+CREATE TYPE queue_status_enum AS ENUM (
+    'pending',
+    'processing',
+    'completed',
+    'pending_reconcile',
+    'reconciled',
+    'failed',
+    'cancelled',
+    'dead_letter'
+);
+
+-- Polaris product/account configuration. Services load productCode/branch/category
+-- and dynamicData templates from here instead of hardcoding core-banking values.
+CREATE TABLE polaris_product_configs (
+    id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    config_key            VARCHAR(100) NOT NULL UNIQUE,
+    config_kind           polaris_product_config_kind NOT NULL,
+    loan_product_id       UUID REFERENCES loan_products(id),
+    prod_code             VARCHAR(50) NOT NULL,
+    brch_code             VARCHAR(50) NOT NULL,
+    cur_code              VARCHAR(10) NOT NULL DEFAULT 'MNT',
+    cat_code              VARCHAR(50),
+    cat_sub_code          VARCHAR(50),
+    purpose               VARCHAR(100),
+    sub_purpose           VARCHAR(100),
+    seg_code              VARCHAR(50),
+    chart_code            VARCHAR(100),
+    term_basis            VARCHAR(30),
+    term_len              INT,
+    repay_order           INT,
+    repay_priority        INT,
+    int_type_code         VARCHAR(50),
+    dynamic_data_template JSONB NOT NULL DEFAULT '[]',
+    metadata              JSONB NOT NULL DEFAULT '{}',
+    is_active             BOOLEAN NOT NULL DEFAULT TRUE,
+    valid_from            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    valid_until           TIMESTAMPTZ,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (valid_until IS NULL OR valid_until > valid_from)
+);
+
+CREATE TABLE polaris_transaction_configs (
+    id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    config_key            VARCHAR(100) NOT NULL UNIQUE,
+    txn_kind              polaris_txn_config_kind NOT NULL,
+    endpoint              VARCHAR(255) NOT NULL,
+    txn_def_code          VARCHAR(50),
+    txn_type              VARCHAR(50),
+    source_account_type   polaris_acc_type,
+    contra_account_type   polaris_acc_type,
+    source_type           VARCHAR(50),
+    description_template  TEXT,
+    payload_template      JSONB NOT NULL DEFAULT '{}',
+    is_money_movement     BOOLEAN NOT NULL DEFAULT TRUE,
+    is_active             BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE polaris_dynamic_field_mappings (
+    id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    field_scope           VARCHAR(50) NOT NULL, -- cif_person|credit_score|customer_deposit|line_loan|child_loan
+    product_config_id     UUID REFERENCES polaris_product_configs(id),
+    app_field_name        VARCHAR(100) NOT NULL,
+    polaris_obj_type      VARCHAR(50),
+    polaris_field_id      INT NOT NULL,
+    polaris_field_type    INT,
+    polaris_field_name    VARCHAR(100),
+    is_mandatory          BOOLEAN NOT NULL DEFAULT FALSE,
+    transform_expression  TEXT,
+    is_active             BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (field_scope, app_field_name, polaris_field_id)
+);
 
 -- Master registry of all Polaris/OI account numbers used by the system.
 -- Polaris/OI acntCode, txnAcntCode and contAcntCode values are stored here.
@@ -1129,6 +1405,7 @@ CREATE TABLE polaris_accounts (
     account_type        polaris_acc_type NOT NULL,
     owner_type          VARCHAR(20) NOT NULL,  -- customer|merchant|system
     owner_id            UUID,                  -- references the relevant profile id
+    product_config_id   UUID REFERENCES polaris_product_configs(id),
     polaris_prod_code   VARCHAR(50),           -- Polaris/OI prodCode
     polaris_brch_code   VARCHAR(50),           -- Polaris/OI brchCode
     polaris_sys_no      INT,                   -- Polaris/OI sysNo
@@ -1139,6 +1416,90 @@ CREATE TABLE polaris_accounts (
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE customer_deposit_accounts (
+    id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id           UUID NOT NULL REFERENCES customer_profiles(id),
+    polaris_account_id    UUID UNIQUE REFERENCES polaris_accounts(id),
+    product_config_id     UUID NOT NULL REFERENCES polaris_product_configs(id),
+    purpose               VARCHAR(50) NOT NULL DEFAULT 'loan_grant_repayment',
+    is_primary            BOOLEAN NOT NULL DEFAULT FALSE,
+    status                customer_deposit_account_status_enum NOT NULL DEFAULT 'pending_create',
+    opened_at             TIMESTAMPTZ,
+    failed_at             TIMESTAMPTZ,
+    failure_reason        TEXT,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (customer_id, id)
+);
+
+CREATE TABLE credit_line_accounts (
+    id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id           UUID NOT NULL REFERENCES customer_profiles(id),
+    loan_limit_id         UUID NOT NULL REFERENCES loan_limits(id),
+    credit_score_id       UUID NOT NULL REFERENCES credit_score_results(id),
+    customer_deposit_account_id UUID NOT NULL REFERENCES customer_deposit_accounts(id),
+    polaris_account_id    UUID UNIQUE REFERENCES polaris_accounts(id),
+    product_config_id     UUID NOT NULL REFERENCES polaris_product_configs(id),
+    line_amount           NUMERIC(14,2) NOT NULL,
+    utilized_amount       NUMERIC(14,2) NOT NULL DEFAULT 0,
+    reserved_amount       NUMERIC(14,2) NOT NULL DEFAULT 0,
+    available_amount      NUMERIC(14,2) GENERATED ALWAYS AS (line_amount - utilized_amount - reserved_amount) STORED,
+    currency              VARCHAR(10) NOT NULL DEFAULT 'MNT',
+    status                credit_line_status_enum NOT NULL DEFAULT 'pending_create',
+    valid_until           TIMESTAMPTZ,
+    polaris_created_at    TIMESTAMPTZ,
+    opened_at             TIMESTAMPTZ,
+    failed_at             TIMESTAMPTZ,
+    failure_reason        TEXT,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (customer_id, loan_limit_id)
+);
+
+CREATE TABLE credit_limit_reservations (
+    id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id           UUID NOT NULL REFERENCES customer_profiles(id),
+    credit_line_account_id UUID NOT NULL REFERENCES credit_line_accounts(id),
+    loan_application_id   UUID NOT NULL UNIQUE REFERENCES loan_applications(id),
+    loan_id               UUID UNIQUE REFERENCES loans(id),
+    idempotency_key       VARCHAR(100) UNIQUE,
+    reserved_amount       NUMERIC(14,2) NOT NULL,
+    currency              VARCHAR(10) NOT NULL DEFAULT 'MNT',
+    status                credit_reservation_status_enum NOT NULL DEFAULT 'reserved',
+    expires_at            TIMESTAMPTZ,
+    consumed_at           TIMESTAMPTZ,
+    released_at           TIMESTAMPTZ,
+    failed_at             TIMESTAMPTZ,
+    failure_reason        TEXT,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (credit_line_account_id, loan_application_id)
+);
+
+ALTER TABLE customer_profiles
+    ADD CONSTRAINT fk_customer_profiles_primary_deposit_account
+    FOREIGN KEY (primary_deposit_account_id) REFERENCES customer_deposit_accounts(id);
+
+ALTER TABLE merchant_profiles
+    ADD CONSTRAINT fk_merchant_profiles_passive_account
+    FOREIGN KEY (polaris_merchant_passive_account_id) REFERENCES polaris_accounts(id);
+
+ALTER TABLE merchant_profiles
+    ADD CONSTRAINT fk_merchant_profiles_settlement_account
+    FOREIGN KEY (polaris_settlement_account_id) REFERENCES polaris_accounts(id);
+
+ALTER TABLE loan_limits
+    ADD CONSTRAINT fk_loan_limits_active_credit_line
+    FOREIGN KEY (active_credit_line_account_id) REFERENCES credit_line_accounts(id);
+
+ALTER TABLE loan_products
+    ADD CONSTRAINT fk_loan_products_polaris_product_config
+    FOREIGN KEY (polaris_product_config_id) REFERENCES polaris_product_configs(id);
+
+ALTER TABLE loans
+    ADD CONSTRAINT fk_loans_polaris_product_config
+    FOREIGN KEY (polaris_product_config_id) REFERENCES polaris_product_configs(id);
+
 ALTER TABLE loans
     ADD CONSTRAINT fk_loans_polaris_loan_account
     FOREIGN KEY (polaris_loan_account_id) REFERENCES polaris_accounts(id);
@@ -1146,6 +1507,30 @@ ALTER TABLE loans
 ALTER TABLE loans
     ADD CONSTRAINT fk_loans_polaris_deposit_account
     FOREIGN KEY (polaris_deposit_account_id) REFERENCES polaris_accounts(id);
+
+ALTER TABLE loan_applications
+    ADD CONSTRAINT fk_loan_apps_requested_customer_deposit
+    FOREIGN KEY (requested_customer_deposit_account_id) REFERENCES customer_deposit_accounts(id);
+
+ALTER TABLE loan_applications
+    ADD CONSTRAINT fk_loan_apps_credit_line
+    FOREIGN KEY (credit_line_account_id) REFERENCES credit_line_accounts(id);
+
+ALTER TABLE loan_applications
+    ADD CONSTRAINT fk_loan_apps_limit_reservation
+    FOREIGN KEY (credit_limit_reservation_id) REFERENCES credit_limit_reservations(id);
+
+ALTER TABLE loans
+    ADD CONSTRAINT fk_loans_customer_deposit
+    FOREIGN KEY (customer_deposit_account_id) REFERENCES customer_deposit_accounts(id);
+
+ALTER TABLE loans
+    ADD CONSTRAINT fk_loans_credit_line
+    FOREIGN KEY (credit_line_account_id) REFERENCES credit_line_accounts(id);
+
+ALTER TABLE loans
+    ADD CONSTRAINT fk_loans_limit_reservation
+    FOREIGN KEY (credit_limit_reservation_id) REFERENCES credit_limit_reservations(id);
 
 -- Double-entry journal header for all money movement posted or reconciled with Polaris
 CREATE TABLE ledger_journals (
@@ -1156,6 +1541,7 @@ CREATE TABLE ledger_journals (
     source_table          VARCHAR(100) NOT NULL,
     source_id             UUID NOT NULL,
     source_operation      VARCHAR(50) NOT NULL,
+    transaction_config_id UUID REFERENCES polaris_transaction_configs(id),
     value_date            DATE NOT NULL,
     currency              VARCHAR(10) NOT NULL DEFAULT 'MNT',
     status                ledger_journal_status_enum NOT NULL DEFAULT 'pending',
@@ -1198,6 +1584,34 @@ ALTER TABLE repayment_transactions
     ADD CONSTRAINT fk_repay_txn_ledger_journal
     FOREIGN KEY (ledger_journal_id) REFERENCES ledger_journals(id);
 
+ALTER TABLE loans
+    ADD CONSTRAINT fk_loans_grant_ledger_journal
+    FOREIGN KEY (grant_ledger_journal_id) REFERENCES ledger_journals(id);
+
+ALTER TABLE loans
+    ADD CONSTRAINT fk_loans_bnpl_merchant_transfer_journal
+    FOREIGN KEY (bnpl_merchant_transfer_journal_id) REFERENCES ledger_journals(id);
+
+ALTER TABLE pos_transactions
+    ADD CONSTRAINT fk_pos_txn_merchant_passive_account
+    FOREIGN KEY (merchant_passive_account_id) REFERENCES polaris_accounts(id);
+
+ALTER TABLE pos_transactions
+    ADD CONSTRAINT fk_pos_txn_merchant_transfer_journal
+    FOREIGN KEY (merchant_transfer_ledger_journal_id) REFERENCES ledger_journals(id);
+
+ALTER TABLE repayment_transactions
+    ADD CONSTRAINT fk_repay_txn_customer_deposit
+    FOREIGN KEY (customer_deposit_account_id) REFERENCES customer_deposit_accounts(id);
+
+ALTER TABLE repayment_transactions
+    ADD CONSTRAINT fk_repay_txn_inbound_ledger_journal
+    FOREIGN KEY (inbound_ledger_journal_id) REFERENCES ledger_journals(id);
+
+ALTER TABLE repayment_transactions
+    ADD CONSTRAINT fk_repay_txn_loan_payment_ledger_journal
+    FOREIGN KEY (loan_payment_ledger_journal_id) REFERENCES ledger_journals(id);
+
 ALTER TABLE customer_cashback_wallets
     ADD CONSTRAINT fk_cashback_wallet_backing_polaris_account
     FOREIGN KEY (backing_polaris_account_id) REFERENCES polaris_accounts(id);
@@ -1222,10 +1636,15 @@ ALTER TABLE repayment_cashback_records
 -- Persist sanitized payloads only; redact account/register values before insert.
 CREATE TABLE polaris_api_logs (
     id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    sync_queue_id    UUID,
+    operation_attempt_id UUID,
     endpoint         VARCHAR(255) NOT NULL,
     http_method      VARCHAR(10) NOT NULL,
+    idempotency_key  VARCHAR(100),
     request_payload  JSONB,
     response_payload JSONB,
+    request_payload_hash BYTEA,
+    response_payload_hash BYTEA,
     http_status_code INT,
     duration_ms      INT,
     correlation_id   VARCHAR(100),
@@ -1240,24 +1659,133 @@ CREATE TABLE polaris_sync_queue (
     source_table    VARCHAR(100) NOT NULL,
     source_id       UUID NOT NULL,
     operation       queue_op_enum NOT NULL,
-    idempotency_key VARCHAR(100),
+    endpoint        VARCHAR(255),
+    product_config_id UUID REFERENCES polaris_product_configs(id),
+    transaction_config_id UUID REFERENCES polaris_transaction_configs(id),
+    idempotency_key VARCHAR(100) NOT NULL,
+    correlation_id  VARCHAR(100),
+    reconciliation_key VARCHAR(150),
     payload         JSONB NOT NULL,
     retry_count     INT NOT NULL DEFAULT 0,
     status          queue_status_enum NOT NULL DEFAULT 'pending',
     error_message   TEXT,
     locked_at       TIMESTAMPTZ,
     locked_by       VARCHAR(100),
+    last_attempt_at TIMESTAMPTZ,
     next_retry_at   TIMESTAMPTZ,
+    reconciled_at   TIMESTAMPTZ,
+    dead_letter_at  TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     processed_at    TIMESTAMPTZ
 );
 
+CREATE TABLE polaris_operation_attempts (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    sync_queue_id        UUID NOT NULL REFERENCES polaris_sync_queue(id),
+    endpoint             VARCHAR(255) NOT NULL,
+    http_method          VARCHAR(10) NOT NULL DEFAULT 'POST',
+    idempotency_key      VARCHAR(100) NOT NULL,
+    request_payload_hash BYTEA,
+    request_payload      JSONB,
+    response_payload     JSONB,
+    http_status_code     INT,
+    duration_ms          INT,
+    polaris_jrno         BIGINT,
+    polaris_txn_ref      VARCHAR(100),
+    correlation_id       VARCHAR(100),
+    status               queue_status_enum NOT NULL DEFAULT 'processing',
+    error_message        TEXT,
+    started_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at         TIMESTAMPTZ,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE polaris_api_logs
+    ADD CONSTRAINT fk_polaris_api_logs_sync_queue
+    FOREIGN KEY (sync_queue_id) REFERENCES polaris_sync_queue(id);
+
+ALTER TABLE polaris_api_logs
+    ADD CONSTRAINT fk_polaris_api_logs_operation_attempt
+    FOREIGN KEY (operation_attempt_id) REFERENCES polaris_operation_attempts(id);
+
+CREATE TABLE loan_core_steps (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    loan_id              UUID REFERENCES loans(id),
+    loan_application_id  UUID REFERENCES loan_applications(id),
+    customer_id          UUID NOT NULL REFERENCES customer_profiles(id),
+    step                 loan_core_step_enum NOT NULL,
+    status               loan_core_step_status_enum NOT NULL DEFAULT 'pending',
+    operation_order      INT NOT NULL DEFAULT 1 CHECK (operation_order > 0),
+    polaris_sync_queue_id UUID REFERENCES polaris_sync_queue(id),
+    endpoint             VARCHAR(255),
+    idempotency_key      VARCHAR(100) UNIQUE,
+    polaris_jrno         BIGINT,
+    polaris_txn_ref      VARCHAR(100),
+    request_payload      JSONB,
+    response_payload     JSONB,
+    failure_reason       TEXT,
+    started_at           TIMESTAMPTZ,
+    completed_at         TIMESTAMPTZ,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (loan_id IS NOT NULL OR loan_application_id IS NOT NULL)
+);
+
+CREATE INDEX idx_polaris_product_configs_kind ON polaris_product_configs(config_kind, is_active);
+CREATE INDEX idx_polaris_product_configs_loan_product ON polaris_product_configs(loan_product_id, config_kind, is_active);
+CREATE INDEX idx_polaris_txn_configs_kind ON polaris_transaction_configs(txn_kind, is_active);
+CREATE INDEX idx_polaris_dynamic_mappings_scope ON polaris_dynamic_field_mappings(field_scope, is_active);
+CREATE INDEX idx_loan_products_polaris_config ON loan_products(polaris_product_config_id)
+    WHERE polaris_product_config_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_customer_deposit_accounts_primary
+    ON customer_deposit_accounts(customer_id)
+    WHERE is_primary = TRUE AND status NOT IN ('closed','failed');
+CREATE INDEX idx_customer_deposit_accounts_customer ON customer_deposit_accounts(customer_id, status);
+CREATE UNIQUE INDEX idx_credit_line_accounts_active
+    ON credit_line_accounts(customer_id)
+    WHERE status = 'active';
+CREATE INDEX idx_credit_line_accounts_limit ON credit_line_accounts(loan_limit_id, status);
+CREATE INDEX idx_credit_line_accounts_customer ON credit_line_accounts(customer_id, status);
+CREATE INDEX idx_credit_reservations_customer ON credit_limit_reservations(customer_id, status);
+CREATE INDEX idx_credit_reservations_line_status ON credit_limit_reservations(credit_line_account_id, status);
 CREATE INDEX idx_ledger_journals_source ON ledger_journals(source_table, source_id, source_operation);
+CREATE INDEX idx_ledger_journals_txn_config ON ledger_journals(transaction_config_id);
 CREATE INDEX idx_ledger_journals_status ON ledger_journals(status, value_date);
 CREATE INDEX idx_ledger_entries_journal ON ledger_entries(journal_id);
 CREATE INDEX idx_ledger_entries_account ON ledger_entries(polaris_account_id);
 CREATE INDEX idx_sync_queue_stat  ON polaris_sync_queue(status);
+CREATE INDEX idx_sync_queue_reconcile ON polaris_sync_queue(reconciliation_key, status);
+CREATE INDEX idx_sync_queue_product_config ON polaris_sync_queue(product_config_id)
+    WHERE product_config_id IS NOT NULL;
+CREATE INDEX idx_sync_queue_txn_config ON polaris_sync_queue(transaction_config_id)
+    WHERE transaction_config_id IS NOT NULL;
 CREATE INDEX idx_api_logs_corr    ON polaris_api_logs(correlation_id);
+CREATE INDEX idx_api_logs_queue_attempt ON polaris_api_logs(sync_queue_id, operation_attempt_id);
+CREATE INDEX idx_api_logs_idempotency ON polaris_api_logs(idempotency_key)
+    WHERE idempotency_key IS NOT NULL;
+CREATE INDEX idx_operation_attempts_queue ON polaris_operation_attempts(sync_queue_id, started_at DESC);
+CREATE INDEX idx_operation_attempts_jrno ON polaris_operation_attempts(polaris_jrno) WHERE polaris_jrno IS NOT NULL;
+CREATE INDEX idx_operation_attempts_idempotency
+    ON polaris_operation_attempts(idempotency_key)
+    WHERE idempotency_key IS NOT NULL;
+CREATE INDEX idx_loan_core_steps_loan ON loan_core_steps(loan_id, operation_order);
+CREATE INDEX idx_loan_core_steps_app ON loan_core_steps(loan_application_id, operation_order);
+CREATE UNIQUE INDEX idx_loan_core_steps_loan_step_active
+    ON loan_core_steps(loan_id, step)
+    WHERE loan_id IS NOT NULL
+      AND status IN ('pending', 'processing', 'succeeded', 'pending_reconcile');
+CREATE UNIQUE INDEX idx_loan_core_steps_app_step_active
+    ON loan_core_steps(loan_application_id, step)
+    WHERE loan_application_id IS NOT NULL
+      AND status IN ('pending', 'processing', 'succeeded', 'pending_reconcile');
+CREATE UNIQUE INDEX idx_loan_core_steps_loan_order_active
+    ON loan_core_steps(loan_id, operation_order)
+    WHERE loan_id IS NOT NULL
+      AND status IN ('pending', 'processing', 'succeeded', 'pending_reconcile', 'skipped');
+CREATE UNIQUE INDEX idx_loan_core_steps_app_order_active
+    ON loan_core_steps(loan_application_id, operation_order)
+    WHERE loan_application_id IS NOT NULL
+      AND status IN ('pending', 'processing', 'succeeded', 'pending_reconcile', 'skipped');
 
 
 -- ============================================================
@@ -1267,7 +1795,7 @@ CREATE INDEX idx_api_logs_corr    ON polaris_api_logs(correlation_id);
 CREATE TYPE portal_role_enum    AS ENUM ('admin','cashier','viewer');
 CREATE TYPE refund_type_enum    AS ENUM ('full','partial');
 CREATE TYPE refund_status_enum  AS ENUM ('pending','under_review','approved','rejected','processed');
-CREATE TYPE settle_status_enum  AS ENUM ('pending','processing','completed','failed');
+CREATE TYPE settle_status_enum  AS ENUM ('pending','processing','pending_reconcile','completed','failed','reversed');
 
 -- Merchant portal user access (separate from the merchant owner user)
 CREATE TABLE merchant_portal_users (
@@ -1318,6 +1846,9 @@ CREATE TABLE merchant_settlements (
     merchant_id        UUID NOT NULL REFERENCES merchant_profiles(id),
     settlement_date    DATE NOT NULL,
     ledger_journal_id  UUID REFERENCES ledger_journals(id),
+    merchant_passive_account_id UUID REFERENCES polaris_accounts(id),
+    merchant_settlement_account_id UUID REFERENCES polaris_accounts(id),
+    polaris_jrno       BIGINT,
     idempotency_key    VARCHAR(100),
     total_bnpl_amount  NUMERIC(14,2) NOT NULL DEFAULT 0,
     total_refunds      NUMERIC(14,2) NOT NULL DEFAULT 0,
@@ -1328,109 +1859,25 @@ CREATE TABLE merchant_settlements (
     settled_at         TIMESTAMPTZ
 );
 
+CREATE TABLE merchant_settlement_items (
+    id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    settlement_id      UUID NOT NULL REFERENCES merchant_settlements(id),
+    pos_transaction_id UUID NOT NULL REFERENCES pos_transactions(id),
+    gross_amount       NUMERIC(14,2) NOT NULL,
+    refund_amount      NUMERIC(14,2) NOT NULL DEFAULT 0,
+    net_amount         NUMERIC(14,2) GENERATED ALWAYS AS (gross_amount - refund_amount) STORED,
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (settlement_id, pos_transaction_id)
+);
+
 CREATE INDEX idx_portal_users_merchant  ON merchant_portal_users(merchant_id);
 CREATE INDEX idx_refunds_merchant       ON merchant_refund_requests(merchant_id);
 CREATE INDEX idx_refunds_pos_transaction ON merchant_refund_requests(pos_transaction_id);
 CREATE INDEX idx_refunds_status         ON merchant_refund_requests(status);
 CREATE INDEX idx_settlements_merchant   ON merchant_settlements(merchant_id, settlement_date);
-
-
--- ============================================================
--- STATUS TRANSITION HISTORY
--- ============================================================
-
-CREATE TABLE loan_application_status_history (
-    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    loan_application_id UUID NOT NULL REFERENCES loan_applications(id),
-    from_status         loan_app_status,
-    to_status           loan_app_status NOT NULL,
-    changed_by_user_id  UUID REFERENCES users(id),
-    changed_by_staff_id UUID REFERENCES staff_profiles(id),
-    reason              TEXT,
-    metadata            JSONB NOT NULL DEFAULT '{}',
-    changed_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE loan_status_history (
-    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    loan_id             UUID NOT NULL REFERENCES loans(id),
-    from_status         loan_status_enum,
-    to_status           loan_status_enum NOT NULL,
-    changed_by_user_id  UUID REFERENCES users(id),
-    changed_by_staff_id UUID REFERENCES staff_profiles(id),
-    reason              TEXT,
-    metadata            JSONB NOT NULL DEFAULT '{}',
-    changed_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE repayment_schedule_status_history (
-    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    schedule_id         UUID NOT NULL REFERENCES repayment_schedules(id),
-    from_status         sched_status_enum,
-    to_status           sched_status_enum NOT NULL,
-    changed_by_user_id  UUID REFERENCES users(id),
-    changed_by_staff_id UUID REFERENCES staff_profiles(id),
-    reason              TEXT,
-    metadata            JSONB NOT NULL DEFAULT '{}',
-    changed_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE repayment_transaction_status_history (
-    id                       UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    repayment_transaction_id UUID NOT NULL REFERENCES repayment_transactions(id),
-    from_status              repay_txn_status,
-    to_status                repay_txn_status NOT NULL,
-    changed_by_user_id       UUID REFERENCES users(id),
-    changed_by_staff_id      UUID REFERENCES staff_profiles(id),
-    reason                   TEXT,
-    metadata                 JSONB NOT NULL DEFAULT '{}',
-    changed_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE merchant_refund_status_history (
-    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    refund_request_id   UUID NOT NULL REFERENCES merchant_refund_requests(id),
-    from_status         refund_status_enum,
-    to_status           refund_status_enum NOT NULL,
-    changed_by_user_id  UUID REFERENCES users(id),
-    changed_by_staff_id UUID REFERENCES staff_profiles(id),
-    reason              TEXT,
-    metadata            JSONB NOT NULL DEFAULT '{}',
-    changed_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE merchant_settlement_status_history (
-    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    settlement_id       UUID NOT NULL REFERENCES merchant_settlements(id),
-    from_status         settle_status_enum,
-    to_status           settle_status_enum NOT NULL,
-    changed_by_user_id  UUID REFERENCES users(id),
-    changed_by_staff_id UUID REFERENCES staff_profiles(id),
-    reason              TEXT,
-    metadata            JSONB NOT NULL DEFAULT '{}',
-    changed_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE kyc_verification_step_status_history (
-    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    kyc_verification_step_id UUID NOT NULL REFERENCES kyc_verification_steps(id),
-    from_status         VARCHAR(20),
-    to_status           VARCHAR(20) NOT NULL,
-    changed_by_user_id  UUID REFERENCES users(id),
-    changed_by_staff_id UUID REFERENCES staff_profiles(id),
-    reason              TEXT,
-    metadata            JSONB NOT NULL DEFAULT '{}',
-    changed_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_loan_app_status_hist_app ON loan_application_status_history(loan_application_id, changed_at DESC);
-CREATE INDEX idx_loan_status_hist_loan ON loan_status_history(loan_id, changed_at DESC);
-CREATE INDEX idx_sched_status_hist_sched ON repayment_schedule_status_history(schedule_id, changed_at DESC);
-CREATE INDEX idx_repay_txn_status_hist_txn ON repayment_transaction_status_history(repayment_transaction_id, changed_at DESC);
-CREATE INDEX idx_refund_status_hist_refund ON merchant_refund_status_history(refund_request_id, changed_at DESC);
-CREATE INDEX idx_settlement_status_hist_settlement ON merchant_settlement_status_history(settlement_id, changed_at DESC);
-CREATE INDEX idx_kyc_step_status_hist_step ON kyc_verification_step_status_history(kyc_verification_step_id, changed_at DESC);
-
+CREATE INDEX idx_settlement_items_settlement ON merchant_settlement_items(settlement_id);
+CREATE INDEX idx_settlement_items_pos_txn ON merchant_settlement_items(pos_transaction_id);
+CREATE UNIQUE INDEX idx_settlement_items_pos_txn_unique ON merchant_settlement_items(pos_transaction_id);
 
 -- ============================================================
 -- 9. AUDIT TRAIL, NOTIFICATIONS & SYSTEM LOGS
@@ -1440,6 +1887,43 @@ CREATE TYPE severity_enum    AS ENUM ('debug','info','warn','error','critical');
 CREATE TYPE notif_chan_enum  AS ENUM ('sms','push','email','in_app');
 CREATE TYPE notif_status     AS ENUM ('queued','sent','delivered','read','failed');
 CREATE TYPE review_type_enum AS ENUM ('routine','escalated','compliance');
+CREATE TYPE audit_actor_type_enum AS ENUM ('customer','merchant','staff','system','service','external');
+CREATE TYPE audit_event_category_enum AS ENUM (
+    'auth',
+    'kyc',
+    'scoring',
+    'limit',
+    'loan',
+    'repayment',
+    'bnpl',
+    'merchant',
+    'polaris',
+    'finance',
+    'admin',
+    'security',
+    'data_change',
+    'system'
+);
+CREATE TYPE audit_operation_type_enum AS ENUM (
+    'create',
+    'update',
+    'delete',
+    'status_change',
+    'submit',
+    'approve',
+    'reject',
+    'cancel',
+    'authorize',
+    'sync',
+    'post_transaction',
+    'reverse',
+    'reconcile',
+    'login',
+    'logout',
+    'read_sensitive',
+    'export'
+);
+CREATE TYPE audit_outcome_enum AS ENUM ('success','failure','rejected','pending','pending_reconcile');
 CREATE TYPE service_pause_scope_enum AS ENUM (
     'all',
     'repayment',
@@ -1451,21 +1935,57 @@ CREATE TYPE service_pause_scope_enum AS ENUM (
 );
 CREATE TYPE service_pause_status_enum AS ENUM ('scheduled','active','completed','cancelled');
 
--- Immutable audit log for every state-changing action
+-- Immutable audit log for business, security and financial state changes.
+-- Do not write routine debug logs or every SELECT here; use system_event_logs for runtime
+-- events, polaris_api_logs/operation_attempts for external calls, and ledger_journals
+-- for accounting facts. Log sensitive reads only when compliance requires it.
 CREATE TABLE audit_logs (
-    id             UUID NOT NULL DEFAULT uuid_generate_v4(),
-    user_id        UUID REFERENCES users(id),
-    action         VARCHAR(100) NOT NULL,   -- e.g. LOAN_APPROVED, KYC_VERIFIED
-    entity_type    VARCHAR(100) NOT NULL,
-    entity_id      UUID NOT NULL,
-    old_value      JSONB,
-    new_value      JSONB,
-    ip_address     INET,
-    user_agent     TEXT,
-    session_id     UUID,
-    source_module  VARCHAR(50),
-    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (id, created_at)
+    id                         UUID NOT NULL DEFAULT uuid_generate_v4(),
+    event_category             audit_event_category_enum NOT NULL,
+    operation_type             audit_operation_type_enum NOT NULL,
+    outcome                    audit_outcome_enum NOT NULL DEFAULT 'success',
+    action                     VARCHAR(100) NOT NULL,   -- e.g. LOAN_APPROVED, KYC_VERIFIED
+    actor_type                 audit_actor_type_enum NOT NULL DEFAULT 'system',
+    user_id                    UUID REFERENCES users(id),
+    staff_id                   UUID REFERENCES staff_profiles(id),
+    customer_id                UUID REFERENCES customer_profiles(id),
+    merchant_id                UUID REFERENCES merchant_profiles(id),
+    subject_customer_id        UUID REFERENCES customer_profiles(id),
+    subject_merchant_id        UUID REFERENCES merchant_profiles(id),
+    entity_type                VARCHAR(100) NOT NULL,
+    entity_id                  UUID NOT NULL,
+    source_table               VARCHAR(100),
+    source_id                  UUID,
+    related_entity_type        VARCHAR(100),
+    related_entity_id          UUID,
+    from_status                VARCHAR(50),
+    to_status                  VARCHAR(50),
+    old_value                  JSONB,
+    new_value                  JSONB,
+    diff_value                 JSONB,
+    reason                     TEXT,
+    metadata                   JSONB NOT NULL DEFAULT '{}',
+    ip_address                 INET,
+    user_agent                 TEXT,
+    session_id                 UUID,
+    request_id                 VARCHAR(100),
+    correlation_id             VARCHAR(100),
+    trace_id                   VARCHAR(100),
+    idempotency_key            VARCHAR(100),
+    source_module              VARCHAR(50),
+    ledger_journal_id          UUID REFERENCES ledger_journals(id),
+    polaris_sync_queue_id      UUID REFERENCES polaris_sync_queue(id),
+    polaris_operation_attempt_id UUID REFERENCES polaris_operation_attempts(id),
+    polaris_jrno               BIGINT,
+    request_payload_hash       BYTEA,
+    previous_hash              BYTEA,
+    record_hash                BYTEA,
+    created_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (id, created_at),
+    CHECK (operation_type <> 'status_change' OR to_status IS NOT NULL),
+    CHECK (request_payload_hash IS NULL OR octet_length(request_payload_hash) = 32),
+    CHECK (previous_hash IS NULL OR octet_length(previous_hash) = 32),
+    CHECK (record_hash IS NULL OR octet_length(record_hash) = 32)
 ) PARTITION BY RANGE (created_at);  -- partition by month for scalability
 
 CREATE TABLE audit_logs_2025_01 PARTITION OF audit_logs
@@ -1524,12 +2044,14 @@ CREATE TABLE audit_logs_default PARTITION OF audit_logs DEFAULT;
 -- Compliance / spot-check reviews of audit entries by staff
 CREATE TABLE staff_action_reviews (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    audit_log_id        UUID NOT NULL,  -- references audit_logs(id)
+    audit_log_id        UUID NOT NULL,
+    audit_log_created_at TIMESTAMPTZ NOT NULL,
     reviewer_staff_id   UUID NOT NULL REFERENCES staff_profiles(id),
     review_type         review_type_enum NOT NULL,
     outcome             VARCHAR(50),
     notes               TEXT,
-    reviewed_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    reviewed_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY (audit_log_id, audit_log_created_at) REFERENCES audit_logs(id, created_at)
 );
 
 -- Operational pause windows for end-of-day or core system processing
@@ -1645,6 +2167,22 @@ CREATE TABLE system_event_logs_default PARTITION OF system_event_logs DEFAULT;
 
 CREATE INDEX idx_audit_entity       ON audit_logs(entity_type, entity_id);
 CREATE INDEX idx_audit_user         ON audit_logs(user_id);
+CREATE INDEX idx_audit_subject_customer ON audit_logs(subject_customer_id, created_at DESC)
+    WHERE subject_customer_id IS NOT NULL;
+CREATE INDEX idx_audit_subject_merchant ON audit_logs(subject_merchant_id, created_at DESC)
+    WHERE subject_merchant_id IS NOT NULL;
+CREATE INDEX idx_audit_category_action ON audit_logs(event_category, operation_type, created_at DESC);
+CREATE INDEX idx_audit_status_change ON audit_logs(entity_type, entity_id, from_status, to_status, created_at DESC)
+    WHERE operation_type = 'status_change';
+CREATE INDEX idx_audit_correlation ON audit_logs(correlation_id, created_at DESC)
+    WHERE correlation_id IS NOT NULL;
+CREATE INDEX idx_audit_idempotency ON audit_logs(idempotency_key, created_at DESC)
+    WHERE idempotency_key IS NOT NULL;
+CREATE INDEX idx_audit_polaris_jrno ON audit_logs(polaris_jrno, created_at DESC)
+    WHERE polaris_jrno IS NOT NULL;
+CREATE INDEX idx_audit_ledger_journal ON audit_logs(ledger_journal_id, created_at DESC)
+    WHERE ledger_journal_id IS NOT NULL;
+CREATE INDEX idx_staff_action_reviews_audit ON staff_action_reviews(audit_log_id, audit_log_created_at);
 CREATE INDEX idx_service_pause_active
     ON service_pause_windows(scope, starts_at, ends_at)
     WHERE status = 'active';
@@ -1841,7 +2379,17 @@ ALTER TABLE hur_data_snapshots
     );
 
 ALTER TABLE loan_applications
-    ADD CONSTRAINT chk_loan_applications_amount CHECK (requested_amount > 0);
+    ADD CONSTRAINT chk_loan_applications_amount CHECK (
+        requested_amount > 0
+        AND (
+            status NOT IN ('approved','pending_core_setup','pending_grant','pending_reconcile','disbursed')
+            OR (
+                requested_customer_deposit_account_id IS NOT NULL
+                AND credit_line_account_id IS NOT NULL
+                AND credit_limit_reservation_id IS NOT NULL
+            )
+        )
+    );
 
 ALTER TABLE loans
     ADD CONSTRAINT chk_loans_amounts CHECK (
@@ -1850,6 +2398,48 @@ ALTER TABLE loans
         AND interest_rate >= 0
         AND interest_rate <= 1
         AND (total_payable IS NULL OR total_payable >= principal_amount)
+        AND schedule_status IN ('not_started','pending','succeeded','failed','pending_reconcile','skipped')
+        AND line_link_status IN ('not_started','pending','succeeded','failed','pending_reconcile')
+        AND grant_status IN ('not_started','pending','succeeded','failed','pending_reconcile')
+        AND bnpl_merchant_transfer_status IN ('not_required','not_started','pending','succeeded','failed','pending_reconcile')
+        AND (
+            status <> 'pending_grant'
+            OR (schedule_status = 'succeeded' AND line_link_status = 'succeeded')
+        )
+        AND (
+            grant_status NOT IN ('pending','succeeded')
+            OR (schedule_status = 'succeeded' AND line_link_status = 'succeeded')
+        )
+        AND (
+            grant_status <> 'succeeded'
+            OR (
+                grant_ledger_journal_id IS NOT NULL
+                AND grant_polaris_jrno IS NOT NULL
+                AND disbursed_amount = principal_amount
+                AND disbursed_at IS NOT NULL
+            )
+        )
+        AND (
+            bnpl_merchant_transfer_status <> 'succeeded'
+            OR (
+                bnpl_merchant_transfer_journal_id IS NOT NULL
+                AND bnpl_merchant_transfer_polaris_jrno IS NOT NULL
+            )
+        )
+        AND (
+            status NOT IN ('active','closed')
+            OR (
+                polaris_product_config_id IS NOT NULL
+                AND polaris_loan_account_id IS NOT NULL
+                AND customer_deposit_account_id IS NOT NULL
+                AND credit_line_account_id IS NOT NULL
+                AND credit_limit_reservation_id IS NOT NULL
+                AND schedule_status = 'succeeded'
+                AND line_link_status = 'succeeded'
+                AND grant_status = 'succeeded'
+                AND bnpl_merchant_transfer_status IN ('not_required','succeeded')
+            )
+        )
     );
 
 ALTER TABLE pos_payment_invoices
@@ -1861,6 +2451,23 @@ ALTER TABLE pos_transactions
         AND installment_count > 0
         AND per_installment_amount > 0
         AND interest_amount >= 0
+        AND merchant_transfer_status IN ('not_started','pending','succeeded','failed','pending_reconcile')
+        AND (
+            merchant_transfer_status <> 'succeeded'
+            OR (
+                merchant_passive_account_id IS NOT NULL
+                AND merchant_transfer_ledger_journal_id IS NOT NULL
+                AND merchant_transfer_polaris_jrno IS NOT NULL
+            )
+        )
+        AND (
+            status <> 'approved'
+            OR (
+                loan_id IS NOT NULL
+                AND merchant_transfer_status = 'succeeded'
+                AND approved_at IS NOT NULL
+            )
+        )
     );
 
 ALTER TABLE repayment_schedules
@@ -1881,7 +2488,31 @@ ALTER TABLE repayment_transactions
         AND principal_portion >= 0
         AND interest_portion >= 0
         AND penalty_portion >= 0
-        AND principal_portion + interest_portion + penalty_portion = amount
+        AND principal_portion + interest_portion + penalty_portion <= amount
+        AND (
+            status <> 'completed'
+            OR (
+                principal_portion + interest_portion + penalty_portion = amount
+                AND processed_at IS NOT NULL
+                AND (
+                    payment_channel = 'manual_adjustment'
+                    OR (
+                        inbound_ledger_journal_id IS NOT NULL
+                        AND loan_payment_ledger_journal_id IS NOT NULL
+                        AND inbound_polaris_jrno IS NOT NULL
+                        AND loan_payment_polaris_jrno IS NOT NULL
+                    )
+                )
+            )
+        )
+    );
+
+ALTER TABLE repayment_allocations
+    ADD CONSTRAINT chk_repayment_allocations_amounts CHECK (
+        principal_amount >= 0
+        AND interest_amount >= 0
+        AND penalty_amount >= 0
+        AND principal_amount + interest_amount + penalty_amount > 0
     );
 
 ALTER TABLE repayment_cashback_configs
@@ -1984,6 +2615,42 @@ ALTER TABLE penalty_records
 ALTER TABLE polaris_accounts
     ADD CONSTRAINT chk_polaris_accounts_balance CHECK (current_balance >= 0);
 
+ALTER TABLE polaris_product_configs
+    ADD CONSTRAINT chk_polaris_product_configs_term CHECK (
+        term_len IS NULL OR term_len > 0
+    );
+
+ALTER TABLE customer_deposit_accounts
+    ADD CONSTRAINT chk_customer_deposit_accounts_open CHECK (
+        status <> 'active' OR (polaris_account_id IS NOT NULL AND opened_at IS NOT NULL)
+    );
+
+ALTER TABLE credit_line_accounts
+    ADD CONSTRAINT chk_credit_line_accounts_amounts CHECK (
+        line_amount >= 0
+        AND utilized_amount >= 0
+        AND reserved_amount >= 0
+        AND utilized_amount + reserved_amount <= line_amount
+        AND (
+            status <> 'active'
+            OR (
+                line_amount > 0
+                AND polaris_account_id IS NOT NULL
+                AND opened_at IS NOT NULL
+            )
+        )
+    );
+
+ALTER TABLE credit_limit_reservations
+    ADD CONSTRAINT chk_credit_limit_reservations_amount CHECK (reserved_amount > 0);
+
+ALTER TABLE credit_limit_reservations
+    ADD CONSTRAINT chk_credit_limit_reservations_terminal_state CHECK (
+        (status <> 'consumed' OR consumed_at IS NOT NULL)
+        AND (status <> 'released' OR released_at IS NOT NULL)
+        AND (status <> 'failed' OR failed_at IS NOT NULL)
+    );
+
 ALTER TABLE ledger_entries
     ADD CONSTRAINT chk_ledger_entries_balance_after CHECK (
         balance_after IS NULL OR balance_after >= 0
@@ -2003,6 +2670,21 @@ ALTER TABLE merchant_settlements
         total_bnpl_amount >= 0
         AND total_refunds >= 0
         AND total_refunds <= total_bnpl_amount
+        AND (
+            status <> 'completed'
+            OR (
+                ledger_journal_id IS NOT NULL
+                AND polaris_jrno IS NOT NULL
+                AND settled_at IS NOT NULL
+            )
+        )
+    );
+
+ALTER TABLE merchant_settlement_items
+    ADD CONSTRAINT chk_merchant_settlement_items_amounts CHECK (
+        gross_amount > 0
+        AND refund_amount >= 0
+        AND refund_amount <= gross_amount
     );
 
 ALTER TABLE customer_profiles
@@ -2023,11 +2705,6 @@ ALTER TABLE customer_bank_accounts
 ALTER TABLE customer_biometric_credentials
     ADD CONSTRAINT chk_customer_biometric_credential_hash CHECK (
         octet_length(credential_id_hash) = 32
-    );
-
-ALTER TABLE loan_applications
-    ADD CONSTRAINT chk_loan_applications_polaris_los_acnt_code_hash CHECK (
-        polaris_los_acnt_code_hash IS NULL OR octet_length(polaris_los_acnt_code_hash) = 32
     );
 
 ALTER TABLE kyc_related_customers
@@ -2056,6 +2733,26 @@ ALTER TABLE notification_logs
 
 ALTER TABLE polaris_accounts
     ADD CONSTRAINT chk_polaris_acnt_code_hash CHECK (octet_length(polaris_acnt_code_hash) = 32);
+
+ALTER TABLE polaris_operation_attempts
+    ADD CONSTRAINT chk_operation_attempt_payload_hash CHECK (
+        request_payload_hash IS NULL OR octet_length(request_payload_hash) = 32
+    );
+
+ALTER TABLE polaris_api_logs
+    ADD CONSTRAINT chk_polaris_api_log_payload_hashes CHECK (
+        (request_payload_hash IS NULL OR octet_length(request_payload_hash) = 32)
+        AND (response_payload_hash IS NULL OR octet_length(response_payload_hash) = 32)
+    );
+
+ALTER TABLE loan_core_steps
+    ADD CONSTRAINT chk_loan_core_steps_sync_tracking CHECK (
+        status NOT IN ('processing', 'succeeded', 'pending_reconcile')
+        OR (
+            polaris_sync_queue_id IS NOT NULL
+            AND idempotency_key IS NOT NULL
+        )
+    );
 
 CREATE UNIQUE INDEX idx_otp_sessions_idempotency
     ON otp_sessions(idempotency_key)
@@ -2111,10 +2808,6 @@ CREATE UNIQUE INDEX idx_cashback_records_idempotency
     ON repayment_cashback_records(idempotency_key)
     WHERE idempotency_key IS NOT NULL;
 
-CREATE UNIQUE INDEX idx_loan_apps_polaris_los_acnt_code_hash
-    ON loan_applications(polaris_los_acnt_code_hash)
-    WHERE polaris_los_acnt_code_hash IS NOT NULL;
-
 CREATE UNIQUE INDEX idx_ledger_journals_polaris_txn_ref
     ON ledger_journals(polaris_txn_ref)
     WHERE polaris_txn_ref IS NOT NULL;
@@ -2122,6 +2815,10 @@ CREATE UNIQUE INDEX idx_ledger_journals_polaris_txn_ref
 CREATE UNIQUE INDEX idx_ledger_journals_polaris_jrno
     ON ledger_journals(polaris_jrno)
     WHERE polaris_jrno IS NOT NULL;
+
+CREATE UNIQUE INDEX idx_ledger_journals_one_reversal
+    ON ledger_journals(reversal_of_journal_id)
+    WHERE reversal_of_journal_id IS NOT NULL;
 
 CREATE UNIQUE INDEX idx_ledger_entries_polaris_line_ref
     ON ledger_entries(polaris_line_ref)
@@ -2133,7 +2830,31 @@ CREATE UNIQUE INDEX idx_sync_queue_idempotency
 
 CREATE UNIQUE INDEX idx_sync_queue_active_source
     ON polaris_sync_queue(source_table, source_id, operation)
-    WHERE status IN ('pending', 'processing');
+    WHERE status IN ('pending', 'processing', 'pending_reconcile');
+
+CREATE UNIQUE INDEX idx_credit_reservation_active_application
+    ON credit_limit_reservations(loan_application_id)
+    WHERE status = 'reserved';
+
+CREATE UNIQUE INDEX idx_loans_grant_polaris_jrno
+    ON loans(grant_polaris_jrno)
+    WHERE grant_polaris_jrno IS NOT NULL;
+
+CREATE UNIQUE INDEX idx_loans_bnpl_transfer_polaris_jrno
+    ON loans(bnpl_merchant_transfer_polaris_jrno)
+    WHERE bnpl_merchant_transfer_polaris_jrno IS NOT NULL;
+
+CREATE UNIQUE INDEX idx_pos_txn_merchant_transfer_jrno
+    ON pos_transactions(merchant_transfer_polaris_jrno)
+    WHERE merchant_transfer_polaris_jrno IS NOT NULL;
+
+CREATE UNIQUE INDEX idx_repay_txn_inbound_jrno
+    ON repayment_transactions(inbound_polaris_jrno)
+    WHERE inbound_polaris_jrno IS NOT NULL;
+
+CREATE UNIQUE INDEX idx_repay_txn_loan_payment_jrno
+    ON repayment_transactions(loan_payment_polaris_jrno)
+    WHERE loan_payment_polaris_jrno IS NOT NULL;
 
 CREATE UNIQUE INDEX idx_refunds_full_once_per_pos_txn
     ON merchant_refund_requests(pos_transaction_id)
@@ -2150,6 +2871,10 @@ CREATE UNIQUE INDEX idx_settlements_merchant_date_unique
 CREATE UNIQUE INDEX idx_settlements_idempotency
     ON merchant_settlements(idempotency_key)
     WHERE idempotency_key IS NOT NULL;
+
+CREATE UNIQUE INDEX idx_settlements_polaris_jrno
+    ON merchant_settlements(polaris_jrno)
+    WHERE polaris_jrno IS NOT NULL;
 
 
 -- Posted journals are valid only when they have at least two lines and balance exactly.
@@ -2263,6 +2988,282 @@ BEFORE INSERT OR UPDATE OF transaction_type, authorization_id, customer_id, amou
 ON customer_cashback_wallet_transactions
 FOR EACH ROW EXECUTE FUNCTION validate_cashback_wallet_transaction_authorization();
 
+CREATE OR REPLACE FUNCTION validate_pos_invoice_parties()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_terminal RECORD;
+    v_merchant RECORD;
+BEGIN
+    SELECT merchant_id, status
+    INTO v_terminal
+    FROM pos_terminals
+    WHERE id = NEW.terminal_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'POS terminal % does not exist', NEW.terminal_id
+            USING ERRCODE = '23503';
+    END IF;
+
+    IF v_terminal.merchant_id <> NEW.merchant_id THEN
+        RAISE EXCEPTION 'POS invoice merchant % does not match terminal merchant %',
+            NEW.merchant_id, v_terminal.merchant_id
+            USING ERRCODE = '23514';
+    END IF;
+
+    IF v_terminal.status <> 'active' THEN
+        RAISE EXCEPTION 'POS terminal % is not active', NEW.terminal_id
+            USING ERRCODE = '23514';
+    END IF;
+
+    SELECT status, polaris_merchant_passive_account_id, polaris_settlement_account_id
+    INTO v_merchant
+    FROM merchant_profiles
+    WHERE id = NEW.merchant_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Merchant % does not exist', NEW.merchant_id
+            USING ERRCODE = '23503';
+    END IF;
+
+    IF v_merchant.status <> 'active' THEN
+        RAISE EXCEPTION 'Merchant % is not active for POS lending', NEW.merchant_id
+            USING ERRCODE = '23514';
+    END IF;
+
+    IF NEW.status IN ('qr_generated', 'processing', 'approved')
+       AND (
+            v_merchant.polaris_merchant_passive_account_id IS NULL
+            OR v_merchant.polaris_settlement_account_id IS NULL
+       ) THEN
+        RAISE EXCEPTION 'Merchant % has no active Polaris passive/settlement account configured', NEW.merchant_id
+            USING ERRCODE = '23514';
+    END IF;
+
+    IF NEW.status = 'approved'
+       AND NOT EXISTS (
+            SELECT 1
+            FROM pos_transactions pt
+            WHERE pt.invoice_id = NEW.id
+              AND pt.status = 'approved'
+              AND pt.merchant_transfer_status = 'succeeded'
+       ) THEN
+        RAISE EXCEPTION 'POS invoice % cannot be approved before merchant passive transfer is confirmed', NEW.id
+            USING ERRCODE = '23514';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_validate_pos_invoice_parties
+BEFORE INSERT OR UPDATE OF terminal_id, merchant_id, status
+ON pos_payment_invoices
+FOR EACH ROW EXECUTE FUNCTION validate_pos_invoice_parties();
+
+CREATE OR REPLACE FUNCTION validate_repayment_allocation_schedule_lock()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_schedule repayment_schedules%ROWTYPE;
+    v_existing_amount NUMERIC(14,2);
+    v_new_amount NUMERIC(14,2);
+BEGIN
+    SELECT *
+    INTO v_schedule
+    FROM repayment_schedules
+    WHERE id = NEW.schedule_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Repayment schedule % does not exist', NEW.schedule_id
+            USING ERRCODE = '23503';
+    END IF;
+
+    IF v_schedule.allocation_locked_at IS NULL THEN
+        RAISE EXCEPTION 'Repayment schedule % must be locked before allocation', NEW.schedule_id
+            USING ERRCODE = '23514';
+    END IF;
+
+    SELECT COALESCE(SUM(principal_amount + interest_amount + penalty_amount), 0)
+    INTO v_existing_amount
+    FROM repayment_allocations
+    WHERE schedule_id = NEW.schedule_id
+      AND id <> NEW.id;
+
+    v_new_amount := NEW.principal_amount + NEW.interest_amount + NEW.penalty_amount;
+
+    IF v_existing_amount + v_new_amount >
+       v_schedule.principal_amount + v_schedule.interest_amount + v_schedule.penalty_amount THEN
+        RAISE EXCEPTION 'Repayment allocation exceeds total due for schedule %', NEW.schedule_id
+            USING ERRCODE = '23514';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_validate_repayment_allocation_schedule_lock
+BEFORE INSERT OR UPDATE OF schedule_id, principal_amount, interest_amount, penalty_amount
+ON repayment_allocations
+FOR EACH ROW EXECUTE FUNCTION validate_repayment_allocation_schedule_lock();
+
+CREATE OR REPLACE FUNCTION validate_loan_application_core_refs()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_deposit RECORD;
+    v_line RECORD;
+    v_reservation RECORD;
+BEGIN
+    IF NEW.status NOT IN ('approved', 'pending_core_setup', 'pending_grant', 'pending_reconcile', 'disbursed') THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT customer_id, status
+    INTO v_deposit
+    FROM customer_deposit_accounts
+    WHERE id = NEW.requested_customer_deposit_account_id;
+
+    IF NOT FOUND
+       OR v_deposit.customer_id <> NEW.customer_id
+       OR v_deposit.status <> 'active' THEN
+        RAISE EXCEPTION 'Loan application % requires an active customer deposit account', NEW.id
+            USING ERRCODE = '23514';
+    END IF;
+
+    SELECT customer_id, customer_deposit_account_id, status
+    INTO v_line
+    FROM credit_line_accounts
+    WHERE id = NEW.credit_line_account_id;
+
+    IF NOT FOUND
+       OR v_line.customer_id <> NEW.customer_id
+       OR v_line.customer_deposit_account_id <> NEW.requested_customer_deposit_account_id
+       OR v_line.status <> 'active' THEN
+        RAISE EXCEPTION 'Loan application % requires an active matching credit line', NEW.id
+            USING ERRCODE = '23514';
+    END IF;
+
+    SELECT customer_id, credit_line_account_id, loan_application_id, reserved_amount, status
+    INTO v_reservation
+    FROM credit_limit_reservations
+    WHERE id = NEW.credit_limit_reservation_id
+    FOR UPDATE;
+
+    IF NOT FOUND
+       OR v_reservation.customer_id <> NEW.customer_id
+       OR v_reservation.credit_line_account_id <> NEW.credit_line_account_id
+       OR v_reservation.loan_application_id <> NEW.id
+       OR v_reservation.reserved_amount < NEW.requested_amount THEN
+        RAISE EXCEPTION 'Loan application % requires a matching credit reservation', NEW.id
+            USING ERRCODE = '23514';
+    END IF;
+
+    IF NEW.status = 'disbursed' AND v_reservation.status <> 'consumed' THEN
+        RAISE EXCEPTION 'Loan application % cannot be disbursed until reservation is consumed', NEW.id
+            USING ERRCODE = '23514';
+    ELSIF NEW.status <> 'disbursed' AND v_reservation.status NOT IN ('reserved', 'consumed') THEN
+        RAISE EXCEPTION 'Loan application % has no active reservation for core setup', NEW.id
+            USING ERRCODE = '23514';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_validate_loan_application_core_refs
+BEFORE INSERT OR UPDATE OF status, requested_customer_deposit_account_id, credit_line_account_id, credit_limit_reservation_id, requested_amount
+ON loan_applications
+FOR EACH ROW EXECUTE FUNCTION validate_loan_application_core_refs();
+
+CREATE OR REPLACE FUNCTION validate_loan_bnpl_transfer_policy()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_product_type product_type_enum;
+BEGIN
+    SELECT product_type
+    INTO v_product_type
+    FROM loan_products
+    WHERE id = NEW.product_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Loan product % does not exist', NEW.product_id
+            USING ERRCODE = '23503';
+    END IF;
+
+    IF v_product_type = 'bnpl' THEN
+        IF NEW.status IN ('pending_bnpl_transfer', 'active', 'closed')
+           AND NEW.bnpl_merchant_transfer_status = 'not_required' THEN
+            RAISE EXCEPTION 'BNPL loan % requires merchant transfer tracking', NEW.id
+                USING ERRCODE = '23514';
+        END IF;
+
+        IF NEW.status IN ('active', 'closed')
+           AND NEW.bnpl_merchant_transfer_status <> 'succeeded' THEN
+            RAISE EXCEPTION 'BNPL loan % cannot become % before merchant transfer succeeds', NEW.id, NEW.status
+                USING ERRCODE = '23514';
+        END IF;
+    ELSIF NEW.status IN ('active', 'closed')
+          AND NEW.bnpl_merchant_transfer_status <> 'not_required' THEN
+        RAISE EXCEPTION 'Non-BNPL loan % cannot require merchant transfer', NEW.id
+            USING ERRCODE = '23514';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_validate_loan_bnpl_transfer_policy
+BEFORE INSERT OR UPDATE OF product_id, status, bnpl_merchant_transfer_status
+ON loans
+FOR EACH ROW EXECUTE FUNCTION validate_loan_bnpl_transfer_policy();
+
+CREATE OR REPLACE FUNCTION enforce_loan_core_step_order()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NEW.status IN ('processing', 'succeeded', 'pending_reconcile') THEN
+        IF NEW.loan_id IS NOT NULL AND EXISTS (
+            SELECT 1
+            FROM loan_core_steps prev
+            WHERE prev.loan_id = NEW.loan_id
+              AND prev.id <> NEW.id
+              AND prev.operation_order < NEW.operation_order
+              AND prev.status NOT IN ('succeeded', 'skipped')
+        ) THEN
+            RAISE EXCEPTION 'Loan core step % cannot start before earlier loan steps are succeeded or skipped', NEW.step
+                USING ERRCODE = '23514';
+        ELSIF NEW.loan_id IS NULL
+              AND NEW.loan_application_id IS NOT NULL
+              AND EXISTS (
+                SELECT 1
+                FROM loan_core_steps prev
+                WHERE prev.loan_application_id = NEW.loan_application_id
+                  AND prev.id <> NEW.id
+                  AND prev.operation_order < NEW.operation_order
+                  AND prev.status NOT IN ('succeeded', 'skipped')
+              ) THEN
+            RAISE EXCEPTION 'Loan core step % cannot start before earlier application steps are succeeded or skipped', NEW.step
+                USING ERRCODE = '23514';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_enforce_loan_core_step_order
+BEFORE INSERT OR UPDATE OF loan_id, loan_application_id, operation_order, status
+ON loan_core_steps
+FOR EACH ROW EXECUTE FUNCTION enforce_loan_core_step_order();
+
 
 -- ============================================================
 -- OPERATIONAL PAUSE GUARDS
@@ -2335,6 +3336,22 @@ FOR EACH ROW
 WHEN (NEW.disbursed_at IS DISTINCT FROM OLD.disbursed_at)
 EXECUTE FUNCTION prevent_when_service_paused('loan_disbursement');
 
+CREATE TRIGGER trg_pause_credit_limit_reservation
+BEFORE INSERT OR UPDATE ON credit_limit_reservations
+FOR EACH ROW EXECUTE FUNCTION prevent_when_service_paused('loan_disbursement');
+
+CREATE TRIGGER trg_pause_loan_core_step
+BEFORE INSERT OR UPDATE ON loan_core_steps
+FOR EACH ROW EXECUTE FUNCTION prevent_when_service_paused('loan_disbursement');
+
+CREATE TRIGGER trg_pause_customer_deposit_account
+BEFORE INSERT OR UPDATE ON customer_deposit_accounts
+FOR EACH ROW EXECUTE FUNCTION prevent_when_service_paused('polaris_sync');
+
+CREATE TRIGGER trg_pause_credit_line_account
+BEFORE INSERT OR UPDATE ON credit_line_accounts
+FOR EACH ROW EXECUTE FUNCTION prevent_when_service_paused('polaris_sync');
+
 CREATE TRIGGER trg_pause_ledger_journal
 BEFORE INSERT OR UPDATE ON ledger_journals
 FOR EACH ROW EXECUTE FUNCTION prevent_when_service_paused('polaris_sync');
@@ -2345,6 +3362,10 @@ FOR EACH ROW EXECUTE FUNCTION prevent_when_service_paused('polaris_sync');
 
 CREATE TRIGGER trg_pause_polaris_sync_queue
 BEFORE INSERT OR UPDATE ON polaris_sync_queue
+FOR EACH ROW EXECUTE FUNCTION prevent_when_service_paused('polaris_sync');
+
+CREATE TRIGGER trg_pause_polaris_operation_attempt
+BEFORE INSERT OR UPDATE ON polaris_operation_attempts
 FOR EACH ROW EXECUTE FUNCTION prevent_when_service_paused('polaris_sync');
 
 CREATE TRIGGER trg_pause_merchant_settlement
@@ -2430,6 +3451,370 @@ AS $$
     );
 $$;
 
+CREATE OR REPLACE FUNCTION audit_status_transition()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_event_category audit_event_category_enum := TG_ARGV[0]::audit_event_category_enum;
+    v_entity_type TEXT := TG_ARGV[1];
+    v_source_module TEXT := TG_ARGV[2];
+    v_status_col TEXT := COALESCE(NULLIF(TG_ARGV[3], ''), 'status');
+    v_new JSONB := to_jsonb(NEW);
+    v_old JSONB;
+    v_from_status TEXT;
+    v_to_status TEXT;
+    v_user_id UUID := current_app_user_id();
+    v_staff_id UUID;
+    v_customer_actor_id UUID;
+    v_merchant_actor_id UUID;
+    v_actor_type audit_actor_type_enum := 'system';
+    v_subject_customer_id UUID;
+    v_subject_merchant_id UUID;
+    v_outcome audit_outcome_enum := 'success';
+    v_action VARCHAR(100);
+BEGIN
+    IF TG_OP = 'UPDATE' THEN
+        v_old := to_jsonb(OLD);
+        v_from_status := v_old ->> v_status_col;
+    END IF;
+
+    v_to_status := v_new ->> v_status_col;
+
+    IF v_to_status IS NULL OR v_from_status IS NOT DISTINCT FROM v_to_status THEN
+        RETURN NEW;
+    END IF;
+
+    IF v_user_id IS NOT NULL THEN
+        SELECT id INTO v_staff_id
+        FROM staff_profiles
+        WHERE user_id = v_user_id
+        LIMIT 1;
+
+        SELECT id INTO v_customer_actor_id
+        FROM customer_profiles
+        WHERE user_id = v_user_id
+        LIMIT 1;
+
+        SELECT id INTO v_merchant_actor_id
+        FROM merchant_profiles
+        WHERE user_id = v_user_id
+        LIMIT 1;
+
+        IF v_staff_id IS NOT NULL THEN
+            v_actor_type := 'staff';
+        ELSIF v_customer_actor_id IS NOT NULL THEN
+            v_actor_type := 'customer';
+        ELSIF v_merchant_actor_id IS NOT NULL THEN
+            v_actor_type := 'merchant';
+        ELSE
+            v_actor_type := 'service';
+        END IF;
+    END IF;
+
+    IF TG_TABLE_NAME = 'customer_profiles' THEN
+        v_subject_customer_id := (v_new ->> 'id')::UUID;
+    ELSIF v_new ? 'customer_id' AND v_new ->> 'customer_id' IS NOT NULL THEN
+        v_subject_customer_id := (v_new ->> 'customer_id')::UUID;
+    END IF;
+
+    IF TG_TABLE_NAME = 'merchant_profiles' THEN
+        v_subject_merchant_id := (v_new ->> 'id')::UUID;
+    ELSIF v_new ? 'merchant_id' AND v_new ->> 'merchant_id' IS NOT NULL THEN
+        v_subject_merchant_id := (v_new ->> 'merchant_id')::UUID;
+    END IF;
+
+    IF v_to_status IN ('pending_reconcile') THEN
+        v_outcome := 'pending_reconcile';
+    ELSIF v_to_status IN ('failed','dead_letter','mismatched') THEN
+        v_outcome := 'failure';
+    ELSIF v_to_status IN ('rejected') THEN
+        v_outcome := 'rejected';
+    ELSIF v_to_status LIKE 'pending%' OR v_to_status IN (
+        'unreconciled',
+        'processing',
+        'submitted',
+        'approved',
+        'created',
+        'received',
+        'reserved',
+        'partial',
+        'overdue',
+        'qr_generated'
+    ) THEN
+        v_outcome := 'pending';
+    END IF;
+
+    v_action := UPPER(regexp_replace(v_entity_type || '_' || v_status_col || '_status_change', '[^a-zA-Z0-9]+', '_', 'g'));
+
+    INSERT INTO audit_logs (
+        event_category,
+        operation_type,
+        outcome,
+        action,
+        actor_type,
+        user_id,
+        staff_id,
+        customer_id,
+        merchant_id,
+        subject_customer_id,
+        subject_merchant_id,
+        entity_type,
+        entity_id,
+        source_table,
+        source_id,
+        from_status,
+        to_status,
+        old_value,
+        new_value,
+        metadata,
+        source_module
+    ) VALUES (
+        v_event_category,
+        'status_change',
+        v_outcome,
+        v_action,
+        v_actor_type,
+        v_user_id,
+        v_staff_id,
+        v_customer_actor_id,
+        v_merchant_actor_id,
+        v_subject_customer_id,
+        v_subject_merchant_id,
+        v_entity_type,
+        (v_new ->> 'id')::UUID,
+        TG_TABLE_NAME,
+        (v_new ->> 'id')::UUID,
+        v_from_status,
+        v_to_status,
+        CASE WHEN v_from_status IS NULL THEN NULL ELSE jsonb_build_object(v_status_col, v_from_status) END,
+        jsonb_build_object(v_status_col, v_to_status),
+        jsonb_build_object('schema', TG_TABLE_SCHEMA, 'table', TG_TABLE_NAME, 'status_column', v_status_col),
+        v_source_module
+    );
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_audit_user_status
+AFTER INSERT OR UPDATE OF status ON users
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('security','user','auth','status');
+
+CREATE TRIGGER trg_audit_merchant_status
+AFTER INSERT OR UPDATE OF status ON merchant_profiles
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('merchant','merchant_profile','merchant_onboarding','status');
+
+CREATE TRIGGER trg_audit_pin_status
+AFTER INSERT OR UPDATE OF status ON customer_pin_credentials
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('security','customer_pin_credential','auth_factor','status');
+
+CREATE TRIGGER trg_audit_biometric_status
+AFTER INSERT OR UPDATE OF status ON customer_biometric_credentials
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('security','customer_biometric_credential','auth_factor','status');
+
+CREATE TRIGGER trg_audit_txn_authorization_status
+AFTER INSERT OR UPDATE OF status ON customer_transaction_authorizations
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('auth','customer_transaction_authorization','transaction_authorization','status');
+
+CREATE TRIGGER trg_audit_customer_reg_status
+AFTER INSERT OR UPDATE OF reg_status ON customer_profiles
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('kyc','customer_profile','customer_onboarding','reg_status');
+
+CREATE TRIGGER trg_audit_customer_cif_status
+AFTER INSERT OR UPDATE OF polaris_cif_status ON customer_profiles
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('polaris','customer_profile','polaris_cif','polaris_cif_status');
+
+CREATE TRIGGER trg_audit_customer_kyc_sync_status
+AFTER INSERT OR UPDATE OF polaris_kyc_sync_status ON customer_profiles
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('polaris','customer_profile','polaris_kyc','polaris_kyc_sync_status');
+
+CREATE TRIGGER trg_audit_kyc_personal_status
+AFTER INSERT OR UPDATE OF status ON kyc_personal_details
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('kyc','kyc_personal_detail','kyc','status');
+
+CREATE TRIGGER trg_audit_customer_bank_account_status
+AFTER INSERT OR UPDATE OF status ON customer_bank_accounts
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('kyc','customer_bank_account','kyc_bank_account','status');
+
+CREATE TRIGGER trg_audit_kyc_address_status
+AFTER INSERT OR UPDATE OF status ON kyc_addresses
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('kyc','kyc_address','kyc','status');
+
+CREATE TRIGGER trg_audit_kyc_education_status
+AFTER INSERT OR UPDATE OF status ON kyc_educations
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('kyc','kyc_education','kyc','status');
+
+CREATE TRIGGER trg_audit_kyc_employment_status
+AFTER INSERT OR UPDATE OF status ON kyc_employments
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('kyc','kyc_employment','kyc','status');
+
+CREATE TRIGGER trg_audit_kyc_file_status
+AFTER INSERT OR UPDATE OF status ON kyc_customer_files
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('kyc','kyc_customer_file','kyc','status');
+
+CREATE TRIGGER trg_audit_kyc_related_customer_status
+AFTER INSERT OR UPDATE OF status ON kyc_related_customers
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('kyc','kyc_related_customer','kyc','status');
+
+CREATE TRIGGER trg_audit_kyc_signature_status
+AFTER INSERT OR UPDATE OF status ON kyc_signature_images
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('kyc','kyc_signature_image','kyc','status');
+
+CREATE TRIGGER trg_audit_dan_status
+AFTER INSERT OR UPDATE OF status ON dan_verifications
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('kyc','dan_verification','dan','status');
+
+CREATE TRIGGER trg_audit_kyc_step_status
+AFTER INSERT OR UPDATE OF status ON kyc_verification_steps
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('kyc','kyc_verification_step','kyc_workflow','status');
+
+CREATE TRIGGER trg_audit_credit_score_status
+AFTER INSERT OR UPDATE OF status ON credit_score_results
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('scoring','credit_score_result','credit_scoring','status');
+
+CREATE TRIGGER trg_audit_credit_score_polaris_sync_status
+AFTER INSERT OR UPDATE OF polaris_score_sync_status ON credit_score_results
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('polaris','credit_score_result','polaris_score_sync','polaris_score_sync_status');
+
+CREATE TRIGGER trg_audit_loan_limit_status
+AFTER INSERT OR UPDATE OF status ON loan_limits
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('limit','loan_limit','credit_limit','status');
+
+CREATE TRIGGER trg_audit_polaris_account_status
+AFTER INSERT OR UPDATE OF status ON polaris_accounts
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('polaris','polaris_account','polaris_account','status');
+
+CREATE TRIGGER trg_audit_customer_deposit_status
+AFTER INSERT OR UPDATE OF status ON customer_deposit_accounts
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('polaris','customer_deposit_account','polaris_account','status');
+
+CREATE TRIGGER trg_audit_credit_line_status
+AFTER INSERT OR UPDATE OF status ON credit_line_accounts
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('limit','credit_line_account','credit_line','status');
+
+CREATE TRIGGER trg_audit_credit_reservation_status
+AFTER INSERT OR UPDATE OF status ON credit_limit_reservations
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('limit','credit_limit_reservation','credit_reservation','status');
+
+CREATE TRIGGER trg_audit_loan_application_status
+AFTER INSERT OR UPDATE OF status ON loan_applications
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('loan','loan_application','loan_application','status');
+
+CREATE TRIGGER trg_audit_loan_status
+AFTER INSERT OR UPDATE OF status ON loans
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('loan','loan','loan_core','status');
+
+CREATE TRIGGER trg_audit_loan_schedule_status
+AFTER INSERT OR UPDATE OF schedule_status ON loans
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('loan','loan','loan_core','schedule_status');
+
+CREATE TRIGGER trg_audit_loan_line_link_status
+AFTER INSERT OR UPDATE OF line_link_status ON loans
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('loan','loan','loan_core','line_link_status');
+
+CREATE TRIGGER trg_audit_loan_grant_status
+AFTER INSERT OR UPDATE OF grant_status ON loans
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('finance','loan','loan_grant','grant_status');
+
+CREATE TRIGGER trg_audit_loan_bnpl_transfer_status
+AFTER INSERT OR UPDATE OF bnpl_merchant_transfer_status ON loans
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('bnpl','loan','bnpl_transfer','bnpl_merchant_transfer_status');
+
+CREATE TRIGGER trg_audit_pos_terminal_status
+AFTER INSERT OR UPDATE OF status ON pos_terminals
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('merchant','pos_terminal','merchant_pos','status');
+
+CREATE TRIGGER trg_audit_pos_invoice_status
+AFTER INSERT OR UPDATE OF status ON pos_payment_invoices
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('bnpl','pos_payment_invoice','bnpl_pos','status');
+
+CREATE TRIGGER trg_audit_pos_transaction_status
+AFTER INSERT OR UPDATE OF status ON pos_transactions
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('bnpl','pos_transaction','bnpl_pos','status');
+
+CREATE TRIGGER trg_audit_pos_merchant_transfer_status
+AFTER INSERT OR UPDATE OF merchant_transfer_status ON pos_transactions
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('finance','pos_transaction','bnpl_merchant_transfer','merchant_transfer_status');
+
+CREATE TRIGGER trg_audit_pos_terminal_callback_status
+AFTER INSERT OR UPDATE OF status ON pos_terminal_callbacks
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('bnpl','pos_terminal_callback','bnpl_pos_callback','status');
+
+CREATE TRIGGER trg_audit_qpay_invoice_status
+AFTER INSERT OR UPDATE OF status ON qpay_repayment_invoices
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('repayment','qpay_repayment_invoice','repayment','status');
+
+CREATE TRIGGER trg_audit_qpay_callback_status
+AFTER INSERT OR UPDATE OF status ON qpay_repayment_callbacks
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('repayment','qpay_repayment_callback','repayment','status');
+
+CREATE TRIGGER trg_audit_repayment_schedule_status
+AFTER INSERT OR UPDATE OF status ON repayment_schedules
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('repayment','repayment_schedule','repayment','status');
+
+CREATE TRIGGER trg_audit_repayment_transaction_status
+AFTER INSERT OR UPDATE OF status ON repayment_transactions
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('repayment','repayment_transaction','repayment','status');
+
+CREATE TRIGGER trg_audit_repayment_transaction_recon_status
+AFTER INSERT OR UPDATE OF reconciliation_status ON repayment_transactions
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('repayment','repayment_transaction','repayment_reconciliation','reconciliation_status');
+
+CREATE TRIGGER trg_audit_cashback_wallet_status
+AFTER INSERT OR UPDATE OF status ON customer_cashback_wallets
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('repayment','customer_cashback_wallet','cashback','status');
+
+CREATE TRIGGER trg_audit_cashback_wallet_txn_status
+AFTER INSERT OR UPDATE OF status ON customer_cashback_wallet_transactions
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('repayment','customer_cashback_wallet_transaction','cashback','status');
+
+CREATE TRIGGER trg_audit_cashback_record_status
+AFTER INSERT OR UPDATE OF status ON repayment_cashback_records
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('repayment','repayment_cashback_record','cashback','status');
+
+CREATE TRIGGER trg_audit_merchant_refund_status
+AFTER INSERT OR UPDATE OF status ON merchant_refund_requests
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('merchant','merchant_refund_request','merchant_refund','status');
+
+CREATE TRIGGER trg_audit_merchant_settlement_status
+AFTER INSERT OR UPDATE OF status ON merchant_settlements
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('merchant','merchant_settlement','merchant_settlement','status');
+
+CREATE TRIGGER trg_audit_ledger_journal_status
+AFTER INSERT OR UPDATE OF status ON ledger_journals
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('finance','ledger_journal','ledger','status');
+
+CREATE TRIGGER trg_audit_ledger_journal_recon_status
+AFTER INSERT OR UPDATE OF reconciliation_status ON ledger_journals
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('finance','ledger_journal','ledger_reconciliation','reconciliation_status');
+
+CREATE TRIGGER trg_audit_ledger_entry_recon_status
+AFTER INSERT OR UPDATE OF reconciliation_status ON ledger_entries
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('finance','ledger_entry','ledger_reconciliation','reconciliation_status');
+
+CREATE TRIGGER trg_audit_polaris_sync_status
+AFTER INSERT OR UPDATE OF status ON polaris_sync_queue
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('polaris','polaris_sync_queue','polaris_sync','status');
+
+CREATE TRIGGER trg_audit_polaris_attempt_status
+AFTER INSERT OR UPDATE OF status ON polaris_operation_attempts
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('polaris','polaris_operation_attempt','polaris_sync','status');
+
+CREATE TRIGGER trg_audit_loan_core_step_status
+AFTER INSERT OR UPDATE OF status ON loan_core_steps
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('loan','loan_core_step','loan_core','status');
+
+CREATE TRIGGER trg_audit_service_pause_status
+AFTER INSERT OR UPDATE OF status ON service_pause_windows
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('system','service_pause_window','service_pause','status');
+
+CREATE TRIGGER trg_audit_merchant_portal_user_status
+AFTER INSERT OR UPDATE OF status ON merchant_portal_users
+FOR EACH ROW EXECUTE FUNCTION audit_status_transition('security','merchant_portal_user','merchant_access','status');
+
 ALTER TABLE customer_profiles   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customer_pin_credentials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customer_biometric_credentials ENABLE ROW LEVEL SECURITY;
@@ -2437,6 +3822,9 @@ ALTER TABLE customer_transaction_authorizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_personal_details ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_contact_infos    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customer_bank_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customer_deposit_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE credit_line_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE credit_limit_reservations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_addresses        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_educations       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_employments      ENABLE ROW LEVEL SECURITY;
@@ -2474,6 +3862,9 @@ BEGIN
         'kyc_personal_details',
         'kyc_contact_infos',
         'customer_bank_accounts',
+        'customer_deposit_accounts',
+        'credit_line_accounts',
+        'credit_limit_reservations',
         'kyc_addresses',
         'kyc_educations',
         'kyc_employments',
@@ -2612,6 +4003,72 @@ WHERE status = 'active'
   AND (ends_at IS NULL OR ends_at > NOW())
 ORDER BY starts_at DESC;
 
+-- Universal replacement for old per-entity status transition tables.
+CREATE VIEW v_status_transition_audit AS
+SELECT
+    id,
+    created_at,
+    event_category,
+    action,
+    actor_type,
+    user_id,
+    staff_id,
+    customer_id,
+    merchant_id,
+    subject_customer_id,
+    subject_merchant_id,
+    entity_type,
+    entity_id,
+    from_status,
+    to_status,
+    reason,
+    correlation_id,
+    idempotency_key,
+    ledger_journal_id,
+    polaris_jrno,
+    metadata
+FROM audit_logs
+WHERE operation_type = 'status_change'
+ORDER BY created_at DESC;
+
+-- Finance/Core worklist for unknown or mismatched Polaris outcomes.
+CREATE VIEW v_polaris_reconciliation_worklist AS
+SELECT
+    'polaris_sync_queue'::TEXT AS source_kind,
+    psq.id,
+    psq.source_table,
+    psq.source_id,
+    psq.operation::TEXT AS operation,
+    psq.status::TEXT AS status,
+    NULL::TEXT AS reconciliation_status,
+    psq.idempotency_key,
+    psq.correlation_id,
+    psq.reconciliation_key,
+    NULL::BIGINT AS polaris_jrno,
+    psq.created_at,
+    psq.last_attempt_at AS last_activity_at
+FROM polaris_sync_queue psq
+WHERE psq.status IN ('pending_reconcile', 'failed', 'dead_letter')
+UNION ALL
+SELECT
+    'ledger_journal'::TEXT AS source_kind,
+    lj.id,
+    lj.source_table,
+    lj.source_id,
+    lj.source_operation AS operation,
+    lj.status::TEXT AS status,
+    lj.reconciliation_status::TEXT AS reconciliation_status,
+    lj.idempotency_key,
+    NULL::VARCHAR(100) AS correlation_id,
+    lj.polaris_txn_ref AS reconciliation_key,
+    lj.polaris_jrno,
+    lj.created_at,
+    COALESCE(lj.reconciled_at, lj.updated_at) AS last_activity_at
+FROM ledger_journals lj
+WHERE lj.status IN ('pending_reconcile', 'failed')
+   OR lj.reconciliation_status IN ('mismatched', 'failed')
+ORDER BY created_at DESC;
+
 -- Active loan duration options to show customers when applying for non-BNPL loans
 CREATE VIEW v_active_loan_duration_options AS
 SELECT
@@ -2675,14 +4132,21 @@ SELECT
     ll.utilized_amount,
     ll.available_amount,
     ll.status            AS limit_status,
+    cla.line_amount,
+    cla.utilized_amount  AS line_utilized_amount,
+    cla.reserved_amount  AS line_reserved_amount,
+    cla.available_amount AS line_available_amount,
+    cla.status           AS line_status,
     COUNT(l.id)          AS total_loans,
     SUM(CASE WHEN l.status = 'active' THEN 1 ELSE 0 END) AS active_loans,
     SUM(l.principal_amount) AS total_principal
 FROM customer_profiles cp
 LEFT JOIN loan_limits ll ON ll.customer_id = cp.id AND ll.status = 'active'
+LEFT JOIN credit_line_accounts cla ON cla.id = ll.active_credit_line_account_id
 LEFT JOIN loans l ON l.customer_id = cp.id
 GROUP BY cp.id, cp.first_name, cp.last_name, cp.national_id_hash,
-         ll.max_total_limit, ll.utilized_amount, ll.available_amount, ll.status;
+         ll.max_total_limit, ll.utilized_amount, ll.available_amount, ll.status,
+         cla.line_amount, cla.utilized_amount, cla.reserved_amount, cla.available_amount, cla.status;
 
 -- Overdue repayments
 CREATE VIEW v_overdue_repayments AS

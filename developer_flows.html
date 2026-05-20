@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BZR Developer Architecture Flows</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg: #030712;
+            --surface: rgba(17, 24, 39, 0.6);
+            --surface-glass: rgba(31, 41, 55, 0.4);
+            --border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(59, 130, 246, 0.4);
+            --text: #f9fafb;
+            --text-muted: #9ca3af;
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.15);
+            --accent-secondary: #8b5cf6;
+            --sidebar-width: 280px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Ambient Animated Backgrounds */
+        .ambient-glow-1 {
+            position: fixed;
+            top: -15%;
+            left: -10%;
+            width: 60vw;
+            height: 60vw;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 60%);
+            filter: blur(120px);
+            z-index: 0;
+            pointer-events: none;
+            animation: pulse-slow 12s infinite alternate ease-in-out;
+        }
+        
+        .ambient-glow-2 {
+            position: fixed;
+            bottom: -20%;
+            right: -10%;
+            width: 50vw;
+            height: 50vw;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 60%);
+            filter: blur(100px);
+            z-index: 0;
+            pointer-events: none;
+            animation: pulse-slow 15s infinite alternate-reverse ease-in-out;
+        }
+
+        @keyframes pulse-slow {
+            0% { transform: scale(1) translate(0, 0); opacity: 0.6; }
+            100% { transform: scale(1.1) translate(30px, -30px); opacity: 1; }
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--surface);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+            z-index: 10;
+        }
+
+        .brand {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 32px;
+            padding: 0 12px;
+            background: linear-gradient(135deg, #fff, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .brand::before {
+            content: '';
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+            border-radius: 6px;
+            box-shadow: 0 0 16px var(--accent-glow);
+        }
+
+        .nav-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin: 0 12px 12px;
+            font-weight: 600;
+        }
+
+        .nav-items {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .nav-item {
+            padding: 12px;
+            border-radius: 10px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid transparent;
+        }
+
+        .nav-item:hover {
+            color: var(--text);
+            background: var(--surface-glass);
+            border-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-item.active {
+            color: #fff;
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.1), transparent);
+            border: 1px solid var(--border-hover);
+            box-shadow: inset 2px 0 0 var(--accent);
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            padding: 40px 60px;
+            overflow-y: auto;
+            z-index: 10;
+            scroll-behavior: smooth;
+        }
+
+        /* Hide scrollbar for a cleaner look */
+        .main-content::-webkit-scrollbar { width: 8px; }
+        .main-content::-webkit-scrollbar-track { background: transparent; }
+        .main-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        .main-content::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        .tab-pane {
+            display: none;
+            opacity: 0;
+            transform: translateY(15px);
+            transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .tab-pane.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .header {
+            margin-bottom: 40px;
+        }
+
+        .title {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #fff, #9ca3af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 16px;
+            line-height: 1.6;
+            max-width: 600px;
+        }
+
+        /* Cards & Diagrams */
+        .card {
+            background: var(--surface);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 32px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            transition: border-color 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-title::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 12px var(--accent);
+        }
+
+        .tech-tags {
+            display: flex;
+            gap: 8px;
+        }
+
+        .tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        .mermaid-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            display: flex;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            border: 1px dashed rgba(255, 255, 255, 0.05);
+        }
+        
+        .mermaid {
+            font-family: 'JetBrains Mono', monospace !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-glow-1"></div>
+    <div class="ambient-glow-2"></div>
+
+    <aside class="sidebar">
+        <div class="brand">BZR Engine</div>
+        
+        <div class="nav-label">Developer Flows</div>
+        <div class="nav-items">
+            <div class="nav-item active" data-target="tab-kyc">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                KYC & CIF Sync
+            </div>
+            <div class="nav-item" data-target="tab-disbursal">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                Disbursal Orchestrator
+            </div>
+            <div class="nav-item" data-target="tab-ledger">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                Double-Entry Ledger
+            </div>
+            <div class="nav-item" data-target="tab-repayment">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
+                Repayment Multi-Leg
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <!-- KYC & CIF SYNC TAB -->
+        <div id="tab-kyc" class="tab-pane active">
+            <div class="header">
+                <h1 class="title">KYC & Core Banking Profile Sync</h1>
+                <p class="subtitle">API sequence detailing the Dan verification, CIF person creation in Polaris, and dynamic credit scoring field mapping.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Customer Onboarding Sequence</div>
+                    <div class="tech-tags">
+                        <span class="tag">customer_profiles</span>
+                        <span class="tag">polaris_dynamic_field_mappings</span>
+                    </div>
+                </div>
+                <div class="mermaid-wrapper">
+                    <div class="mermaid">
+sequenceDiagram
+    autonumber
+    actor User
+    participant API as BZR API
+    participant DB as Postgres (BZR)
+    participant Dan as Dan / HUR API
+    participant Polaris as Polaris Core
+
+    User->>API: Submit Registration Data
+    API->>Dan: Verify National ID
+    Dan-->>API: Verified Data (Encrypted)
+    API->>DB: Insert `dan_verifications`, `kyc_personal_details`
+    
+    Note over API,DB: Retrieve polaris_product_configs for 'customer_deposit'
+    API->>Polaris: POST /cif/create
+    Polaris-->>API: cifNo
+    API->>DB: Update `customer_profiles.polaris_cif_no`
+    
+    Note over API,Polaris: Dynamic Field Sync (FICO/Custom Scores)
+    API->>DB: Fetch `polaris_dynamic_field_mappings` (field_scope='credit_score')
+    API->>Polaris: PUT /cif/update (Sync custom scoring fields)
+    
+    API->>Polaris: POST /account/create (Deposit Account)
+    Polaris-->>API: acntCode
+    API->>DB: Insert `polaris_accounts` (acntCode Hash)
+    API->>DB: Insert `customer_deposit_accounts` & Link to profile
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DISBURSAL ORCHESTRATOR TAB -->
+        <div id="tab-disbursal" class="tab-pane">
+            <div class="header">
+                <h1 class="title">Loan Disbursal Orchestrator</h1>
+                <p class="subtitle">State machine sequence showing idempotency handling, double-spend prevention, and crash recovery via background sweeper.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Fail-safe `loan_core_steps` Worker</div>
+                    <div class="tech-tags">
+                        <span class="tag">loan_core_steps</span>
+                        <span class="tag">Idempotency</span>
+                        <span class="tag">polaris_jrno</span>
+                    </div>
+                </div>
+                <div class="mermaid-wrapper">
+                    <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Worker as Async Worker (Cron)
+    participant DB as Postgres (BZR)
+    participant Polaris as Polaris Core
+
+    Worker->>DB: Fetch pending `loan_core_steps` (ordered ASC)
+    
+    alt Step: create_loan_account
+        Worker->>Polaris: POST /loan/create (Child Loan)
+        Polaris-->>Worker: acntCode
+        Worker->>DB: Save `polaris_accounts`, update step 'succeeded'
+    end
+    
+    alt Step: link_line_account_to_loan
+        Worker->>Polaris: POST /loan/link
+        Polaris-->>Worker: Success
+        Worker->>DB: Update step 'succeeded'
+    end
+    
+    alt Step: grant_loan (Idempotency Handling)
+        Worker->>DB: Set step 'processing' (idempotency_key: app_123:grant)
+        Worker->>Polaris: POST /txn/disburse (Loan -> Deposit)
+        
+        opt Network Timeout / Crash
+            Worker--XPolaris: Connection Dropped
+            Worker->>DB: Step stuck in 'processing'
+            Note over Worker,Polaris: Sweeper picks up stuck step after 5 mins
+            Worker->>Polaris: GET /txn/verify?ref=app_123:grant
+            alt Txn Exists in Polaris
+                Polaris-->>Worker: Return polaris_jrno
+                Worker->>DB: Update step 'succeeded', save `polaris_jrno`
+            else Txn Missing
+                Worker->>Polaris: Retry POST /txn/disburse
+            end
+        end
+        Polaris-->>Worker: Success (polaris_jrno)
+        Worker->>DB: Insert `ledger_journals` & `ledger_entries`
+        Worker->>DB: Update step 'succeeded'
+    end
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LEDGER TAB -->
+        <div id="tab-ledger" class="tab-pane">
+            <div class="header">
+                <h1 class="title">Double-Entry Funding Ledger</h1>
+                <p class="subtitle">Exact mapping of Debit and Credit sides to Polaris accounts for both One-Tap Personal Loans and BNPL Purchases.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Financial Transaction Graph</div>
+                    <div class="tech-tags">
+                        <span class="tag">ledger_journals</span>
+                        <span class="tag">ledger_entries</span>
+                    </div>
+                </div>
+                <div class="mermaid-wrapper">
+                    <div class="mermaid">
+flowchart TD
+    classDef acc fill:#1e293b,stroke:#3b82f6,color:#f3f4f6,stroke-width:2px,stroke-dasharray: 5 5
+    classDef debit fill:rgba(5, 150, 105, 0.2),stroke:#10b981,color:#fff,stroke-width:2px
+    classDef credit fill:rgba(220, 38, 38, 0.2),stroke:#ef4444,color:#fff,stroke-width:2px
+    classDef txn fill:rgba(79, 70, 229, 0.3),stroke:#6366f1,color:#fff,stroke-width:2px,rx:10px
+    classDef context fill:transparent,stroke:rgba(255,255,255,0.1),color:#9ca3af,stroke-width:1px
+    
+    subgraph Polaris Core Accounts
+        BZR_Fund(BZR Internal Funding Account):::acc
+        Cust_Dep(Customer Deposit Account):::acc
+        Child_Loan(Child Loan Account):::acc
+        Merchant_Pass(Merchant Passive Account - Emart):::acc
+    end
+    
+    subgraph Leg 1: Loan Contract Origination
+        Txn1[Loan Grant API]:::txn
+        Txn1 -->|Debit| Child_Loan:::debit
+        Txn1 -->|Credit| Cust_Dep:::credit
+    end
+    
+    subgraph Leg 2: Real Cash Funding (One-Tap)
+        Txn2[Internal Funding API]:::txn
+        Txn2 -->|Debit| BZR_Fund:::debit
+        Txn2 -->|Credit| Cust_Dep:::credit
+    end
+    
+    subgraph Leg 3: BNPL Settlement Sweep (If BNPL)
+        Txn3[BNPL Transfer API]:::txn
+        Txn3 -->|Debit| Cust_Dep:::debit
+        Txn3 -->|Credit| Merchant_Pass:::credit
+    end
+    
+    Cust_Dep -.->|One-Tap Ends Here| Cust_Pocket[Customer Withdraws Cash]:::context
+    Merchant_Pass -.->|BNPL Ends Here| Merch_Settle[Batch Settle to Merchant Bank]:::context
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- REPAYMENT TAB -->
+        <div id="tab-repayment" class="tab-pane">
+            <div class="header">
+                <h1 class="title">Repayment Multi-Leg Processor</h1>
+                <p class="subtitle">The orchestrated flow from external payment gateway webhook to core banking offset and final account closure.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Inbound & Offset Sequence</div>
+                    <div class="tech-tags">
+                        <span class="tag">repayment_transactions</span>
+                        <span class="tag">qpay_callbacks</span>
+                    </div>
+                </div>
+                <div class="mermaid-wrapper">
+                    <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant Gateway as QPay Webhook
+    participant DB as Postgres (BZR)
+    participant Worker as Repayment Worker
+    participant Polaris as Polaris Core
+
+    Gateway->>DB: Insert `repayment_transactions` (pending)
+    
+    Note over Worker,Polaris: Leg 1: Inbound Real Money Clearing
+    Worker->>Polaris: Debit: Repayment Pool Account / Credit: Customer Deposit Account
+    Polaris-->>Worker: jrno_inbound
+    Worker->>DB: Insert `ledger_journals` (inbound_ledger_journal_id)
+    
+    Note over Worker,Polaris: Leg 2: Loan Offset Transfer
+    Worker->>Polaris: Debit: Customer Deposit Account / Credit: Child Loan Account
+    Polaris-->>Worker: jrno_offset
+    Worker->>DB: Insert `ledger_journals` (loan_payment_ledger_journal_id)
+    
+    Worker->>Polaris: GET /account/balance (Child Loan)
+    Polaris-->>Worker: Balance = 0.00
+    
+    Worker->>Polaris: POST /account/close (Child Loan)
+    Polaris-->>Worker: Success
+    
+    Worker->>DB: Update `loans` status = 'closed'
+    Worker->>DB: Update `credit_line_accounts.utilized_amount` -= principal
+    Worker->>DB: Update `repayment_transactions` status = 'completed'
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Mermaid Configuration for Premium Dark Theme
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                darkMode: true,
+                background: 'transparent',
+                primaryColor: 'rgba(59, 130, 246, 0.2)',
+                primaryTextColor: '#f3f4f6',
+                primaryBorderColor: 'rgba(59, 130, 246, 0.5)',
+                lineColor: '#6b7280',
+                secondaryColor: 'rgba(139, 92, 246, 0.2)',
+                tertiaryColor: 'rgba(17, 24, 39, 0.6)',
+                fontFamily: '"JetBrains Mono", monospace'
+            },
+            sequence: {
+                actorMargin: 50,
+                messageMargin: 40,
+                boxMargin: 10,
+                noteMargin: 10
+            },
+            flowchart: {
+                nodeSpacing: 50,
+                rankSpacing: 50
+            }
+        });
+
+        // Tab Switching Logic
+        const navItems = document.querySelectorAll('.nav-item');
+        const tabPanes = document.querySelectorAll('.tab-pane');
+
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // Remove active class from all
+                navItems.forEach(n => n.classList.remove('active'));
+                tabPanes.forEach(p => p.classList.remove('active'));
+
+                // Add active class to clicked item and target tab
+                item.classList.add('active');
+                const targetId = item.getAttribute('data-target');
+                document.getElementById(targetId).classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

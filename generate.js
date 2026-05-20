@@ -305,13 +305,13 @@ function normalizeType(t) {
 
 const DOMAINS = [
   { id: 'auth',     label: 'Users & Auth',        color: '#4f8ef7', tables: ['users','customer_profiles','merchant_profiles','staff_profiles','customer_pin_credentials','customer_biometric_credentials','otp_sessions','user_sessions','customer_transaction_authorizations'], prefixes: ['user_','otp_','staff_'] },
-  { id: 'kyc',      label: 'KYC & 3rd-Party',     color: '#a78bfa', tables: ['nationalities','customer_bank_accounts','dan_verifications','hur_data_snapshots','sain_score_requests','kyc_verification_steps'], prefixes: ['kyc_','dan_','hur_','sain_','customer_bank_'] },
-  { id: 'credit',   label: 'Credit & Limits',      color: '#34d399', tables: ['credit_score_results','credit_scoring_factors','loan_limits'], prefixes: ['credit_','loan_limit'] },
-  { id: 'loans',    label: 'Loans & Products',     color: '#f59e0b', tables: ['loan_products','loan_product_duration_options','bnpl_installment_options','loan_applications','loans','loan_account_mappings','loan_application_status_history','loan_status_history'], prefixes: ['loan_','bnpl_installment_'] },
+  { id: 'kyc',      label: 'KYC & 3rd-Party',     color: '#a78bfa', tables: ['nationalities','customer_bank_accounts','dan_verifications','hur_data_snapshots','sain_score_requests','kyc_verification_steps','kyc_personal_details','kyc_contact_infos','kyc_addresses','kyc_educations','kyc_employments','kyc_customer_files','kyc_related_customers','kyc_signature_images'], prefixes: ['kyc_','dan_','hur_','sain_','customer_bank_'] },
+  { id: 'credit',   label: 'Credit & Limits',      color: '#34d399', tables: ['credit_score_results','credit_scoring_factors','loan_limits','credit_line_accounts','credit_limit_reservations'], prefixes: ['credit_','loan_limit'] },
+  { id: 'loans',    label: 'Loans & Products',     color: '#f59e0b', tables: ['loan_products','loan_product_duration_options','bnpl_installment_options','loan_applications','loans','loan_account_mappings','loan_application_status_history','loan_status_history','loan_core_steps'], prefixes: ['loan_','bnpl_installment_'] },
   { id: 'pos',      label: 'POS Flow',             color: '#f97316', tables: ['pos_terminals','pos_payment_invoices','pos_qr_codes','pos_transactions','pos_terminal_callbacks'], prefixes: ['pos_'] },
-  { id: 'repay',    label: 'Repayment, QPay & Cashback', color: '#ec4899', tables: ['repayment_cashback_configs','repayment_schedules','qpay_repayment_invoices','qpay_repayment_callbacks','repayment_transactions','penalty_records','customer_cashback_wallets','customer_cashback_wallet_transactions','repayment_cashback_records','repayment_schedule_status_history','repayment_transaction_status_history'], prefixes: ['repayment_','qpay_','penalty_','customer_cashback_'] },
-  { id: 'polaris',  label: 'Polaris & Ledger',     color: '#06b6d4', tables: ['polaris_accounts','ledger_journals','ledger_entries','polaris_api_logs','polaris_sync_queue'], prefixes: ['polaris_','ledger_'] },
-  { id: 'merchant', label: 'Merchant Portal',      color: '#84cc16', tables: ['merchant_portal_users','merchant_refund_requests','merchant_return_items','merchant_settlements','merchant_refund_status_history','merchant_settlement_status_history'], prefixes: ['merchant_'] },
+  { id: 'repay',    label: 'Repayment, QPay & Cashback', color: '#ec4899', tables: ['repayment_cashback_configs','repayment_schedules','qpay_repayment_invoices','qpay_repayment_callbacks','repayment_transactions','penalty_records','customer_cashback_wallets','customer_cashback_wallet_transactions','repayment_cashback_records','repayment_schedule_status_history','repayment_transaction_status_history','repayment_allocations'], prefixes: ['repayment_','qpay_','penalty_','customer_cashback_'] },
+  { id: 'polaris',  label: 'Polaris & Ledger',     color: '#06b6d4', tables: ['polaris_accounts','ledger_journals','ledger_entries','polaris_api_logs','polaris_sync_queue','polaris_product_configs','polaris_transaction_configs','polaris_dynamic_field_mappings','polaris_operation_attempts','customer_deposit_accounts'], prefixes: ['polaris_','ledger_'] },
+  { id: 'merchant', label: 'Merchant Portal',      color: '#84cc16', tables: ['merchant_portal_users','merchant_refund_requests','merchant_return_items','merchant_settlements','merchant_refund_status_history','merchant_settlement_status_history','merchant_settlement_items'], prefixes: ['merchant_'] },
   { id: 'audit',    label: 'Audit & Notifications',color: '#94a3b8', tables: ['message_logs','audit_logs','staff_action_reviews','service_pause_windows','notification_templates','notification_logs','system_event_logs'], prefixes: ['audit_','notification_','system_','service_pause_','message_'] },
 ];
 
@@ -991,6 +991,7 @@ function setEditorStatus(message, kind = '') {
 // ── TABLE CARDS ───────────────────────────────────────────────────────────
 function getDomain(name) {
   for (const d of DOMAINS) if (d.tables.includes(name)) return d;
+  for (const d of DOMAINS) if ((d.prefixes || []).some(prefix => name.startsWith(prefix))) return d;
   return { id:'other', label:'Other', color:'#64748b' };
 }
 
