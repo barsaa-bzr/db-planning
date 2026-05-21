@@ -1,0 +1,2242 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="6600" height="11701" viewBox="0 0 6600 11701">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#eef6ff"/>
+    <stop offset="48%" stop-color="#f8fafc"/>
+    <stop offset="100%" stop-color="#ecfdf5"/>
+  </linearGradient>
+  <linearGradient id="hero" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%" stop-color="#020617"/>
+    <stop offset="50%" stop-color="#164e63"/>
+    <stop offset="100%" stop-color="#14532d"/>
+  </linearGradient>
+  <pattern id="grid" width="52" height="52" patternUnits="userSpaceOnUse">
+    <path d="M52 0H0V52" fill="none" stroke="#cbd5e1" stroke-width="1" opacity="0.28"/>
+  </pattern>
+  <marker id="arrow" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto" markerUnits="strokeWidth">
+    <path d="M2,2 L12,7 L2,12 Z" fill="#64748b"/>
+  </marker>
+  <filter id="shadow" x="-5%" y="-12%" width="112%" height="136%">
+    <feDropShadow dx="0" dy="7" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.13"/>
+  </filter>
+  <filter id="softShadow" x="-3%" y="-16%" width="106%" height="144%">
+    <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#0f172a" flood-opacity="0.12"/>
+  </filter>
+  <style>
+    text { font-family: Arial, Helvetica, sans-serif; letter-spacing: 0; }
+    .heroTitle { font-size: 56px; font-weight: 800; fill: #ffffff; }
+    .heroSub { font-size: 22px; fill: #dbeafe; }
+    .heroTag { font-size: 18px; font-weight: 800; fill: #bbf7d0; }
+    .laneTitle { font-size: 24px; font-weight: 800; fill: #0f172a; }
+    .laneSub { font-size: 16px; fill: #475569; }
+    .laneCode { font-size: 20px; font-weight: 800; fill: #ffffff; }
+    .sectionTitle { font-size: 27px; font-weight: 800; fill: #ffffff; }
+    .sectionSub { font-size: 18px; fill: #e2e8f0; }
+    .nodeTitle { font-size: 20px; font-weight: 800; fill: #0f172a; }
+    .dbTitle { font-size: 20px; font-weight: 800; fill: #312e81; }
+    .nodeBody { font-size: 18px; fill: #334155; }
+    .decisionTitle { font-size: 21px; font-weight: 800; fill: #92400e; }
+    .decisionBody { font-size: 17px; fill: #78350f; }
+    .edgeLabel { font-size: 15px; font-weight: 800; }
+    .legendTitle { font-size: 20px; font-weight: 800; fill: #0f172a; }
+    .legendText { font-size: 17px; fill: #475569; }
+    .stepNo { font-size: 24px; font-weight: 800; fill: #ffffff; }
+  </style>
+</defs>
+<rect width="6600" height="11701" fill="url(#bg)"/>
+<rect width="6600" height="11701" fill="url(#grid)"/>
+<rect x="56" y="48" width="6488" height="11605" rx="42" fill="#ffffff" opacity="0.9" stroke="#dbe3ee" stroke-width="2"/>
+<g filter="url(#shadow)">
+  <rect x="120" y="86" width="6360" height="170" rx="34" fill="url(#hero)"/>
+  <text x="164" y="150" class="heroTitle">Polaris Lending Conditional Flow Chart</text>
+  <text x="166" y="196" class="heroSub">Direct-core flow with no LOS: UI triggers, app decisions, database state, Polaris/external calls, and failure/reconciliation branches.</text>
+  <text x="6436" y="150" class="heroTag" text-anchor="end">Double-spend aware | Idempotent | Pending reconcile on timeout | One reversal per jrno</text>
+  <text x="6436" y="196" class="heroSub" text-anchor="end">39 conditional operations</text>
+</g>
+<g filter="url(#softShadow)">
+    <rect x="150" y="300" width="870" height="96" rx="24" fill="#ffffff" stroke="#dbe3ee" stroke-width="1.8"/>
+    <circle cx="202" cy="348" r="30" fill="#2563eb"/>
+    <text x="202" y="356" text-anchor="middle" class="laneCode">UI</text>
+    <text x="246" y="340" class="laneTitle">UI / Actors</text>
+    <text x="246" y="367" class="laneSub">Customer, staff, merchant POS, scheduler</text>
+  </g>
+<g filter="url(#softShadow)">
+    <rect x="1110" y="300" width="1330" height="96" rx="24" fill="#ffffff" stroke="#dbe3ee" stroke-width="1.8"/>
+    <circle cx="1162" cy="348" r="30" fill="#0f172a"/>
+    <text x="1162" y="356" text-anchor="middle" class="laneCode">APP</text>
+    <text x="1206" y="340" class="laneTitle">Application Workflow</text>
+    <text x="1206" y="367" class="laneSub">Validation, decisions, locks, statuses</text>
+  </g>
+<g filter="url(#softShadow)">
+    <rect x="2570" y="300" width="1190" height="96" rx="24" fill="#ffffff" stroke="#dbe3ee" stroke-width="1.8"/>
+    <circle cx="2622" cy="348" r="30" fill="#4f46e5"/>
+    <text x="2622" y="356" text-anchor="middle" class="laneCode">DB</text>
+    <text x="2666" y="340" class="laneTitle">Database Tables</text>
+    <text x="2666" y="367" class="laneSub">Rows created, updated, locked or referenced</text>
+  </g>
+<g filter="url(#softShadow)">
+    <rect x="3890" y="300" width="1280" height="96" rx="24" fill="#ffffff" stroke="#dbe3ee" stroke-width="1.8"/>
+    <circle cx="3942" cy="348" r="30" fill="#0891b2"/>
+    <text x="3942" y="356" text-anchor="middle" class="laneCode">API</text>
+    <text x="3986" y="340" class="laneTitle">Polaris / External APIs</text>
+    <text x="3986" y="367" class="laneSub">Core banking and provider calls</text>
+  </g>
+<g filter="url(#softShadow)">
+    <rect x="5290" y="300" width="1140" height="96" rx="24" fill="#ffffff" stroke="#dbe3ee" stroke-width="1.8"/>
+    <circle cx="5342" cy="348" r="30" fill="#15803d"/>
+    <text x="5342" y="356" text-anchor="middle" class="laneCode">OUT</text>
+    <text x="5386" y="340" class="laneTitle">Response / Controls</text>
+    <text x="5386" y="367" class="laneSub">Success, rejection, reconcile, audit</text>
+  </g>
+<g filter="url(#softShadow)">
+    <linearGradient id="sec_Foundation" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#164e63"/>
+    </linearGradient>
+    <rect x="120" y="470" width="6360" height="58" rx="20" ry="20" fill="url(#sec_Foundation)"/>
+    <text x="148" y="507" class="sectionTitle">Foundation</text>
+    <text x="590" y="507" class="sectionSub">Configuration, merchant readiness, and service controls</text>
+  </g>
+<g filter="url(#softShadow)">
+    <rect x="120" y="532" width="6360" height="206" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="635" r="34" fill="#0f172a" opacity="0.92"/>
+    <text x="162" y="644" text-anchor="middle" class="stepNo">01</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="564.5" width="870" height="141" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="564.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="593.5" class="nodeTitle">Admin / back office</text>
+    <text x="174" y="631.5" class="nodeBody" text-anchor="start">Create product, transaction,</text>
+<text x="174" y="654.5" class="nodeBody" text-anchor="start">dynamic field and pause</text>
+<text x="174" y="677.5" class="nodeBody" text-anchor="start">configs.</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="1775,548 2412,635 1775,722 1138,635" fill="#fffbeb" stroke="#d97706" stroke-width="2.4"/>
+    <text x="1775" y="606" class="decisionTitle" text-anchor="middle">Config active?</text>
+    <text x="1775" y="640" class="decisionBody" text-anchor="middle">Every customer, account, loan,</text>
+<text x="1775" y="662" class="decisionBody" text-anchor="middle">grant, repayment and settlement</text>
+<text x="1775" y="684" class="decisionBody" text-anchor="middle">flow checks active config first.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,571 C2570,551 3760,551 3760,571 L3760,699 C3760,721 2570,721 2570,699 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="571" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,699 C2570,721 3760,721 3760,699" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="585" class="dbTitle" text-anchor="middle">Config tables</text>
+    <text x="2598" y="623" class="nodeBody" text-anchor="start">polaris_product_configs</text>
+<text x="2598" y="646" class="nodeBody" text-anchor="start">polaris_transaction_configs</text>
+<text x="2598" y="669" class="nodeBody" text-anchor="start">polaris_dynamic_field_mappings</text>
+<text x="2598" y="692" class="nodeBody" text-anchor="start">service_pause_windows</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,564.5 5126,564.5 5170,635 5126,705.5 3934,705.5 3890,635" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="598.5" class="nodeTitle">No write call</text>
+    <text x="3946" y="636.5" class="nodeBody" text-anchor="start">Config values map future prodCode,</text>
+<text x="3946" y="659.5" class="nodeBody" text-anchor="start">brchCode, curCode, txnDefCode and</text>
+<text x="3946" y="682.5" class="nodeBody" text-anchor="start">dynamicData.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="553" width="1140" height="164" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="553" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="582" class="nodeTitle">If missing</text>
+    <text x="5314" y="620" class="nodeBody" text-anchor="start">Block operation, return</text>
+<text x="5314" y="643" class="nodeBody" text-anchor="start">deterministic retry or setup</text>
+<text x="5314" y="666" class="nodeBody" text-anchor="start">error, write audit status_change</text>
+<text x="5314" y="689" class="nodeBody" text-anchor="start">when config status changes.</text>
+  </g>
+<path d="M1020,635 L1092,635" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,635 L2552,635" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="611" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="630" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Yes</text>
+<path d="M3760,635 L3872,635" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,635 L5272,635" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="611" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="630" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: block</text>
+<path d="M1775,728 L1775,772" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="730" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="749" class="edgeLabel" text-anchor="middle" fill="#64748b">Yes</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="780" width="6360" height="206" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="883" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="892" text-anchor="middle" class="stepNo">02</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="812.5" width="870" height="141" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="812.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="841.5" class="nodeTitle">Merchant admin / staff</text>
+    <text x="174" y="879.5" class="nodeBody" text-anchor="start">Register merchant, terminal</text>
+<text x="174" y="902.5" class="nodeBody" text-anchor="start">and passive/settlement</text>
+<text x="174" y="925.5" class="nodeBody" text-anchor="start">accounts.</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="1775,796 2412,883 1775,970 1138,883" fill="#fffbeb" stroke="#d97706" stroke-width="2.4"/>
+    <text x="1775" y="854" class="decisionTitle" text-anchor="middle">Merchant ready?</text>
+    <text x="1775" y="888" class="decisionBody" text-anchor="middle">Merchant profile, POS terminal</text>
+<text x="1775" y="910" class="decisionBody" text-anchor="middle">and account references must all</text>
+<text x="1775" y="932" class="decisionBody" text-anchor="middle">be active before BNPL can start.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,819 C2570,799 3760,799 3760,819 L3760,947 C3760,969 2570,969 2570,947 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="819" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,947 C2570,969 3760,969 3760,947" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="833" class="dbTitle" text-anchor="middle">Merchant tables</text>
+    <text x="2598" y="871" class="nodeBody" text-anchor="start">merchant_profiles</text>
+<text x="2598" y="894" class="nodeBody" text-anchor="start">pos_terminals</text>
+<text x="2598" y="917" class="nodeBody" text-anchor="start">merchant_portal_users</text>
+<text x="2598" y="940" class="nodeBody" text-anchor="start">polaris_accounts</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,801 5126,801 5170,883 5126,965 3934,965 3890,883" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="835" class="nodeTitle">Merchant / terminal APIs</text>
+    <text x="3946" y="873" class="nodeBody" text-anchor="start">tmm/insertMerchant</text>
+<text x="3946" y="896" class="nodeBody" text-anchor="start">tsd/createTsdTerminal</text>
+<text x="3946" y="919" class="nodeBody" text-anchor="start">tmm/insertTmmMerchantTermnl</text>
+<text x="3946" y="942" class="nodeBody" text-anchor="start">account create/register if needed</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="812.5" width="1140" height="141" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="812.5" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="841.5" class="nodeTitle">If not ready</text>
+    <text x="5314" y="879.5" class="nodeBody" text-anchor="start">Merchant remains pending; POS</text>
+<text x="5314" y="902.5" class="nodeBody" text-anchor="start">invoice creation and approvals</text>
+<text x="5314" y="925.5" class="nodeBody" text-anchor="start">are blocked.</text>
+  </g>
+<path d="M1020,883 L1092,883" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,883 L2552,883" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="859" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="878" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Yes</text>
+<path d="M3760,883 L3872,883" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,883 L5272,883" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="859" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="878" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: pending</text>
+<path d="M1775,976 L1775,1190" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="1063" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="1082" class="edgeLabel" text-anchor="middle" fill="#64748b">Yes</text>
+<g filter="url(#softShadow)">
+    <linearGradient id="sec_Customer_Onboarding" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <rect x="120" y="1136" width="6360" height="58" rx="20" ry="20" fill="url(#sec_Customer_Onboarding)"/>
+    <text x="148" y="1173" class="sectionTitle">Customer Onboarding</text>
+    <text x="590" y="1173" class="sectionSub">Registration, DAN authorization, CIF, deposit account, KYC and scoring</text>
+  </g>
+<g filter="url(#softShadow)">
+    <rect x="120" y="1198" width="6360" height="265" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="1330.5" r="34" fill="#0f172a" opacity="0.92"/>
+    <text x="162" y="1339.5" text-anchor="middle" class="stepNo">03</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="1248.5" width="870" height="164" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="1248.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="1277.5" class="nodeTitle">Customer app</text>
+    <text x="174" y="1315.5" class="nodeBody" text-anchor="start">Register phone/national ID,</text>
+<text x="174" y="1338.5" class="nodeBody" text-anchor="start">verify OTP, create login</text>
+<text x="174" y="1361.5" class="nodeBody" text-anchor="start">session, PIN or biometric</text>
+<text x="174" y="1384.5" class="nodeBody" text-anchor="start">credential.</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="1775,1243.5 2412,1330.5 1775,1417.5 1138,1330.5" fill="#fffbeb" stroke="#d97706" stroke-width="2.4"/>
+    <text x="1775" y="1301.5" class="decisionTitle" text-anchor="middle">Duplicate or blocked user?</text>
+    <text x="1775" y="1335.5" class="decisionBody" text-anchor="middle">Registration resumes existing</text>
+<text x="1775" y="1357.5" class="decisionBody" text-anchor="middle">onboarding when safe; suspended</text>
+<text x="1775" y="1379.5" class="decisionBody" text-anchor="middle">or deleted users cannot log in.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,1232 C2570,1212 3760,1212 3760,1232 L3760,1429 C3760,1451 2570,1451 2570,1429 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="1232" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,1429 C2570,1451 3760,1451 3760,1429" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="1246" class="dbTitle" text-anchor="middle">Identity/session tables</text>
+    <text x="2598" y="1284" class="nodeBody" text-anchor="start">users</text>
+<text x="2598" y="1307" class="nodeBody" text-anchor="start">customer_profiles</text>
+<text x="2598" y="1330" class="nodeBody" text-anchor="start">otp_sessions</text>
+<text x="2598" y="1353" class="nodeBody" text-anchor="start">user_sessions</text>
+<text x="2598" y="1376" class="nodeBody" text-anchor="start">customer_pin_credentials</text>
+<text x="2598" y="1399" class="nodeBody" text-anchor="start">customer_biometric_credentials</text>
+<text x="2598" y="1422" class="nodeBody" text-anchor="start">message_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,1267.5 5126,1267.5 5170,1330.5 5126,1393.5 3934,1393.5 3890,1330.5" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="1301.5" class="nodeTitle">No Polaris call yet</text>
+    <text x="3946" y="1339.5" class="nodeBody" text-anchor="start">Polaris starts only after DAN</text>
+<text x="3946" y="1362.5" class="nodeBody" text-anchor="start">identity authorization succeeds.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="1260" width="1140" height="141" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="1260" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="1289" class="nodeTitle">If duplicate / blocked</text>
+    <text x="5314" y="1327" class="nodeBody" text-anchor="start">Reject, resume pending</text>
+<text x="5314" y="1350" class="nodeBody" text-anchor="start">onboarding, or require staff</text>
+<text x="5314" y="1373" class="nodeBody" text-anchor="start">review; log security event.</text>
+  </g>
+<path d="M1020,1330.5 L1092,1330.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,1330.5 L2552,1330.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="1306.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="1325.5" class="edgeLabel" text-anchor="middle" fill="#94a3b8">No</text>
+<path d="M3760,1330.5 L3872,1330.5" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,1330.5 L5272,1330.5" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="1306.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="1325.5" class="edgeLabel" text-anchor="middle" fill="#0891b2">Yes: reject/resume</text>
+<path d="M1775,1453 L1775,1497" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="1455" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="1474" class="edgeLabel" text-anchor="middle" fill="#64748b">No</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="1505" width="6360" height="206" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="1608" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="1617" text-anchor="middle" class="stepNo">04</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="1537.5" width="870" height="141" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="1537.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="1566.5" class="nodeTitle">Customer app</text>
+    <text x="174" y="1604.5" class="nodeBody" text-anchor="start">Authorize DAN and provide</text>
+<text x="174" y="1627.5" class="nodeBody" text-anchor="start">consent for identity</text>
+<text x="174" y="1650.5" class="nodeBody" text-anchor="start">verification.</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="1775,1521 2412,1608 1775,1695 1138,1608" fill="#fffbeb" stroke="#d97706" stroke-width="2.4"/>
+    <text x="1775" y="1579" class="decisionTitle" text-anchor="middle">DAN verified?</text>
+    <text x="1775" y="1613" class="decisionBody" text-anchor="middle">DAN result must match local</text>
+<text x="1775" y="1635" class="decisionBody" text-anchor="middle">customer identity and not be</text>
+<text x="1775" y="1657" class="decisionBody" text-anchor="middle">expired or reused incorrectly.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,1555.5 C2570,1535.5 3760,1535.5 3760,1555.5 L3760,1660.5 C3760,1682.5 2570,1682.5 2570,1660.5 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="1555.5" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,1660.5 C2570,1682.5 3760,1682.5 3760,1660.5" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="1569.5" class="dbTitle" text-anchor="middle">DAN rows</text>
+    <text x="2598" y="1607.5" class="nodeBody" text-anchor="start">dan_verifications</text>
+<text x="2598" y="1630.5" class="nodeBody" text-anchor="start">customer_profiles</text>
+<text x="2598" y="1653.5" class="nodeBody" text-anchor="start">audit_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,1545 5126,1545 5170,1608 5126,1671 3934,1671 3890,1608" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="1579" class="nodeTitle">DAN provider</text>
+    <text x="3946" y="1617" class="nodeBody" text-anchor="start">External DAN authorization result</text>
+<text x="3946" y="1640" class="nodeBody" text-anchor="start">is saved before CIF creation.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="1537.5" width="1140" height="141" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="1537.5" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="1566.5" class="nodeTitle">If failed / expired</text>
+    <text x="5314" y="1604.5" class="nodeBody" text-anchor="start">Stop onboarding, mark failed or</text>
+<text x="5314" y="1627.5" class="nodeBody" text-anchor="start">manual_review, do not create</text>
+<text x="5314" y="1650.5" class="nodeBody" text-anchor="start">Polaris CIF.</text>
+  </g>
+<path d="M1020,1608 L1092,1608" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,1608 L2552,1608" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="1584" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="1603" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Yes</text>
+<path d="M3760,1608 L3872,1608" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,1608 L5272,1608" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="1584" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="1603" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: stop</text>
+<path d="M1775,1701 L1775,1745" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="1703" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="1722" class="edgeLabel" text-anchor="middle" fill="#64748b">Yes</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="1753" width="6360" height="219" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="1862.5" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="1871.5" text-anchor="middle" class="stepNo">05</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="1799.5" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="1799.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="1828.5" class="nodeTitle">System worker</text>
+    <text x="174" y="1866.5" class="nodeBody" text-anchor="start">Create or update core</text>
+<text x="174" y="1889.5" class="nodeBody" text-anchor="start">customer after DAN success.</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="1775,1771.5 2412,1862.5 1775,1953.5 1138,1862.5" fill="#fffbeb" stroke="#d97706" stroke-width="2.4"/>
+    <text x="1775" y="1833.5" class="decisionTitle" text-anchor="middle">CIF synced?</text>
+    <text x="1775" y="1867.5" class="decisionBody" text-anchor="middle">Enqueue write with idempotency</text>
+<text x="1775" y="1889.5" class="decisionBody" text-anchor="middle">key. Duplicate CIF searches by</text>
+<text x="1775" y="1911.5" class="decisionBody" text-anchor="middle">register/national ID before</text>
+<text x="1775" y="1933.5" class="decisionBody" text-anchor="middle">update.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,1787 C2570,1767 3760,1767 3760,1787 L3760,1938 C3760,1960 2570,1960 2570,1938 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="1787" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,1938 C2570,1960 3760,1960 3760,1938" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="1801" class="dbTitle" text-anchor="middle">CIF state</text>
+    <text x="2598" y="1839" class="nodeBody" text-anchor="start">customer_profiles</text>
+<text x="2598" y="1862" class="nodeBody" text-anchor="start">polaris_sync_queue</text>
+<text x="2598" y="1885" class="nodeBody" text-anchor="start">polaris_operation_attempts</text>
+<text x="2598" y="1908" class="nodeBody" text-anchor="start">polaris_api_logs</text>
+<text x="2598" y="1931" class="nodeBody" text-anchor="start">audit_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,1792 5126,1792 5170,1862.5 5126,1933 3934,1933 3890,1862.5" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="1826" class="nodeTitle">Polaris CIF</text>
+    <text x="3946" y="1864" class="nodeBody" text-anchor="start">cif/createPerson</text>
+<text x="3946" y="1887" class="nodeBody" text-anchor="start">fallback search/update with</text>
+<text x="3946" y="1910" class="nodeBody" text-anchor="start">cif/updatePerson</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="1780.5" width="1140" height="164" rx="22" ry="22" fill="#fffbeb" stroke="#d97706" stroke-width="1.8"/>
+    <rect x="5290" y="1780.5" width="1140" height="42" rx="22" ry="22" fill="#d97706" opacity="0.12"/>
+    <text x="5314" y="1809.5" class="nodeTitle">Timeout / duplicate</text>
+    <text x="5314" y="1847.5" class="nodeBody" text-anchor="start">Timeout becomes</text>
+<text x="5314" y="1870.5" class="nodeBody" text-anchor="start">pending_reconcile. Duplicate</text>
+<text x="5314" y="1893.5" class="nodeBody" text-anchor="start">becomes update/search path, not</text>
+<text x="5314" y="1916.5" class="nodeBody" text-anchor="start">blind create.</text>
+  </g>
+<path d="M1020,1862.5 L1092,1862.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,1862.5 L2552,1862.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="1838.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="1857.5" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Synced</text>
+<path d="M3760,1862.5 L3872,1862.5" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,1862.5 L5272,1862.5" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="1838.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="1857.5" class="edgeLabel" text-anchor="middle" fill="#0891b2">Timeout: reconcile</text>
+<path d="M1775,1962 L1775,2006" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="1964" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="1983" class="edgeLabel" text-anchor="middle" fill="#64748b">Synced</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="2014" width="6360" height="206" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="2117" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="2126" text-anchor="middle" class="stepNo">06</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="2054" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="2054" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="2083" class="nodeTitle">System worker</text>
+    <text x="174" y="2121" class="nodeBody" text-anchor="start">Open customer deposit/CASA</text>
+<text x="174" y="2144" class="nodeBody" text-anchor="start">account after CIF exists.</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="1775,2030 2412,2117 1775,2204 1138,2117" fill="#fffbeb" stroke="#d97706" stroke-width="2.4"/>
+    <text x="1775" y="2088" class="decisionTitle" text-anchor="middle">Deposit active?</text>
+    <text x="1775" y="2122" class="decisionBody" text-anchor="middle">Use stored product config. Save</text>
+<text x="1775" y="2144" class="decisionBody" text-anchor="middle">returned acntCode to customer and</text>
+<text x="1775" y="2166" class="decisionBody" text-anchor="middle">polaris account records.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,2053 C2570,2033 3760,2033 3760,2053 L3760,2181 C3760,2203 2570,2203 2570,2181 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="2053" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,2181 C2570,2203 3760,2203 3760,2181" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="2067" class="dbTitle" text-anchor="middle">Deposit account tables</text>
+    <text x="2598" y="2105" class="nodeBody" text-anchor="start">customer_deposit_accounts</text>
+<text x="2598" y="2128" class="nodeBody" text-anchor="start">polaris_accounts</text>
+<text x="2598" y="2151" class="nodeBody" text-anchor="start">customer_profiles</text>
+<text x="2598" y="2174" class="nodeBody" text-anchor="start">polaris_product_configs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,2054 5126,2054 5170,2117 5126,2180 3934,2180 3890,2117" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="2088" class="nodeTitle">Polaris CASA</text>
+    <text x="3946" y="2126" class="nodeBody" text-anchor="start">casa/createAccount</text>
+<text x="3946" y="2149" class="nodeBody" text-anchor="start">casa/openAccountStatus</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="2035" width="1140" height="164" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="2035" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="2064" class="nodeTitle">If unknown / failed</text>
+    <text x="5314" y="2102" class="nodeBody" text-anchor="start">Customer cannot receive loans.</text>
+<text x="5314" y="2125" class="nodeBody" text-anchor="start">Unknown result goes</text>
+<text x="5314" y="2148" class="nodeBody" text-anchor="start">pending_reconcile and account</text>
+<text x="5314" y="2171" class="nodeBody" text-anchor="start">detail search.</text>
+  </g>
+<path d="M1020,2117 L1092,2117" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,2117 L2552,2117" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="2093" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="2112" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Active</text>
+<path d="M3760,2117 L3872,2117" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,2117 L5272,2117" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="2093" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="2112" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: block loans</text>
+<path d="M1775,2210 L1775,2254" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="2212" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="2231" class="edgeLabel" text-anchor="middle" fill="#64748b">Active</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="2262" width="6360" height="242" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="2383" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="2392" text-anchor="middle" class="stepNo">07</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="2312.5" width="870" height="141" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="2312.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="2341.5" class="nodeTitle">Customer / staff</text>
+    <text x="174" y="2379.5" class="nodeBody" text-anchor="start">Submit profile, address,</text>
+<text x="174" y="2402.5" class="nodeBody" text-anchor="start">contact, file, employment,</text>
+<text x="174" y="2425.5" class="nodeBody" text-anchor="start">education and review steps.</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="1775,2296 2412,2383 1775,2470 1138,2383" fill="#fffbeb" stroke="#d97706" stroke-width="2.4"/>
+    <text x="1775" y="2354" class="decisionTitle" text-anchor="middle">KYC complete locally and in Polaris?</text>
+    <text x="1775" y="2388" class="decisionBody" text-anchor="middle">Local KYC is verified only when</text>
+<text x="1775" y="2410" class="decisionBody" text-anchor="middle">required local data and required</text>
+<text x="1775" y="2432" class="decisionBody" text-anchor="middle">Polaris sync are both complete.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,2296 C2570,2276 3760,2276 3760,2296 L3760,2470 C3760,2492 2570,2492 2570,2470 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="2296" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,2470 C2570,2492 3760,2492 3760,2470" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="2310" class="dbTitle" text-anchor="middle">KYC tables</text>
+    <text x="2598" y="2348" class="nodeBody" text-anchor="start">kyc_personal_details</text>
+<text x="2598" y="2371" class="nodeBody" text-anchor="start">kyc_addresses</text>
+<text x="2598" y="2394" class="nodeBody" text-anchor="start">kyc_contact_infos</text>
+<text x="2598" y="2417" class="nodeBody" text-anchor="start">kyc_customer_files</text>
+<text x="2598" y="2440" class="nodeBody" text-anchor="start">kyc_employments</text>
+<text x="2598" y="2463" class="nodeBody" text-anchor="start">kyc_verification_steps</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,2301 5126,2301 5170,2383 5126,2465 3934,2465 3890,2383" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="2335" class="nodeTitle">Polaris CIF updates</text>
+    <text x="3946" y="2373" class="nodeBody" text-anchor="start">cif/updatePerson</text>
+<text x="3946" y="2396" class="nodeBody" text-anchor="start">contact/address/photo/education</text>
+<text x="3946" y="2419" class="nodeBody" text-anchor="start">APIs when configured</text>
+<text x="3946" y="2442" class="nodeBody" text-anchor="start">dynamicData mappings</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="2289.5" width="1140" height="187" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="2289.5" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="2318.5" class="nodeTitle">If rejected / sync unknown</text>
+    <text x="5314" y="2356.5" class="nodeBody" text-anchor="start">Reject or manual_review. Polaris</text>
+<text x="5314" y="2379.5" class="nodeBody" text-anchor="start">sync timeout keeps</text>
+<text x="5314" y="2402.5" class="nodeBody" text-anchor="start">polaris_kyc_sync_status</text>
+<text x="5314" y="2425.5" class="nodeBody" text-anchor="start">pending_reconcile; no active</text>
+<text x="5314" y="2448.5" class="nodeBody" text-anchor="start">line.</text>
+  </g>
+<path d="M1020,2383 L1092,2383" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,2383 L2552,2383" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="2359" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="2378" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Complete</text>
+<path d="M3760,2383 L3872,2383" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,2383 L5272,2383" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="2359" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="2378" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: review/reject</text>
+<path d="M1775,2494 L1775,2538" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="2496" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="2515" class="edgeLabel" text-anchor="middle" fill="#64748b">Complete</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="2546" width="6360" height="206" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="2649" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="2658" text-anchor="middle" class="stepNo">08</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="2586" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="2586" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="2615" class="nodeTitle">Risk engine</text>
+    <text x="174" y="2653" class="nodeBody" text-anchor="start">Fetch external credit data</text>
+<text x="174" y="2676" class="nodeBody" text-anchor="start">and calculate score.</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="1775,2562 2412,2649 1775,2736 1138,2649" fill="#fffbeb" stroke="#d97706" stroke-width="2.4"/>
+    <text x="1775" y="2620" class="decisionTitle" text-anchor="middle">Eligible score?</text>
+    <text x="1775" y="2654" class="decisionBody" text-anchor="middle">Combine HUR, Sain/FICO and custom</text>
+<text x="1775" y="2676" class="decisionBody" text-anchor="middle">model. Store explanation factors</text>
+<text x="1775" y="2698" class="decisionBody" text-anchor="middle">and model version.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,2585 C2570,2565 3760,2565 3760,2585 L3760,2713 C3760,2735 2570,2735 2570,2713 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="2585" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,2713 C2570,2735 3760,2735 3760,2713" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="2599" class="dbTitle" text-anchor="middle">Scoring tables</text>
+    <text x="2598" y="2637" class="nodeBody" text-anchor="start">hur_data_snapshots</text>
+<text x="2598" y="2660" class="nodeBody" text-anchor="start">sain_score_requests</text>
+<text x="2598" y="2683" class="nodeBody" text-anchor="start">credit_score_results</text>
+<text x="2598" y="2706" class="nodeBody" text-anchor="start">credit_scoring_factors</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,2567 5126,2567 5170,2649 5126,2731 3934,2731 3890,2649" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="2601" class="nodeTitle">External scoring</text>
+    <text x="3946" y="2639" class="nodeBody" text-anchor="start">HUR service</text>
+<text x="3946" y="2662" class="nodeBody" text-anchor="start">Sain/FICO service</text>
+<text x="3946" y="2685" class="nodeBody" text-anchor="start">cif/updatePerson dynamicData score</text>
+<text x="3946" y="2708" class="nodeBody" text-anchor="start">sync</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="2586" width="1140" height="126" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="2586" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="2615" class="nodeTitle">If ineligible / bad data</text>
+    <text x="5314" y="2653" class="nodeBody" text-anchor="start">No customer-facing offer. Manual</text>
+<text x="5314" y="2676" class="nodeBody" text-anchor="start">review only if policy allows.</text>
+  </g>
+<path d="M1020,2649 L1092,2649" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,2649 L2552,2649" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="2625" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="2644" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Eligible</text>
+<path d="M3760,2649 L3872,2649" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,2649 L5272,2649" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="2625" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="2644" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: no offer</text>
+<path d="M1775,2742 L1775,2956" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="2829" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="2848" class="edgeLabel" text-anchor="middle" fill="#64748b">Eligible</text>
+<g filter="url(#softShadow)">
+    <linearGradient id="sec_Limit_and_Line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#047857"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <rect x="120" y="2902" width="6360" height="58" rx="20" ry="20" fill="url(#sec_Limit_and_Line)"/>
+    <text x="148" y="2939" class="sectionTitle">Limit and Line</text>
+    <text x="590" y="2939" class="sectionSub">Credit limit, Polaris line account, and drawdown capacity</text>
+  </g>
+<g filter="url(#softShadow)">
+    <rect x="120" y="2964" width="6360" height="196" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="3062" r="34" fill="#0f172a" opacity="0.92"/>
+    <text x="162" y="3071" text-anchor="middle" class="stepNo">09</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="2999" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="2999" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="3028" class="nodeTitle">Risk engine / staff</text>
+    <text x="174" y="3066" class="nodeBody" text-anchor="start">Create or refresh customer</text>
+<text x="174" y="3089" class="nodeBody" text-anchor="start">limit.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="2991.5" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="2991.5" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="3020.5" class="nodeTitle">Limit can be activated?</text>
+    <text x="1134" y="3058.5" class="nodeBody" text-anchor="start">Requires verified KYC, synced</text>
+<text x="1134" y="3081.5" class="nodeBody" text-anchor="start">score, active deposit account and</text>
+<text x="1134" y="3104.5" class="nodeBody" text-anchor="start">active config.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,2998 C2570,2978 3760,2978 3760,2998 L3760,3126 C3760,3148 2570,3148 2570,3126 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="2998" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,3126 C2570,3148 3760,3148 3760,3126" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="3012" class="dbTitle" text-anchor="middle">Limit tables</text>
+    <text x="2598" y="3050" class="nodeBody" text-anchor="start">loan_limits</text>
+<text x="2598" y="3073" class="nodeBody" text-anchor="start">credit_score_results</text>
+<text x="2598" y="3096" class="nodeBody" text-anchor="start">customer_deposit_accounts</text>
+<text x="2598" y="3119" class="nodeBody" text-anchor="start">audit_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,2999 5126,2999 5170,3062 5126,3125 3934,3125 3890,3062" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="3033" class="nodeTitle">No Polaris write here</text>
+    <text x="3946" y="3071" class="nodeBody" text-anchor="start">Local limit activation triggers</text>
+<text x="3946" y="3094" class="nodeBody" text-anchor="start">line account creation next.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="2999" width="1140" height="126" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="2999" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="3028" class="nodeTitle">If not valid</text>
+    <text x="5314" y="3066" class="nodeBody" text-anchor="start">Limit remains pending, suspended</text>
+<text x="5314" y="3089" class="nodeBody" text-anchor="start">or rejected; no offer shown.</text>
+  </g>
+<path d="M1020,3062 L1092,3062" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,3062 L2552,3062" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="3038" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="3057" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Active</text>
+<path d="M3760,3062 L3872,3062" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,3062 L5272,3062" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="3038" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="3057" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: no offer</text>
+<path d="M1775,3150 L1775,3194" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="3152" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="3171" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="3202" width="6360" height="219" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="3311.5" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="3320.5" text-anchor="middle" class="stepNo">10</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="3248.5" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="3248.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="3277.5" class="nodeTitle">System worker</text>
+    <text x="174" y="3315.5" class="nodeBody" text-anchor="start">Create line account for</text>
+<text x="174" y="3338.5" class="nodeBody" text-anchor="start">approved limit.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="3241" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="3241" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="3270" class="nodeTitle">Line active?</text>
+    <text x="1134" y="3308" class="nodeBody" text-anchor="start">Use customer acntCode from deposit</text>
+<text x="1134" y="3331" class="nodeBody" text-anchor="start">account and line product config.</text>
+<text x="1134" y="3354" class="nodeBody" text-anchor="start">Store line acntCode.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,3236 C2570,3216 3760,3216 3760,3236 L3760,3387 C3760,3409 2570,3409 2570,3387 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="3236" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,3387 C2570,3409 3760,3409 3760,3387" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="3250" class="dbTitle" text-anchor="middle">Line tables</text>
+    <text x="2598" y="3288" class="nodeBody" text-anchor="start">credit_line_accounts</text>
+<text x="2598" y="3311" class="nodeBody" text-anchor="start">loan_limits</text>
+<text x="2598" y="3334" class="nodeBody" text-anchor="start">polaris_accounts</text>
+<text x="2598" y="3357" class="nodeBody" text-anchor="start">polaris_product_configs</text>
+<text x="2598" y="3380" class="nodeBody" text-anchor="start">polaris_sync_queue</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,3241 5126,3241 5170,3311.5 5126,3382 3934,3382 3890,3311.5" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="3275" class="nodeTitle">Polaris line</text>
+    <text x="3946" y="3313" class="nodeBody" text-anchor="start">line/createAccount</text>
+<text x="3946" y="3336" class="nodeBody" text-anchor="start">line/openAccount</text>
+<text x="3946" y="3359" class="nodeBody" text-anchor="start">line/getAccountDetail on timeout</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="3241" width="1140" height="141" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="3241" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="3270" class="nodeTitle">Timeout / failure</text>
+    <text x="5314" y="3308" class="nodeBody" text-anchor="start">No drawdown until line is</text>
+<text x="5314" y="3331" class="nodeBody" text-anchor="start">confirmed active. Timeout goes</text>
+<text x="5314" y="3354" class="nodeBody" text-anchor="start">pending_reconcile.</text>
+  </g>
+<path d="M1020,3311.5 L1092,3311.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,3311.5 L2552,3311.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="3287.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="3306.5" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Active</text>
+<path d="M3760,3311.5 L3872,3311.5" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,3311.5 L5272,3311.5" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="3287.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="3306.5" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: reconcile/block</text>
+<path d="M1775,3411 L1775,3455" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="3413" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="3432" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="3463" width="6360" height="196" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="3561" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="3570" text-anchor="middle" class="stepNo">11</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="3498" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="3498" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="3527" class="nodeTitle">Risk engine / staff</text>
+    <text x="174" y="3565" class="nodeBody" text-anchor="start">Increase, decrease, suspend</text>
+<text x="174" y="3588" class="nodeBody" text-anchor="start">or expire limit.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="3490.5" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="3490.5" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="3519.5" class="nodeTitle">Decrease below utilized?</text>
+    <text x="1134" y="3557.5" class="nodeBody" text-anchor="start">Lock line row. Available = line -</text>
+<text x="1134" y="3580.5" class="nodeBody" text-anchor="start">utilized - reserved. Do not break</text>
+<text x="1134" y="3603.5" class="nodeBody" text-anchor="start">existing loans.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,3497 C2570,3477 3760,3477 3760,3497 L3760,3625 C3760,3647 2570,3647 2570,3625 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="3497" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,3625 C2570,3647 3760,3647 3760,3625" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="3511" class="dbTitle" text-anchor="middle">Line adjustment rows</text>
+    <text x="2598" y="3549" class="nodeBody" text-anchor="start">loan_limits</text>
+<text x="2598" y="3572" class="nodeBody" text-anchor="start">credit_line_accounts</text>
+<text x="2598" y="3595" class="nodeBody" text-anchor="start">credit_limit_reservations</text>
+<text x="2598" y="3618" class="nodeBody" text-anchor="start">audit_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,3498 5126,3498 5170,3561 5126,3624 3934,3624 3890,3561" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="3532" class="nodeTitle">Polaris line adjust</text>
+    <text x="3946" y="3570" class="nodeBody" text-anchor="start">line/adjustLineAccountLimit</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="3490.5" width="1140" height="141" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="3490.5" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="3519.5" class="nodeTitle">If below utilized</text>
+    <text x="5314" y="3557.5" class="nodeBody" text-anchor="start">Suspend new drawdowns, keep</text>
+<text x="5314" y="3580.5" class="nodeBody" text-anchor="start">existing loans, reconcile</text>
+<text x="5314" y="3603.5" class="nodeBody" text-anchor="start">Polaris line amount.</text>
+  </g>
+<path d="M1020,3561 L1092,3561" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,3561 L2552,3561" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="3537" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="3556" class="edgeLabel" text-anchor="middle" fill="#94a3b8">No / adjusted</text>
+<path d="M3760,3561 L3872,3561" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,3561 L5272,3561" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="3537" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="3556" class="edgeLabel" text-anchor="middle" fill="#0891b2">Yes: suspend draws</text>
+<path d="M1775,3649 L1775,3863" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="3736" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="3755" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <linearGradient id="sec_Loan_and_BNPL_Drawdown" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#c2410c"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+    <rect x="120" y="3809" width="6360" height="58" rx="20" ry="20" fill="url(#sec_Loan_and_BNPL_Drawdown)"/>
+    <text x="148" y="3846" class="sectionTitle">Loan and BNPL Drawdown</text>
+    <text x="590" y="3846" class="sectionSub">Application, reservation, core loan setup, schedule, line link, grant and merchant transfer</text>
+  </g>
+<g filter="url(#softShadow)">
+    <rect x="120" y="3871" width="6360" height="219" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="3980.5" r="34" fill="#0f172a" opacity="0.92"/>
+    <text x="162" y="3989.5" text-anchor="middle" class="stepNo">12</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="3917.5" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="3917.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="3946.5" class="nodeTitle">Customer app / Merchant POS</text>
+    <text x="174" y="3984.5" class="nodeBody" text-anchor="start">Customer requests one-tap</text>
+<text x="174" y="4007.5" class="nodeBody" text-anchor="start">loan or scans BNPL QR.</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="1775,3893.5 2412,3980.5 1775,4067.5 1138,3980.5" fill="#fffbeb" stroke="#d97706" stroke-width="2.4"/>
+    <text x="1775" y="3951.5" class="decisionTitle" text-anchor="middle">Which product path?</text>
+    <text x="1775" y="3985.5" class="decisionBody" text-anchor="middle">One-tap starts from loan amount.</text>
+<text x="1775" y="4007.5" class="decisionBody" text-anchor="middle">BNPL starts from merchant invoice</text>
+<text x="1775" y="4029.5" class="decisionBody" text-anchor="middle">and selected installment option.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,3905 C2570,3885 3760,3885 3760,3905 L3760,4056 C3760,4078 2570,4078 2570,4056 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="3905" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,4056 C2570,4078 3760,4078 3760,4056" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="3919" class="dbTitle" text-anchor="middle">Entry tables</text>
+    <text x="2598" y="3957" class="nodeBody" text-anchor="start">loan_applications</text>
+<text x="2598" y="3980" class="nodeBody" text-anchor="start">pos_payment_invoices</text>
+<text x="2598" y="4003" class="nodeBody" text-anchor="start">pos_qr_codes</text>
+<text x="2598" y="4026" class="nodeBody" text-anchor="start">pos_transactions</text>
+<text x="2598" y="4049" class="nodeBody" text-anchor="start">bnpl_installment_options</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,3917.5 5126,3917.5 5170,3980.5 5126,4043.5 3934,4043.5 3890,3980.5" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="3951.5" class="nodeTitle">No Polaris write yet</text>
+    <text x="3946" y="3989.5" class="nodeBody" text-anchor="start">Do not touch core until local</text>
+<text x="3946" y="4012.5" class="nodeBody" text-anchor="start">validation and reservation pass.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="3898.5" width="1140" height="164" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="3898.5" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="3927.5" class="nodeTitle">If BNPL invoice invalid</text>
+    <text x="5314" y="3965.5" class="nodeBody" text-anchor="start">Reject expired, duplicated,</text>
+<text x="5314" y="3988.5" class="nodeBody" text-anchor="start">inactive merchant/terminal,</text>
+<text x="5314" y="4011.5" class="nodeBody" text-anchor="start">mismatched merchant, or inactive</text>
+<text x="5314" y="4034.5" class="nodeBody" text-anchor="start">passive account.</text>
+  </g>
+<path d="M1020,3980.5 L1092,3980.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,3980.5 L2552,3980.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="3956.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="3975.5" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Valid path</text>
+<path d="M3760,3980.5 L3872,3980.5" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,3980.5 L5272,3980.5" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="3956.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="3975.5" class="edgeLabel" text-anchor="middle" fill="#0891b2">BNPL invalid</text>
+<path d="M1775,4080 L1775,4124" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="4082" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="4101" class="edgeLabel" text-anchor="middle" fill="#64748b">Valid path</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="4132" width="6360" height="206" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="4235" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="4244" text-anchor="middle" class="stepNo">13</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="4164.5" width="870" height="141" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="4164.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="4193.5" class="nodeTitle">System guard</text>
+    <text x="174" y="4231.5" class="nodeBody" text-anchor="start">Before reservation, child</text>
+<text x="174" y="4254.5" class="nodeBody" text-anchor="start">loan, grant, repayment or</text>
+<text x="174" y="4277.5" class="nodeBody" text-anchor="start">settlement.</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="1775,4148 2412,4235 1775,4322 1138,4235" fill="#fffbeb" stroke="#d97706" stroke-width="2.4"/>
+    <text x="1775" y="4206" class="decisionTitle" text-anchor="middle">Service paused or duplicate operation?</text>
+    <text x="1775" y="4240" class="decisionBody" text-anchor="middle">Check EOD pause window and unique</text>
+<text x="1775" y="4262" class="decisionBody" text-anchor="middle">idempotency key before creating</text>
+<text x="1775" y="4284" class="decisionBody" text-anchor="middle">side effects.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,4171 C2570,4151 3760,4151 3760,4171 L3760,4299 C3760,4321 2570,4321 2570,4299 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="4171" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,4299 C2570,4321 3760,4321 3760,4299" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="4185" class="dbTitle" text-anchor="middle">Guard tables</text>
+    <text x="2598" y="4223" class="nodeBody" text-anchor="start">service_pause_windows</text>
+<text x="2598" y="4246" class="nodeBody" text-anchor="start">polaris_sync_queue</text>
+<text x="2598" y="4269" class="nodeBody" text-anchor="start">audit_logs</text>
+<text x="2598" y="4292" class="nodeBody" text-anchor="start">system_event_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,4172 5126,4172 5170,4235 5126,4298 3934,4298 3890,4235" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="4206" class="nodeTitle">No call if paused</text>
+    <text x="3946" y="4244" class="nodeBody" text-anchor="start">Polaris call is skipped during</text>
+<text x="3946" y="4267" class="nodeBody" text-anchor="start">configured core/service pause.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="4164.5" width="1140" height="141" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="4164.5" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="4193.5" class="nodeTitle">If paused / duplicate</text>
+    <text x="5314" y="4231.5" class="nodeBody" text-anchor="start">Return retryable paused response</text>
+<text x="5314" y="4254.5" class="nodeBody" text-anchor="start">or idempotent existing result.</text>
+<text x="5314" y="4277.5" class="nodeBody" text-anchor="start">No duplicate operation.</text>
+  </g>
+<path d="M1020,4235 L1092,4235" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,4235 L2552,4235" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="4211" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="4230" class="edgeLabel" text-anchor="middle" fill="#94a3b8">No</text>
+<path d="M3760,4235 L3872,4235" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,4235 L5272,4235" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="4211" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="4230" class="edgeLabel" text-anchor="middle" fill="#0891b2">Yes: stop</text>
+<path d="M1775,4328 L1775,4372" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="4330" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="4349" class="edgeLabel" text-anchor="middle" fill="#64748b">No</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="4380" width="6360" height="219" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="4489.5" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="4498.5" text-anchor="middle" class="stepNo">14</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="4419" width="870" height="141" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="4419" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="4448" class="nodeTitle">System worker</text>
+    <text x="174" y="4486" class="nodeBody" text-anchor="start">Reserve available line</text>
+<text x="174" y="4509" class="nodeBody" text-anchor="start">before approval and core</text>
+<text x="174" y="4532" class="nodeBody" text-anchor="start">setup.</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="1775,4398.5 2412,4489.5 1775,4580.5 1138,4489.5" fill="#fffbeb" stroke="#d97706" stroke-width="2.4"/>
+    <text x="1775" y="4460.5" class="decisionTitle" text-anchor="middle">Available after row lock?</text>
+    <text x="1775" y="4494.5" class="decisionBody" text-anchor="middle">Lock credit_line_accounts.</text>
+<text x="1775" y="4516.5" class="decisionBody" text-anchor="middle">Reserve before approval to</text>
+<text x="1775" y="4538.5" class="decisionBody" text-anchor="middle">prevent double spend and</text>
+<text x="1775" y="4560.5" class="decisionBody" text-anchor="middle">concurrent grants.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,4414 C2570,4394 3760,4394 3760,4414 L3760,4565 C3760,4587 2570,4587 2570,4565 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="4414" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,4565 C2570,4587 3760,4587 3760,4565" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="4428" class="dbTitle" text-anchor="middle">Reservation tables</text>
+    <text x="2598" y="4466" class="nodeBody" text-anchor="start">credit_line_accounts</text>
+<text x="2598" y="4489" class="nodeBody" text-anchor="start">credit_limit_reservations</text>
+<text x="2598" y="4512" class="nodeBody" text-anchor="start">loan_applications</text>
+<text x="2598" y="4535" class="nodeBody" text-anchor="start">pos_transactions</text>
+<text x="2598" y="4558" class="nodeBody" text-anchor="start">audit_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,4426.5 5126,4426.5 5170,4489.5 5126,4552.5 3934,4552.5 3890,4489.5" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="4460.5" class="nodeTitle">No Polaris write yet</text>
+    <text x="3946" y="4498.5" class="nodeBody" text-anchor="start">Line capacity is protected locally</text>
+<text x="3946" y="4521.5" class="nodeBody" text-anchor="start">before core account setup.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="4407.5" width="1140" height="164" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="4407.5" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="4436.5" class="nodeTitle">If not enough</text>
+    <text x="5314" y="4474.5" class="nodeBody" text-anchor="start">Reject/release pending</text>
+<text x="5314" y="4497.5" class="nodeBody" text-anchor="start">application. Duplicate</text>
+<text x="5314" y="4520.5" class="nodeBody" text-anchor="start">submission returns existing</text>
+<text x="5314" y="4543.5" class="nodeBody" text-anchor="start">reservation state.</text>
+  </g>
+<path d="M1020,4489.5 L1092,4489.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,4489.5 L2552,4489.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="4465.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="4484.5" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Reserved</text>
+<path d="M3760,4489.5 L3872,4489.5" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,4489.5 L5272,4489.5" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="4465.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="4484.5" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: reject</text>
+<path d="M1775,4589 L1775,4633" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="4591" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="4610" class="edgeLabel" text-anchor="middle" fill="#64748b">Reserved</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="4641" width="6360" height="219" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="4750.5" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="4759.5" text-anchor="middle" class="stepNo">15</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="4687.5" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="4687.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="4716.5" class="nodeTitle">Customer / staff / system</text>
+    <text x="174" y="4754.5" class="nodeBody" text-anchor="start">Approve terms and accept</text>
+<text x="174" y="4777.5" class="nodeBody" text-anchor="start">contract/PIN authorization.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="4680" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="4680" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="4709" class="nodeTitle">Contract and consent valid?</text>
+    <text x="1134" y="4747" class="nodeBody" text-anchor="start">Approval is not enough. Amount,</text>
+<text x="1134" y="4770" class="nodeBody" text-anchor="start">term, customer, product and</text>
+<text x="1134" y="4793" class="nodeBody" text-anchor="start">authorization must match.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,4675 C2570,4655 3760,4655 3760,4675 L3760,4826 C3760,4848 2570,4848 2570,4826 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="4675" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,4826 C2570,4848 3760,4848 3760,4826" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="4689" class="dbTitle" text-anchor="middle">Approval tables</text>
+    <text x="2598" y="4727" class="nodeBody" text-anchor="start">loan_applications</text>
+<text x="2598" y="4750" class="nodeBody" text-anchor="start">loan_contracts</text>
+<text x="2598" y="4773" class="nodeBody" text-anchor="start">customer_transaction_authorizations</text>
+<text x="2598" y="4796" class="nodeBody" text-anchor="start">credit_limit_reservations</text>
+<text x="2598" y="4819" class="nodeBody" text-anchor="start">audit_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,4680 5126,4680 5170,4750.5 5126,4821 3934,4821 3890,4750.5" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="4714" class="nodeTitle">No Polaris write on rejection</text>
+    <text x="3946" y="4752" class="nodeBody" text-anchor="start">Rejected/cancelled applications</text>
+<text x="3946" y="4775" class="nodeBody" text-anchor="start">release reservation only if no</text>
+<text x="3946" y="4798" class="nodeBody" text-anchor="start">Polaris loan exists.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="4680" width="1140" height="141" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="4680" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="4709" class="nodeTitle">If rejected / consent bad</text>
+    <text x="5314" y="4747" class="nodeBody" text-anchor="start">Release reservation, mark</text>
+<text x="5314" y="4770" class="nodeBody" text-anchor="start">application rejected/cancelled,</text>
+<text x="5314" y="4793" class="nodeBody" text-anchor="start">return reason.</text>
+  </g>
+<path d="M1020,4750.5 L1092,4750.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,4750.5 L2552,4750.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="4726.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="4745.5" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Approved</text>
+<path d="M3760,4750.5 L3872,4750.5" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,4750.5 L5272,4750.5" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="4726.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="4745.5" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: release</text>
+<path d="M1775,4850 L1775,4894" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="4852" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="4871" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="4902" width="6360" height="219" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="5011.5" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="5020.5" text-anchor="middle" class="stepNo">16</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="4948.5" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="4948.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="4977.5" class="nodeTitle">System worker</text>
+    <text x="174" y="5015.5" class="nodeBody" text-anchor="start">Create and open child loan</text>
+<text x="174" y="5038.5" class="nodeBody" text-anchor="start">account.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="4941" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="4941" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="4970" class="nodeTitle">Child loan account open?</text>
+    <text x="1134" y="5008" class="nodeBody" text-anchor="start">Create local loan row, enforce</text>
+<text x="1134" y="5031" class="nodeBody" text-anchor="start">loan_core_steps order, enqueue each</text>
+<text x="1134" y="5054" class="nodeBody" text-anchor="start">Polaris write.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,4936 C2570,4916 3760,4916 3760,4936 L3760,5087 C3760,5109 2570,5109 2570,5087 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="4936" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,5087 C2570,5109 3760,5109 3760,5087" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="4950" class="dbTitle" text-anchor="middle">Loan core rows</text>
+    <text x="2598" y="4988" class="nodeBody" text-anchor="start">loans</text>
+<text x="2598" y="5011" class="nodeBody" text-anchor="start">loan_core_steps</text>
+<text x="2598" y="5034" class="nodeBody" text-anchor="start">polaris_accounts</text>
+<text x="2598" y="5057" class="nodeBody" text-anchor="start">polaris_sync_queue</text>
+<text x="2598" y="5080" class="nodeBody" text-anchor="start">polaris_operation_attempts</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,4948.5 5126,4948.5 5170,5011.5 5126,5074.5 3934,5074.5 3890,5011.5" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="4982.5" class="nodeTitle">Polaris loan account</text>
+    <text x="3946" y="5020.5" class="nodeBody" text-anchor="start">loan/createAccount</text>
+<text x="3946" y="5043.5" class="nodeBody" text-anchor="start">loan/openAccount</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="4929.5" width="1140" height="164" rx="22" ry="22" fill="#fffbeb" stroke="#d97706" stroke-width="1.8"/>
+    <rect x="5290" y="4929.5" width="1140" height="42" rx="22" ry="22" fill="#d97706" opacity="0.12"/>
+    <text x="5314" y="4958.5" class="nodeTitle">If timeout</text>
+    <text x="5314" y="4996.5" class="nodeBody" text-anchor="start">Do not cancel blindly. Search</text>
+<text x="5314" y="5019.5" class="nodeBody" text-anchor="start">account detail, then mark</text>
+<text x="5314" y="5042.5" class="nodeBody" text-anchor="start">success, retry same key, or</text>
+<text x="5314" y="5065.5" class="nodeBody" text-anchor="start">dead_letter.</text>
+  </g>
+<path d="M1020,5011.5 L1092,5011.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,5011.5 L2552,5011.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="4987.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="5006.5" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Open</text>
+<path d="M3760,5011.5 L3872,5011.5" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,5011.5 L5272,5011.5" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="4987.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="5006.5" class="edgeLabel" text-anchor="middle" fill="#0891b2">Timeout: reconcile</text>
+<path d="M1775,5111 L1775,5155" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="5113" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="5132" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="5163" width="6360" height="196" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="5261" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="5270" text-anchor="middle" class="stepNo">17</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="5198" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="5198" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="5227" class="nodeTitle">System worker</text>
+    <text x="174" y="5265" class="nodeBody" text-anchor="start">Calculate and create</text>
+<text x="174" y="5288" class="nodeBody" text-anchor="start">repayment schedule.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="5190.5" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="5190.5" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="5219.5" class="nodeTitle">Schedule confirmed and matched?</text>
+    <text x="1134" y="5257.5" class="nodeBody" text-anchor="start">Local schedule is written only</text>
+<text x="1134" y="5280.5" class="nodeBody" text-anchor="start">after Polaris schedule exists and</text>
+<text x="1134" y="5303.5" class="nodeBody" text-anchor="start">amounts/dates match.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,5197 C2570,5177 3760,5177 3760,5197 L3760,5325 C3760,5347 2570,5347 2570,5325 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="5197" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,5325 C2570,5347 3760,5347 3760,5325" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="5211" class="dbTitle" text-anchor="middle">Schedule rows</text>
+    <text x="2598" y="5249" class="nodeBody" text-anchor="start">repayment_schedules</text>
+<text x="2598" y="5272" class="nodeBody" text-anchor="start">loan_core_steps</text>
+<text x="2598" y="5295" class="nodeBody" text-anchor="start">loans</text>
+<text x="2598" y="5318" class="nodeBody" text-anchor="start">audit_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,5190.5 5126,5190.5 5170,5261 5126,5331.5 3934,5331.5 3890,5261" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="5224.5" class="nodeTitle">Polaris schedule</text>
+    <text x="3946" y="5262.5" class="nodeBody" text-anchor="start">loan/calculateNrsSchedule</text>
+<text x="3946" y="5285.5" class="nodeBody" text-anchor="start">loan/createNrsSchedule</text>
+<text x="3946" y="5308.5" class="nodeBody" text-anchor="start">loan/getNrsSchedule if needed</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="5190.5" width="1140" height="141" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="5190.5" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="5219.5" class="nodeTitle">If mismatch/fail</text>
+    <text x="5314" y="5257.5" class="nodeBody" text-anchor="start">No line link and no grant. Keep</text>
+<text x="5314" y="5280.5" class="nodeBody" text-anchor="start">reservation until retry/cancel</text>
+<text x="5314" y="5303.5" class="nodeBody" text-anchor="start">policy resolves.</text>
+  </g>
+<path d="M1020,5261 L1092,5261" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,5261 L2552,5261" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="5237" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="5256" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Matched</text>
+<path d="M3760,5261 L3872,5261" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,5261 L5272,5261" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="5237" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="5256" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: stop grant</text>
+<path d="M1775,5349 L1775,5393" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="5351" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="5370" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="5401" width="6360" height="196" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="5499" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="5508" text-anchor="middle" class="stepNo">18</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="5436" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="5436" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="5465" class="nodeTitle">System worker</text>
+    <text x="174" y="5503" class="nodeBody" text-anchor="start">Connect child loan to line</text>
+<text x="174" y="5526" class="nodeBody" text-anchor="start">account.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="5428.5" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="5428.5" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="5457.5" class="nodeTitle">Loan linked to line?</text>
+    <text x="1134" y="5495.5" class="nodeBody" text-anchor="start">Grant is blocked until the child</text>
+<text x="1134" y="5518.5" class="nodeBody" text-anchor="start">loan is linked to the active line</text>
+<text x="1134" y="5541.5" class="nodeBody" text-anchor="start">account.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,5435 C2570,5415 3760,5415 3760,5435 L3760,5563 C3760,5585 2570,5585 2570,5563 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="5435" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,5563 C2570,5585 3760,5585 3760,5563" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="5449" class="dbTitle" text-anchor="middle">Line link rows</text>
+    <text x="2598" y="5487" class="nodeBody" text-anchor="start">loans</text>
+<text x="2598" y="5510" class="nodeBody" text-anchor="start">credit_line_accounts</text>
+<text x="2598" y="5533" class="nodeBody" text-anchor="start">loan_core_steps</text>
+<text x="2598" y="5556" class="nodeBody" text-anchor="start">polaris_sync_queue</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,5436 5126,5436 5170,5499 5126,5562 3934,5562 3890,5499" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="5470" class="nodeTitle">Polaris line link</text>
+    <text x="3946" y="5508" class="nodeBody" text-anchor="start">line/linkLineAccountToLoan</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="5436" width="1140" height="126" rx="22" ry="22" fill="#fffbeb" stroke="#d97706" stroke-width="1.8"/>
+    <rect x="5290" y="5436" width="1140" height="42" rx="22" ry="22" fill="#d97706" opacity="0.12"/>
+    <text x="5314" y="5465" class="nodeTitle">If unknown</text>
+    <text x="5314" y="5503" class="nodeBody" text-anchor="start">pending_reconcile. Do not call</text>
+<text x="5314" y="5526" class="nodeBody" text-anchor="start">grant until link is confirmed.</text>
+  </g>
+<path d="M1020,5499 L1092,5499" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,5499 L2552,5499" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="5475" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="5494" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Linked</text>
+<path d="M3760,5499 L3872,5499" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,5499 L5272,5499" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="5475" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="5494" class="edgeLabel" text-anchor="middle" fill="#0891b2">No/timeout</text>
+<path d="M1775,5587 L1775,5631" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="5589" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="5608" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="5639" width="6360" height="242" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="5760" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="5769" text-anchor="middle" class="stepNo">19</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="5697" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="5697" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="5726" class="nodeTitle">System worker</text>
+    <text x="174" y="5764" class="nodeBody" text-anchor="start">Grant loan into customer</text>
+<text x="174" y="5787" class="nodeBody" text-anchor="start">deposit account.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="5689.5" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="5689.5" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="5718.5" class="nodeTitle">Grant journal confirmed?</text>
+    <text x="1134" y="5756.5" class="nodeBody" text-anchor="start">Create ledger journal first, then</text>
+<text x="1134" y="5779.5" class="nodeBody" text-anchor="start">execute grant from child loan to</text>
+<text x="1134" y="5802.5" class="nodeBody" text-anchor="start">customer deposit.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,5673 C2570,5653 3760,5653 3760,5673 L3760,5847 C3760,5869 2570,5869 2570,5847 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="5673" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,5847 C2570,5869 3760,5869 3760,5847" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="5687" class="dbTitle" text-anchor="middle">Grant ledger rows</text>
+    <text x="2598" y="5725" class="nodeBody" text-anchor="start">ledger_journals</text>
+<text x="2598" y="5748" class="nodeBody" text-anchor="start">ledger_entries</text>
+<text x="2598" y="5771" class="nodeBody" text-anchor="start">loans</text>
+<text x="2598" y="5794" class="nodeBody" text-anchor="start">loan_applications</text>
+<text x="2598" y="5817" class="nodeBody" text-anchor="start">credit_limit_reservations</text>
+<text x="2598" y="5840" class="nodeBody" text-anchor="start">polaris_accounts</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,5689.5 5126,5689.5 5170,5760 5126,5830.5 3934,5830.5 3890,5760" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="5723.5" class="nodeTitle">Polaris grant</text>
+    <text x="3946" y="5761.5" class="nodeBody" text-anchor="start">loan/grantLoanNonCash</text>
+<text x="3946" y="5784.5" class="nodeBody" text-anchor="start">journal/statement lookup on</text>
+<text x="3946" y="5807.5" class="nodeBody" text-anchor="start">timeout</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="5689.5" width="1140" height="141" rx="22" ry="22" fill="#fffbeb" stroke="#d97706" stroke-width="1.8"/>
+    <rect x="5290" y="5689.5" width="1140" height="42" rx="22" ry="22" fill="#d97706" opacity="0.12"/>
+    <text x="5314" y="5718.5" class="nodeTitle">If unknown result</text>
+    <text x="5314" y="5756.5" class="nodeBody" text-anchor="start">pending_reconcile. Never double</text>
+<text x="5314" y="5779.5" class="nodeBody" text-anchor="start">grant; first query jrno,</text>
+<text x="5314" y="5802.5" class="nodeBody" text-anchor="start">statements and account details.</text>
+  </g>
+<path d="M1020,5760 L1092,5760" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,5760 L2552,5760" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="5736" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="5755" class="edgeLabel" text-anchor="middle" fill="#94a3b8">jrno stored</text>
+<path d="M3760,5760 L3872,5760" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,5760 L5272,5760" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="5736" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="5755" class="edgeLabel" text-anchor="middle" fill="#0891b2">Timeout: reconcile</text>
+<path d="M1775,5871 L1775,5915" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="5873" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="5892" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="5923" width="6360" height="219" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="6032.5" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="6041.5" text-anchor="middle" class="stepNo">20</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="5969.5" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="5969.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="5998.5" class="nodeTitle">System decision</text>
+    <text x="174" y="6036.5" class="nodeBody" text-anchor="start">After grant is confirmed.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="5962" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="5962" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="5991" class="nodeTitle">Is this BNPL?</text>
+    <text x="1134" y="6029" class="nodeBody" text-anchor="start">One-tap becomes active immediately.</text>
+<text x="1134" y="6052" class="nodeBody" text-anchor="start">BNPL must still transfer customer</text>
+<text x="1134" y="6075" class="nodeBody" text-anchor="start">deposit to merchant passive.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,5957 C2570,5937 3760,5937 3760,5957 L3760,6108 C3760,6130 2570,6130 2570,6108 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="5957" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,6108 C2570,6130 3760,6130 3760,6108" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="5971" class="dbTitle" text-anchor="middle">Product state</text>
+    <text x="2598" y="6009" class="nodeBody" text-anchor="start">loans</text>
+<text x="2598" y="6032" class="nodeBody" text-anchor="start">pos_transactions</text>
+<text x="2598" y="6055" class="nodeBody" text-anchor="start">loan_applications</text>
+<text x="2598" y="6078" class="nodeBody" text-anchor="start">credit_limit_reservations</text>
+<text x="2598" y="6101" class="nodeBody" text-anchor="start">audit_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,5969.5 5126,5969.5 5170,6032.5 5126,6095.5 3934,6095.5 3890,6032.5" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="6003.5" class="nodeTitle">No new call for one-tap</text>
+    <text x="3946" y="6041.5" class="nodeBody" text-anchor="start">BNPL continues to internal CASA</text>
+<text x="3946" y="6064.5" class="nodeBody" text-anchor="start">transfer.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="5962" width="1140" height="141" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="5962" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="5991" class="nodeTitle">One-tap success</text>
+    <text x="5314" y="6029" class="nodeBody" text-anchor="start">Loan active, application</text>
+<text x="5314" y="6052" class="nodeBody" text-anchor="start">disbursed, reservation consumed,</text>
+<text x="5314" y="6075" class="nodeBody" text-anchor="start">customer can use funds.</text>
+  </g>
+<path d="M1020,6032.5 L1092,6032.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,6032.5 L2552,6032.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="6008.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="6027.5" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Yes: BNPL</text>
+<path d="M3760,6032.5 L3872,6032.5" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,6032.5 L5272,6032.5" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="6008.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="6027.5" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: one-tap active</text>
+<path d="M1775,6132 L1775,6176" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="6134" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="6153" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="6184" width="6360" height="242" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="6305" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="6314" text-anchor="middle" class="stepNo">21</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="6234.5" width="870" height="141" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="6234.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="6263.5" class="nodeTitle">System worker</text>
+    <text x="174" y="6301.5" class="nodeBody" text-anchor="start">Move BNPL money from</text>
+<text x="174" y="6324.5" class="nodeBody" text-anchor="start">customer deposit to merchant</text>
+<text x="174" y="6347.5" class="nodeBody" text-anchor="start">passive account.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="6242" width="1330" height="126" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="6242" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="6271" class="nodeTitle">Merchant transfer confirmed?</text>
+    <text x="1134" y="6309" class="nodeBody" text-anchor="start">POS is not approved until the</text>
+<text x="1134" y="6332" class="nodeBody" text-anchor="start">passive transfer jrno is confirmed.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,6218 C2570,6198 3760,6198 3760,6218 L3760,6392 C3760,6414 2570,6414 2570,6392 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="6218" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,6392 C2570,6414 3760,6414 3760,6392" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="6232" class="dbTitle" text-anchor="middle">BNPL transfer rows</text>
+    <text x="2598" y="6270" class="nodeBody" text-anchor="start">pos_transactions</text>
+<text x="2598" y="6293" class="nodeBody" text-anchor="start">merchant_settlement_items</text>
+<text x="2598" y="6316" class="nodeBody" text-anchor="start">ledger_journals</text>
+<text x="2598" y="6339" class="nodeBody" text-anchor="start">ledger_entries</text>
+<text x="2598" y="6362" class="nodeBody" text-anchor="start">loans</text>
+<text x="2598" y="6385" class="nodeBody" text-anchor="start">audit_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,6234.5 5126,6234.5 5170,6305 5126,6375.5 3934,6375.5 3890,6305" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="6268.5" class="nodeTitle">Polaris internal CASA</text>
+    <text x="3946" y="6306.5" class="nodeBody" text-anchor="start">tllrcasa/internalCasaTransaction</text>
+<text x="3946" y="6329.5" class="nodeBody" text-anchor="start">customer deposit -&gt; merchant</text>
+<text x="3946" y="6352.5" class="nodeBody" text-anchor="start">passive</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="6234.5" width="1140" height="141" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="6234.5" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="6263.5" class="nodeTitle">If timeout/fail</text>
+    <text x="5314" y="6301.5" class="nodeBody" text-anchor="start">Loan may exist, but POS stays</text>
+<text x="5314" y="6324.5" class="nodeBody" text-anchor="start">pending_merchant_transfer/pending_reconcile.</text>
+<text x="5314" y="6347.5" class="nodeBody" text-anchor="start">No approved callback.</text>
+  </g>
+<path d="M1020,6305 L1092,6305" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,6305 L2552,6305" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="6281" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="6300" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Confirmed</text>
+<path d="M3760,6305 L3872,6305" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,6305 L5272,6305" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="6281" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="6300" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: pending</text>
+<path d="M1775,6416 L1775,6460" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="6418" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="6437" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="6468" width="6360" height="196" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="6566" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="6575" text-anchor="middle" class="stepNo">22</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="6495.5" width="870" height="141" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="6495.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="6524.5" class="nodeTitle">Merchant POS</text>
+    <text x="174" y="6562.5" class="nodeBody" text-anchor="start">Receive final</text>
+<text x="174" y="6585.5" class="nodeBody" text-anchor="start">approved/rejected/timeout</text>
+<text x="174" y="6608.5" class="nodeBody" text-anchor="start">callback.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="6484" width="1330" height="164" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="6484" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="6513" class="nodeTitle">Callback delivered?</text>
+    <text x="1134" y="6551" class="nodeBody" text-anchor="start">Retry callback delivery</text>
+<text x="1134" y="6574" class="nodeBody" text-anchor="start">idempotently. Financial operations</text>
+<text x="1134" y="6597" class="nodeBody" text-anchor="start">are never repeated by callback</text>
+<text x="1134" y="6620" class="nodeBody" text-anchor="start">retry.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,6502 C2570,6482 3760,6482 3760,6502 L3760,6630 C3760,6652 2570,6652 2570,6630 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="6502" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,6630 C2570,6652 3760,6652 3760,6630" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="6516" class="dbTitle" text-anchor="middle">Callback rows</text>
+    <text x="2598" y="6554" class="nodeBody" text-anchor="start">pos_terminal_callbacks</text>
+<text x="2598" y="6577" class="nodeBody" text-anchor="start">pos_payment_invoices</text>
+<text x="2598" y="6600" class="nodeBody" text-anchor="start">pos_transactions</text>
+<text x="2598" y="6623" class="nodeBody" text-anchor="start">audit_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,6503 5126,6503 5170,6566 5126,6629 3934,6629 3890,6566" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="6537" class="nodeTitle">Merchant POS callback</text>
+    <text x="3946" y="6575" class="nodeBody" text-anchor="start">External merchant terminal</text>
+<text x="3946" y="6598" class="nodeBody" text-anchor="start">callback endpoint.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="6495.5" width="1140" height="141" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="6495.5" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="6524.5" class="nodeTitle">If delivery fails</text>
+    <text x="5314" y="6562.5" class="nodeBody" text-anchor="start">Retry callback only. Loan grant</text>
+<text x="5314" y="6585.5" class="nodeBody" text-anchor="start">and merchant transfer stay</text>
+<text x="5314" y="6608.5" class="nodeBody" text-anchor="start">single-execution.</text>
+  </g>
+<path d="M1020,6566 L1092,6566" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,6566 L2552,6566" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="6542" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="6561" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Delivered</text>
+<path d="M3760,6566 L3872,6566" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,6566 L5272,6566" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="6542" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="6561" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: retry callback</text>
+<path d="M1775,6654 L1775,6868" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="6741" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="6760" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <linearGradient id="sec_Repayment_and_Closing" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+    <rect x="120" y="6814" width="6360" height="58" rx="20" ry="20" fill="url(#sec_Repayment_and_Closing)"/>
+    <text x="148" y="6851" class="sectionTitle">Repayment and Closing</text>
+    <text x="590" y="6851" class="sectionSub">QPay callback, inbound money, loan payment, allocation, overdue and final close</text>
+  </g>
+<g filter="url(#softShadow)">
+    <rect x="120" y="6876" width="6360" height="196" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="6974" r="34" fill="#0f172a" opacity="0.92"/>
+    <text x="162" y="6983" text-anchor="middle" class="stepNo">23</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="6903.5" width="870" height="141" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="6903.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="6932.5" class="nodeTitle">Customer app</text>
+    <text x="174" y="6970.5" class="nodeBody" text-anchor="start">Create repayment invoice for</text>
+<text x="174" y="6993.5" class="nodeBody" text-anchor="start">schedule, loan or manual</text>
+<text x="174" y="7016.5" class="nodeBody" text-anchor="start">amount.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="6903.5" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="6903.5" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="6932.5" class="nodeTitle">Active payable target?</text>
+    <text x="1134" y="6970.5" class="nodeBody" text-anchor="start">Invoice amount must be positive and</text>
+<text x="1134" y="6993.5" class="nodeBody" text-anchor="start">target loan/schedule must be</text>
+<text x="1134" y="7016.5" class="nodeBody" text-anchor="start">active.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,6910 C2570,6890 3760,6890 3760,6910 L3760,7038 C3760,7060 2570,7060 2570,7038 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="6910" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,7038 C2570,7060 3760,7060 3760,7038" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="6924" class="dbTitle" text-anchor="middle">QPay invoice rows</text>
+    <text x="2598" y="6962" class="nodeBody" text-anchor="start">qpay_repayment_invoices</text>
+<text x="2598" y="6985" class="nodeBody" text-anchor="start">repayment_schedules</text>
+<text x="2598" y="7008" class="nodeBody" text-anchor="start">loans</text>
+<text x="2598" y="7031" class="nodeBody" text-anchor="start">audit_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,6911 5126,6911 5170,6974 5126,7037 3934,7037 3890,6974" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="6945" class="nodeTitle">QPay invoice</text>
+    <text x="3946" y="6983" class="nodeBody" text-anchor="start">External QPay invoice creation if</text>
+<text x="3946" y="7006" class="nodeBody" text-anchor="start">provider is used.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="6911" width="1140" height="126" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="6911" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="6940" class="nodeTitle">If duplicate/invalid</text>
+    <text x="5314" y="6978" class="nodeBody" text-anchor="start">Reject or return existing active</text>
+<text x="5314" y="7001" class="nodeBody" text-anchor="start">invoice according to policy.</text>
+  </g>
+<path d="M1020,6974 L1092,6974" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,6974 L2552,6974" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="6950" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="6969" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Created</text>
+<path d="M3760,6974 L3872,6974" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,6974 L5272,6974" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="6950" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="6969" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: reject/reuse</text>
+<path d="M1775,7062 L1775,7106" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="7064" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="7083" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="7114" width="6360" height="173" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="7200.5" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="7209.5" text-anchor="middle" class="stepNo">24</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="7137.5" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="7137.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="7166.5" class="nodeTitle">QPay / system</text>
+    <text x="174" y="7204.5" class="nodeBody" text-anchor="start">Receive payment callback.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="7130" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="7130" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="7159" class="nodeTitle">Callback valid and new?</text>
+    <text x="1134" y="7197" class="nodeBody" text-anchor="start">Validate signature, amount,</text>
+<text x="1134" y="7220" class="nodeBody" text-anchor="start">invoice, qpay_payment_id and</text>
+<text x="1134" y="7243" class="nodeBody" text-anchor="start">idempotency key.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,7148 C2570,7128 3760,7128 3760,7148 L3760,7253 C3760,7275 2570,7275 2570,7253 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="7148" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,7253 C2570,7275 3760,7275 3760,7253" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="7162" class="dbTitle" text-anchor="middle">Callback rows</text>
+    <text x="2598" y="7200" class="nodeBody" text-anchor="start">qpay_repayment_callbacks</text>
+<text x="2598" y="7223" class="nodeBody" text-anchor="start">repayment_transactions</text>
+<text x="2598" y="7246" class="nodeBody" text-anchor="start">audit_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,7137.5 5126,7137.5 5170,7200.5 5126,7263.5 3934,7263.5 3890,7200.5" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="7171.5" class="nodeTitle">QPay callback</text>
+    <text x="3946" y="7209.5" class="nodeBody" text-anchor="start">External QPay payment</text>
+<text x="3946" y="7232.5" class="nodeBody" text-anchor="start">notification.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="7130" width="1140" height="141" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="7130" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="7159" class="nodeTitle">Duplicate / invalid</text>
+    <text x="5314" y="7197" class="nodeBody" text-anchor="start">Duplicate payment id is ignored.</text>
+<text x="5314" y="7220" class="nodeBody" text-anchor="start">Invalid callback is failed with</text>
+<text x="5314" y="7243" class="nodeBody" text-anchor="start">no loan payment.</text>
+  </g>
+<path d="M1020,7200.5 L1092,7200.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,7200.5 L2552,7200.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="7176.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="7195.5" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Valid</text>
+<path d="M3760,7200.5 L3872,7200.5" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,7200.5 L5272,7200.5" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="7176.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="7195.5" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: ignored/failed</text>
+<path d="M1775,7277 L1775,7321" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="7279" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="7298" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="7329" width="6360" height="196" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="7427" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="7436" text-anchor="middle" class="stepNo">25</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="7364" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="7364" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="7393" class="nodeTitle">System worker</text>
+    <text x="174" y="7431" class="nodeBody" text-anchor="start">Stage real incoming money to</text>
+<text x="174" y="7454" class="nodeBody" text-anchor="start">customer deposit.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="7356.5" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="7356.5" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="7385.5" class="nodeTitle">Inbound money confirmed?</text>
+    <text x="1134" y="7423.5" class="nodeBody" text-anchor="start">Do not pay loan until</text>
+<text x="1134" y="7446.5" class="nodeBody" text-anchor="start">bank/QPay/repayment pool transfer</text>
+<text x="1134" y="7469.5" class="nodeBody" text-anchor="start">is confirmed.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,7363 C2570,7343 3760,7343 3760,7363 L3760,7491 C3760,7513 2570,7513 2570,7491 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="7363" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,7491 C2570,7513 3760,7513 3760,7491" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="7377" class="dbTitle" text-anchor="middle">Inbound ledger rows</text>
+    <text x="2598" y="7415" class="nodeBody" text-anchor="start">repayment_transactions</text>
+<text x="2598" y="7438" class="nodeBody" text-anchor="start">ledger_journals</text>
+<text x="2598" y="7461" class="nodeBody" text-anchor="start">ledger_entries</text>
+<text x="2598" y="7484" class="nodeBody" text-anchor="start">polaris_accounts</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,7364 5126,7364 5170,7427 5126,7490 3934,7490 3890,7427" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="7398" class="nodeTitle">Inbound transfer</text>
+    <text x="3946" y="7436" class="nodeBody" text-anchor="start">tllrbac/transactionBacToCasa or</text>
+<text x="3946" y="7459" class="nodeBody" text-anchor="start">configured inbound transfer</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="7356.5" width="1140" height="141" rx="22" ry="22" fill="#fffbeb" stroke="#d97706" stroke-width="1.8"/>
+    <rect x="5290" y="7356.5" width="1140" height="42" rx="22" ry="22" fill="#d97706" opacity="0.12"/>
+    <text x="5314" y="7385.5" class="nodeTitle">If unknown</text>
+    <text x="5314" y="7423.5" class="nodeBody" text-anchor="start">Funds are not allocated to loan.</text>
+<text x="5314" y="7446.5" class="nodeBody" text-anchor="start">Mark pending_reconcile and query</text>
+<text x="5314" y="7469.5" class="nodeBody" text-anchor="start">statements first.</text>
+  </g>
+<path d="M1020,7427 L1092,7427" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,7427 L2552,7427" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="7403" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="7422" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Confirmed</text>
+<path d="M3760,7427 L3872,7427" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,7427 L5272,7427" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="7403" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="7422" class="edgeLabel" text-anchor="middle" fill="#0891b2">No/timeout</text>
+<path d="M1775,7515 L1775,7559" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="7517" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="7536" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="7567" width="6360" height="219" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="7676.5" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="7685.5" text-anchor="middle" class="stepNo">26</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="7613.5" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="7613.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="7642.5" class="nodeTitle">System worker</text>
+    <text x="174" y="7680.5" class="nodeBody" text-anchor="start">Pay loan from customer</text>
+<text x="174" y="7703.5" class="nodeBody" text-anchor="start">deposit account.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="7606" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="7606" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="7635" class="nodeTitle">Loan payment confirmed?</text>
+    <text x="1134" y="7673" class="nodeBody" text-anchor="start">Use same repayment transaction</text>
+<text x="1134" y="7696" class="nodeBody" text-anchor="start">idempotency key. Staged funds are</text>
+<text x="1134" y="7719" class="nodeBody" text-anchor="start">not double-applied.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,7601 C2570,7581 3760,7581 3760,7601 L3760,7752 C3760,7774 2570,7774 2570,7752 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="7601" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,7752 C2570,7774 3760,7774 3760,7752" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="7615" class="dbTitle" text-anchor="middle">Loan payment rows</text>
+    <text x="2598" y="7653" class="nodeBody" text-anchor="start">repayment_transactions</text>
+<text x="2598" y="7676" class="nodeBody" text-anchor="start">ledger_journals</text>
+<text x="2598" y="7699" class="nodeBody" text-anchor="start">ledger_entries</text>
+<text x="2598" y="7722" class="nodeBody" text-anchor="start">loan_core_steps</text>
+<text x="2598" y="7745" class="nodeBody" text-anchor="start">polaris_accounts</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,7613.5 5126,7613.5 5170,7676.5 5126,7739.5 3934,7739.5 3890,7676.5" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="7647.5" class="nodeTitle">Polaris loan payment</text>
+    <text x="3946" y="7685.5" class="nodeBody" text-anchor="start">loan/nonCashLoanPayment</text>
+<text x="3946" y="7708.5" class="nodeBody" text-anchor="start">loan/loanPaymentTxnNonCash</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="7606" width="1140" height="141" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="7606" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="7635" class="nodeTitle">If payment fails after inbound</text>
+    <text x="5314" y="7673" class="nodeBody" text-anchor="start">Keep funds staged,</text>
+<text x="5314" y="7696" class="nodeBody" text-anchor="start">retry/reconcile same transaction</text>
+<text x="5314" y="7719" class="nodeBody" text-anchor="start">only.</text>
+  </g>
+<path d="M1020,7676.5 L1092,7676.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,7676.5 L2552,7676.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="7652.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="7671.5" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Confirmed</text>
+<path d="M3760,7676.5 L3872,7676.5" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,7676.5 L5272,7676.5" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="7652.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="7671.5" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: staged</text>
+<path d="M1775,7776 L1775,7820" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="7778" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="7797" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="7828" width="6360" height="196" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="7926" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="7935" text-anchor="middle" class="stepNo">27</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="7863" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="7863" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="7892" class="nodeTitle">System worker</text>
+    <text x="174" y="7930" class="nodeBody" text-anchor="start">Allocate confirmed payment</text>
+<text x="174" y="7953" class="nodeBody" text-anchor="start">to schedules.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="7855.5" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="7855.5" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="7884.5" class="nodeTitle">Schedule lock acquired?</text>
+    <text x="1134" y="7922.5" class="nodeBody" text-anchor="start">Lock schedules before allocation;</text>
+<text x="1134" y="7945.5" class="nodeBody" text-anchor="start">principal, interest and penalty</text>
+<text x="1134" y="7968.5" class="nodeBody" text-anchor="start">order follows policy.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,7862 C2570,7842 3760,7842 3760,7862 L3760,7990 C3760,8012 2570,8012 2570,7990 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="7862" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,7990 C2570,8012 3760,8012 3760,7990" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="7876" class="dbTitle" text-anchor="middle">Allocation rows</text>
+    <text x="2598" y="7914" class="nodeBody" text-anchor="start">repayment_schedules</text>
+<text x="2598" y="7937" class="nodeBody" text-anchor="start">repayment_allocations</text>
+<text x="2598" y="7960" class="nodeBody" text-anchor="start">repayment_transactions</text>
+<text x="2598" y="7983" class="nodeBody" text-anchor="start">audit_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,7855.5 5126,7855.5 5170,7926 5126,7996.5 3934,7996.5 3890,7926" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="7889.5" class="nodeTitle">No extra write</text>
+    <text x="3946" y="7927.5" class="nodeBody" text-anchor="start">Polaris payment is already</text>
+<text x="3946" y="7950.5" class="nodeBody" text-anchor="start">confirmed unless adjustment is</text>
+<text x="3946" y="7973.5" class="nodeBody" text-anchor="start">required.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="7863" width="1140" height="126" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="7863" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="7892" class="nodeTitle">If lock conflict</text>
+    <text x="5314" y="7930" class="nodeBody" text-anchor="start">Retry allocation idempotently.</text>
+<text x="5314" y="7953" class="nodeBody" text-anchor="start">Never allocate above total due.</text>
+  </g>
+<path d="M1020,7926 L1092,7926" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,7926 L2552,7926" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="7902" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="7921" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Locked</text>
+<path d="M3760,7926 L3872,7926" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,7926 L5272,7926" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="7902" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="7921" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: retry</text>
+<path d="M1775,8014 L1775,8058" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="8016" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="8035" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="8066" width="6360" height="219" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="8175.5" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="8184.5" text-anchor="middle" class="stepNo">28</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="8112.5" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="8112.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="8141.5" class="nodeTitle">System decision</text>
+    <text x="174" y="8179.5" class="nodeBody" text-anchor="start">Classify repayment result.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="8093.5" width="1330" height="164" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="8093.5" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="8122.5" class="nodeTitle">Overpayment or final payment?</text>
+    <text x="1134" y="8160.5" class="nodeBody" text-anchor="start">Partial updates schedule.</text>
+<text x="1134" y="8183.5" class="nodeBody" text-anchor="start">Overpayment follows hold/refund</text>
+<text x="1134" y="8206.5" class="nodeBody" text-anchor="start">policy. Final payment checks</text>
+<text x="1134" y="8229.5" class="nodeBody" text-anchor="start">closing details.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,8100 C2570,8080 3760,8080 3760,8100 L3760,8251 C3760,8273 2570,8273 2570,8251 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="8100" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,8251 C2570,8273 3760,8273 3760,8251" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="8114" class="dbTitle" text-anchor="middle">Repayment state</text>
+    <text x="2598" y="8152" class="nodeBody" text-anchor="start">repayment_schedules</text>
+<text x="2598" y="8175" class="nodeBody" text-anchor="start">repayment_transactions</text>
+<text x="2598" y="8198" class="nodeBody" text-anchor="start">repayment_allocations</text>
+<text x="2598" y="8221" class="nodeBody" text-anchor="start">ledger_journals</text>
+<text x="2598" y="8244" class="nodeBody" text-anchor="start">loans</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,8112.5 5126,8112.5 5170,8175.5 5126,8238.5 3934,8238.5 3890,8175.5" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="8146.5" class="nodeTitle">Polaris closing detail</text>
+    <text x="3946" y="8184.5" class="nodeBody" text-anchor="start">loan/getLoanClosingAccountDetail</text>
+<text x="3946" y="8207.5" class="nodeBody" text-anchor="start">for final close candidate</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="8093.5" width="1140" height="164" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="8093.5" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="8122.5" class="nodeTitle">If overpaid</text>
+    <text x="5314" y="8160.5" class="nodeBody" text-anchor="start">Reject before movement or</text>
+<text x="5314" y="8183.5" class="nodeBody" text-anchor="start">hold/refund once after statement</text>
+<text x="5314" y="8206.5" class="nodeBody" text-anchor="start">check. No paid amount above</text>
+<text x="5314" y="8229.5" class="nodeBody" text-anchor="start">total due.</text>
+  </g>
+<path d="M1020,8175.5 L1092,8175.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,8175.5 L2552,8175.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="8151.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="8170.5" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Partial/final</text>
+<path d="M3760,8175.5 L3872,8175.5" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,8175.5 L5272,8175.5" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="8151.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="8170.5" class="edgeLabel" text-anchor="middle" fill="#0891b2">Overpaid: hold/refund</text>
+<path d="M1775,8275 L1775,8319" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="8277" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="8296" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="8327" width="6360" height="219" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="8436.5" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="8445.5" text-anchor="middle" class="stepNo">29</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="8373.5" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="8373.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="8402.5" class="nodeTitle">System worker</text>
+    <text x="174" y="8440.5" class="nodeBody" text-anchor="start">Close loan when fully paid.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="8366" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="8366" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="8395" class="nodeTitle">Close confirmed?</text>
+    <text x="1134" y="8433" class="nodeBody" text-anchor="start">Close only when all schedules are</text>
+<text x="1134" y="8456" class="nodeBody" text-anchor="start">paid and Polaris closing detail</text>
+<text x="1134" y="8479" class="nodeBody" text-anchor="start">confirms payable amount.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,8361 C2570,8341 3760,8341 3760,8361 L3760,8512 C3760,8534 2570,8534 2570,8512 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="8361" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,8512 C2570,8534 3760,8534 3760,8512" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="8375" class="dbTitle" text-anchor="middle">Closing rows</text>
+    <text x="2598" y="8413" class="nodeBody" text-anchor="start">loans</text>
+<text x="2598" y="8436" class="nodeBody" text-anchor="start">repayment_schedules</text>
+<text x="2598" y="8459" class="nodeBody" text-anchor="start">credit_line_accounts</text>
+<text x="2598" y="8482" class="nodeBody" text-anchor="start">ledger_journals</text>
+<text x="2598" y="8505" class="nodeBody" text-anchor="start">audit_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,8366 5126,8366 5170,8436.5 5126,8507 3934,8507 3890,8436.5" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="8400" class="nodeTitle">Polaris close</text>
+    <text x="3946" y="8438" class="nodeBody" text-anchor="start">loan/nonCashCloseAccount</text>
+<text x="3946" y="8461" class="nodeBody" text-anchor="start">statement/account detail on</text>
+<text x="3946" y="8484" class="nodeBody" text-anchor="start">timeout</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="8366" width="1140" height="141" rx="22" ry="22" fill="#fffbeb" stroke="#d97706" stroke-width="1.8"/>
+    <rect x="5290" y="8366" width="1140" height="42" rx="22" ry="22" fill="#d97706" opacity="0.12"/>
+    <text x="5314" y="8395" class="nodeTitle">If timeout</text>
+    <text x="5314" y="8433" class="nodeBody" text-anchor="start">pending_reconcile. Reduce line</text>
+<text x="5314" y="8456" class="nodeBody" text-anchor="start">utilized amount only after</text>
+<text x="5314" y="8479" class="nodeBody" text-anchor="start">confirmed close.</text>
+  </g>
+<path d="M1020,8436.5 L1092,8436.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,8436.5 L2552,8436.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="8412.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="8431.5" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Closed</text>
+<path d="M3760,8436.5 L3872,8436.5" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,8436.5 L5272,8436.5" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="8412.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="8431.5" class="edgeLabel" text-anchor="middle" fill="#0891b2">No/timeout</text>
+<path d="M1775,8536 L1775,8580" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="8538" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="8557" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="8588" width="6360" height="196" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="8686" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="8695" text-anchor="middle" class="stepNo">30</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="8623" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="8623" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="8652" class="nodeTitle">Scheduler</text>
+    <text x="174" y="8690" class="nodeBody" text-anchor="start">Run daily overdue, penalty</text>
+<text x="174" y="8713" class="nodeBody" text-anchor="start">and notification jobs.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="8615.5" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="8615.5" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="8644.5" class="nodeTitle">Due unpaid schedules?</text>
+    <text x="1134" y="8682.5" class="nodeBody" text-anchor="start">Mark overdue, add penalty only</text>
+<text x="1134" y="8705.5" class="nodeBody" text-anchor="start">once, notify customer and expose</text>
+<text x="1134" y="8728.5" class="nodeBody" text-anchor="start">collection state.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,8622 C2570,8602 3760,8602 3760,8622 L3760,8750 C3760,8772 2570,8772 2570,8750 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="8622" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,8750 C2570,8772 3760,8772 3760,8750" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="8636" class="dbTitle" text-anchor="middle">Collection rows</text>
+    <text x="2598" y="8674" class="nodeBody" text-anchor="start">repayment_schedules</text>
+<text x="2598" y="8697" class="nodeBody" text-anchor="start">penalty_records</text>
+<text x="2598" y="8720" class="nodeBody" text-anchor="start">notification_logs</text>
+<text x="2598" y="8743" class="nodeBody" text-anchor="start">audit_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,8623 5126,8623 5170,8686 5126,8749 3934,8749 3890,8686" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="8657" class="nodeTitle">Optional penalty sync</text>
+    <text x="3946" y="8695" class="nodeBody" text-anchor="start">No Polaris call unless configured</text>
+<text x="3946" y="8718" class="nodeBody" text-anchor="start">penalty posting is required.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="8615.5" width="1140" height="141" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="8615.5" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="8644.5" class="nodeTitle">If job retries</text>
+    <text x="5314" y="8682.5" class="nodeBody" text-anchor="start">Idempotent retry; no duplicate</text>
+<text x="5314" y="8705.5" class="nodeBody" text-anchor="start">penalty or notification side</text>
+<text x="5314" y="8728.5" class="nodeBody" text-anchor="start">effect where uniqueness applies.</text>
+  </g>
+<path d="M1020,8686 L1092,8686" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,8686 L2552,8686" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="8662" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="8681" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Processed</text>
+<path d="M3760,8686 L3872,8686" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,8686 L5272,8686" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="8662" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="8681" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: skip</text>
+<path d="M1775,8774 L1775,8818" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="8776" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="8795" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="8826" width="6360" height="173" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="8912.5" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="8921.5" text-anchor="middle" class="stepNo">31</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="8849.5" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="8849.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="8878.5" class="nodeTitle">Scheduler</text>
+    <text x="174" y="8916.5" class="nodeBody" text-anchor="start">Apply cashback or repayment</text>
+<text x="174" y="8939.5" class="nodeBody" text-anchor="start">reward when eligible.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="8842" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="8842" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="8871" class="nodeTitle">Reward eligible and not paid?</text>
+    <text x="1134" y="8909" class="nodeBody" text-anchor="start">Check repayment timing and product</text>
+<text x="1134" y="8932" class="nodeBody" text-anchor="start">policy before writing wallet/reward</text>
+<text x="1134" y="8955" class="nodeBody" text-anchor="start">rows.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,8860 C2570,8840 3760,8840 3760,8860 L3760,8965 C3760,8987 2570,8987 2570,8965 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="8860" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,8965 C2570,8987 3760,8987 3760,8965" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="8874" class="dbTitle" text-anchor="middle">Reward rows</text>
+    <text x="2598" y="8912" class="nodeBody" text-anchor="start">repayment_cashback_records</text>
+<text x="2598" y="8935" class="nodeBody" text-anchor="start">customer_cashback_wallets</text>
+<text x="2598" y="8958" class="nodeBody" text-anchor="start">customer_cashback_wallet_transactions</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,8842 5126,8842 5170,8912.5 5126,8983 3934,8983 3890,8912.5" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="8876" class="nodeTitle">Optional transfer</text>
+    <text x="3946" y="8914" class="nodeBody" text-anchor="start">Configured Polaris transfer if</text>
+<text x="3946" y="8937" class="nodeBody" text-anchor="start">reward money moves to customer</text>
+<text x="3946" y="8960" class="nodeBody" text-anchor="start">account.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="8849.5" width="1140" height="126" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="8849.5" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="8878.5" class="nodeTitle">If duplicate/ineligible</text>
+    <text x="5314" y="8916.5" class="nodeBody" text-anchor="start">Skip or mark failed pending</text>
+<text x="5314" y="8939.5" class="nodeBody" text-anchor="start">retry. Reward is credited once.</text>
+  </g>
+<path d="M1020,8912.5 L1092,8912.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,8912.5 L2552,8912.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="8888.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="8907.5" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Credited</text>
+<path d="M3760,8912.5 L3872,8912.5" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,8912.5 L5272,8912.5" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="8888.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="8907.5" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: skip</text>
+<path d="M1775,8989 L1775,9203" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="9076" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="9095" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <linearGradient id="sec_Settlement__Refund_and_Reversal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#92400e"/>
+      <stop offset="100%" stop-color="#a16207"/>
+    </linearGradient>
+    <rect x="120" y="9149" width="6360" height="58" rx="20" ry="20" fill="url(#sec_Settlement__Refund_and_Reversal)"/>
+    <text x="148" y="9186" class="sectionTitle">Settlement, Refund and Reversal</text>
+    <text x="590" y="9186" class="sectionSub">Merchant payout, BNPL refund logic, and one-reversal-per-jrno control</text>
+  </g>
+<g filter="url(#softShadow)">
+    <rect x="120" y="9211" width="6360" height="196" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="9309" r="34" fill="#0f172a" opacity="0.92"/>
+    <text x="162" y="9318" text-anchor="middle" class="stepNo">32</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="9238.5" width="870" height="141" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="9238.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="9267.5" class="nodeTitle">Finance scheduler</text>
+    <text x="174" y="9305.5" class="nodeBody" text-anchor="start">Build merchant settlement</text>
+<text x="174" y="9328.5" class="nodeBody" text-anchor="start">from approved BNPL</text>
+<text x="174" y="9351.5" class="nodeBody" text-anchor="start">transactions.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="9238.5" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="9238.5" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="9267.5" class="nodeTitle">Settlement items unique?</text>
+    <text x="1134" y="9305.5" class="nodeBody" text-anchor="start">Include approved BNPL minus</text>
+<text x="1134" y="9328.5" class="nodeBody" text-anchor="start">refunds. One POS transaction</text>
+<text x="1134" y="9351.5" class="nodeBody" text-anchor="start">belongs to one settlement item.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,9245 C2570,9225 3760,9225 3760,9245 L3760,9373 C3760,9395 2570,9395 2570,9373 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="9245" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,9373 C2570,9395 3760,9395 3760,9373" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="9259" class="dbTitle" text-anchor="middle">Settlement rows</text>
+    <text x="2598" y="9297" class="nodeBody" text-anchor="start">merchant_settlements</text>
+<text x="2598" y="9320" class="nodeBody" text-anchor="start">merchant_settlement_items</text>
+<text x="2598" y="9343" class="nodeBody" text-anchor="start">pos_transactions</text>
+<text x="2598" y="9366" class="nodeBody" text-anchor="start">merchant_refund_requests</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,9238.5 5126,9238.5 5170,9309 5126,9379.5 3934,9379.5 3890,9309" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="9272.5" class="nodeTitle">Optional settlement read</text>
+    <text x="3946" y="9310.5" class="nodeBody" text-anchor="start">tmm/selectSettleFintxn or</text>
+<text x="3946" y="9333.5" class="nodeBody" text-anchor="start">configured settlement preparation</text>
+<text x="3946" y="9356.5" class="nodeBody" text-anchor="start">call.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="9238.5" width="1140" height="141" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="9238.5" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="9267.5" class="nodeTitle">If mismatch</text>
+    <text x="5314" y="9305.5" class="nodeBody" text-anchor="start">Keep settlement pending and</text>
+<text x="5314" y="9328.5" class="nodeBody" text-anchor="start">require finance review before</text>
+<text x="5314" y="9351.5" class="nodeBody" text-anchor="start">money movement.</text>
+  </g>
+<path d="M1020,9309 L1092,9309" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,9309 L2552,9309" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="9285" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="9304" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Ready</text>
+<path d="M3760,9309 L3872,9309" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,9309 L5272,9309" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="9285" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="9304" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: review</text>
+<path d="M1775,9397 L1775,9441" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="9399" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="9418" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="9449" width="6360" height="219" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="9558.5" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="9567.5" text-anchor="middle" class="stepNo">33</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="9495.5" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="9495.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="9524.5" class="nodeTitle">Finance scheduler / ops</text>
+    <text x="174" y="9562.5" class="nodeBody" text-anchor="start">Transfer merchant payable</text>
+<text x="174" y="9585.5" class="nodeBody" text-anchor="start">amount.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="9495.5" width="1330" height="126" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="9495.5" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="9524.5" class="nodeTitle">Settlement transfer confirmed?</text>
+    <text x="1134" y="9562.5" class="nodeBody" text-anchor="start">Use settlement idempotency key and</text>
+<text x="1134" y="9585.5" class="nodeBody" text-anchor="start">ledger journal.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,9483 C2570,9463 3760,9463 3760,9483 L3760,9634 C3760,9656 2570,9656 2570,9634 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="9483" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,9634 C2570,9656 3760,9656 3760,9634" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="9497" class="dbTitle" text-anchor="middle">Settlement ledger</text>
+    <text x="2598" y="9535" class="nodeBody" text-anchor="start">merchant_settlements</text>
+<text x="2598" y="9558" class="nodeBody" text-anchor="start">ledger_journals</text>
+<text x="2598" y="9581" class="nodeBody" text-anchor="start">ledger_entries</text>
+<text x="2598" y="9604" class="nodeBody" text-anchor="start">polaris_accounts</text>
+<text x="2598" y="9627" class="nodeBody" text-anchor="start">audit_logs</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,9488 5126,9488 5170,9558.5 5126,9629 3934,9629 3890,9558.5" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="9522" class="nodeTitle">Settlement transfer</text>
+    <text x="3946" y="9560" class="nodeBody" text-anchor="start">merchant passive -&gt;</text>
+<text x="3946" y="9583" class="nodeBody" text-anchor="start">settlement/bank account configured</text>
+<text x="3946" y="9606" class="nodeBody" text-anchor="start">transfer</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="9488" width="1140" height="141" rx="22" ry="22" fill="#fffbeb" stroke="#d97706" stroke-width="1.8"/>
+    <rect x="5290" y="9488" width="1140" height="42" rx="22" ry="22" fill="#d97706" opacity="0.12"/>
+    <text x="5314" y="9517" class="nodeTitle">Timeout</text>
+    <text x="5314" y="9555" class="nodeBody" text-anchor="start">pending_reconcile. Do not create</text>
+<text x="5314" y="9578" class="nodeBody" text-anchor="start">duplicate settlement item or</text>
+<text x="5314" y="9601" class="nodeBody" text-anchor="start">second payout.</text>
+  </g>
+<path d="M1020,9558.5 L1092,9558.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,9558.5 L2552,9558.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="9534.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="9553.5" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Completed</text>
+<path d="M3760,9558.5 L3872,9558.5" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,9558.5 L5272,9558.5" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="9534.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="9553.5" class="edgeLabel" text-anchor="middle" fill="#0891b2">No/timeout</text>
+<path d="M1775,9658 L1775,9702" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="9660" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="9679" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="9710" width="6360" height="219" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="9819.5" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="9828.5" text-anchor="middle" class="stepNo">34</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="9756.5" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="9756.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="9785.5" class="nodeTitle">Merchant / staff</text>
+    <text x="174" y="9823.5" class="nodeBody" text-anchor="start">Request full or partial</text>
+<text x="174" y="9846.5" class="nodeBody" text-anchor="start">refund.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="9749" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="9749" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="9778" class="nodeTitle">Refund valid?</text>
+    <text x="1134" y="9816" class="nodeBody" text-anchor="start">Validate POS, loan, settlement</text>
+<text x="1134" y="9839" class="nodeBody" text-anchor="start">state, amount, product policy and</text>
+<text x="1134" y="9862" class="nodeBody" text-anchor="start">idempotency key.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,9744 C2570,9724 3760,9724 3760,9744 L3760,9895 C3760,9917 2570,9917 2570,9895 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="9744" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,9895 C2570,9917 3760,9917 3760,9895" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="9758" class="dbTitle" text-anchor="middle">Refund rows</text>
+    <text x="2598" y="9796" class="nodeBody" text-anchor="start">merchant_refund_requests</text>
+<text x="2598" y="9819" class="nodeBody" text-anchor="start">merchant_return_items</text>
+<text x="2598" y="9842" class="nodeBody" text-anchor="start">pos_transactions</text>
+<text x="2598" y="9865" class="nodeBody" text-anchor="start">loans</text>
+<text x="2598" y="9888" class="nodeBody" text-anchor="start">ledger_journals</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,9756.5 5126,9756.5 5170,9819.5 5126,9882.5 3934,9882.5 3890,9819.5" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="9790.5" class="nodeTitle">No write until approved</text>
+    <text x="3946" y="9828.5" class="nodeBody" text-anchor="start">No Polaris reversal before refund</text>
+<text x="3946" y="9851.5" class="nodeBody" text-anchor="start">approval.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="9756.5" width="1140" height="126" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="9756.5" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="9785.5" class="nodeTitle">If invalid/duplicate</text>
+    <text x="5314" y="9823.5" class="nodeBody" text-anchor="start">Reject duplicate, over-amount or</text>
+<text x="5314" y="9846.5" class="nodeBody" text-anchor="start">policy-invalid request.</text>
+  </g>
+<path d="M1020,9819.5 L1092,9819.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,9819.5 L2552,9819.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="9795.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="9814.5" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Approved</text>
+<path d="M3760,9819.5 L3872,9819.5" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,9819.5 L5272,9819.5" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="9795.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="9814.5" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: reject</text>
+<path d="M1775,9919 L1775,9963" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="9921" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="9940" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="9971" width="6360" height="242" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="10092" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="10101" text-anchor="middle" class="stepNo">35</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="10029" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="10029" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="10058" class="nodeTitle">Finance / system</text>
+    <text x="174" y="10096" class="nodeBody" text-anchor="start">Execute refund depending on</text>
+<text x="174" y="10119" class="nodeBody" text-anchor="start">settlement state.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="10010" width="1330" height="164" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="10010" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="10039" class="nodeTitle">Already settled?</text>
+    <text x="1134" y="10077" class="nodeBody" text-anchor="start">Before settlement: reverse merchant</text>
+<text x="1134" y="10100" class="nodeBody" text-anchor="start">passive transfer then loan policy.</text>
+<text x="1134" y="10123" class="nodeBody" text-anchor="start">After settlement: offset or reverse</text>
+<text x="1134" y="10146" class="nodeBody" text-anchor="start">settlement first.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,10005 C2570,9985 3760,9985 3760,10005 L3760,10179 C3760,10201 2570,10201 2570,10179 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="10005" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,10179 C2570,10201 3760,10201 3760,10179" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="10019" class="dbTitle" text-anchor="middle">Reversal rows</text>
+    <text x="2598" y="10057" class="nodeBody" text-anchor="start">ledger_journals</text>
+<text x="2598" y="10080" class="nodeBody" text-anchor="start">merchant_refund_requests</text>
+<text x="2598" y="10103" class="nodeBody" text-anchor="start">merchant_settlements</text>
+<text x="2598" y="10126" class="nodeBody" text-anchor="start">merchant_settlement_items</text>
+<text x="2598" y="10149" class="nodeBody" text-anchor="start">loans</text>
+<text x="2598" y="10172" class="nodeBody" text-anchor="start">pos_transactions</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,10021.5 5126,10021.5 5170,10092 5126,10162.5 3934,10162.5 3890,10092" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="10055.5" class="nodeTitle">Polaris reversal</text>
+    <text x="3946" y="10093.5" class="nodeBody" text-anchor="start">gen/doReverseTxn</text>
+<text x="3946" y="10116.5" class="nodeBody" text-anchor="start">gen/undoTransaction</text>
+<text x="3946" y="10139.5" class="nodeBody" text-anchor="start">only once per original jrno</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="10021.5" width="1140" height="141" rx="22" ry="22" fill="#fffbeb" stroke="#d97706" stroke-width="1.8"/>
+    <rect x="5290" y="10021.5" width="1140" height="42" rx="22" ry="22" fill="#d97706" opacity="0.12"/>
+    <text x="5314" y="10050.5" class="nodeTitle">If ambiguous</text>
+    <text x="5314" y="10088.5" class="nodeBody" text-anchor="start">pending_reconcile/dead_letter.</text>
+<text x="5314" y="10111.5" class="nodeBody" text-anchor="start">Never issue a second reversal</text>
+<text x="5314" y="10134.5" class="nodeBody" text-anchor="start">until first result is proven.</text>
+  </g>
+<path d="M1020,10092 L1092,10092" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,10092 L2552,10092" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="10068" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="10087" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Reversed/offset</text>
+<path d="M3760,10092 L3872,10092" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,10092 L5272,10092" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="10068" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="10087" class="edgeLabel" text-anchor="middle" fill="#0891b2">Ambiguous: manual</text>
+<path d="M1775,10203 L1775,10417" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="10290" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="10309" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <linearGradient id="sec_Reconciliation_and_Governance" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+    <rect x="120" y="10363" width="6360" height="58" rx="20" ry="20" fill="url(#sec_Reconciliation_and_Governance)"/>
+    <text x="148" y="10400" class="sectionTitle">Reconciliation and Governance</text>
+    <text x="590" y="10400" class="sectionSub">Timeout resolution, daily matching, audit, ledger, API logs and reporting</text>
+  </g>
+<g filter="url(#softShadow)">
+    <rect x="120" y="10425" width="6360" height="219" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="10534.5" r="34" fill="#0f172a" opacity="0.92"/>
+    <text x="162" y="10543.5" text-anchor="middle" class="stepNo">36</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="10464" width="870" height="141" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="10464" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="10493" class="nodeTitle">Any Polaris writer</text>
+    <text x="174" y="10531" class="nodeBody" text-anchor="start">A connection drop, timeout,</text>
+<text x="174" y="10554" class="nodeBody" text-anchor="start">5xx, client crash or unknown</text>
+<text x="174" y="10577" class="nodeBody" text-anchor="start">response occurs.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="10452.5" width="1330" height="164" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="10452.5" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="10481.5" class="nodeTitle">Was result proven?</text>
+    <text x="1134" y="10519.5" class="nodeBody" text-anchor="start">Unknown write result is</text>
+<text x="1134" y="10542.5" class="nodeBody" text-anchor="start">pending_reconcile, not failed.</text>
+<text x="1134" y="10565.5" class="nodeBody" text-anchor="start">First search journal/account truth</text>
+<text x="1134" y="10588.5" class="nodeBody" text-anchor="start">before retry.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,10459 C2570,10439 3760,10439 3760,10459 L3760,10610 C3760,10632 2570,10632 2570,10610 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="10459" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,10610 C2570,10632 3760,10632 3760,10610" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="10473" class="dbTitle" text-anchor="middle">Reconcile queues</text>
+    <text x="2598" y="10511" class="nodeBody" text-anchor="start">polaris_sync_queue</text>
+<text x="2598" y="10534" class="nodeBody" text-anchor="start">polaris_operation_attempts</text>
+<text x="2598" y="10557" class="nodeBody" text-anchor="start">polaris_api_logs</text>
+<text x="2598" y="10580" class="nodeBody" text-anchor="start">ledger_journals</text>
+<text x="2598" y="10603" class="nodeBody" text-anchor="start">polaris_accounts</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,10452.5 5126,10452.5 5170,10534.5 5126,10616.5 3934,10616.5 3890,10534.5" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="10486.5" class="nodeTitle">Truth search</text>
+    <text x="3946" y="10524.5" class="nodeBody" text-anchor="start">gen/getTmwJournalList</text>
+<text x="3946" y="10547.5" class="nodeBody" text-anchor="start">gen/getAccountStatement</text>
+<text x="3946" y="10570.5" class="nodeBody" text-anchor="start">account detail APIs</text>
+<text x="3946" y="10593.5" class="nodeBody" text-anchor="start">loan/detail APIs</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="10452.5" width="1140" height="164" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="10452.5" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="10481.5" class="nodeTitle">Resolution</text>
+    <text x="5314" y="10519.5" class="nodeBody" text-anchor="start">Match -&gt; mark success. No match</text>
+<text x="5314" y="10542.5" class="nodeBody" text-anchor="start">and safe -&gt; retry same key.</text>
+<text x="5314" y="10565.5" class="nodeBody" text-anchor="start">Multiple matches -&gt; dead_letter</text>
+<text x="5314" y="10588.5" class="nodeBody" text-anchor="start">manual review.</text>
+  </g>
+<path d="M1020,10534.5 L1092,10534.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,10534.5 L2552,10534.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="10510.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="10529.5" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Resolved</text>
+<path d="M3760,10534.5 L3872,10534.5" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,10534.5 L5272,10534.5" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="10510.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="10529.5" class="edgeLabel" text-anchor="middle" fill="#0891b2">Unknown</text>
+<path d="M1775,10634 L1775,10678" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="10636" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="10655" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="10686" width="6360" height="242" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="10807" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="10816" text-anchor="middle" class="stepNo">37</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="10744" width="870" height="126" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="10744" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="10773" class="nodeTitle">Daily scheduler / finance ops</text>
+    <text x="174" y="10811" class="nodeBody" text-anchor="start">Run full reconciliation.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="10736.5" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="10736.5" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="10765.5" class="nodeTitle">All balances and journals match?</text>
+    <text x="1134" y="10803.5" class="nodeBody" text-anchor="start">Compare app ledger, Polaris jrno,</text>
+<text x="1134" y="10826.5" class="nodeBody" text-anchor="start">account statements, loan status,</text>
+<text x="1134" y="10849.5" class="nodeBody" text-anchor="start">schedules and settlement totals.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,10720 C2570,10700 3760,10700 3760,10720 L3760,10894 C3760,10916 2570,10916 2570,10894 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="10720" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,10894 C2570,10916 3760,10916 3760,10894" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="10734" class="dbTitle" text-anchor="middle">Reconcile sources</text>
+    <text x="2598" y="10772" class="nodeBody" text-anchor="start">ledger_journals</text>
+<text x="2598" y="10795" class="nodeBody" text-anchor="start">ledger_entries</text>
+<text x="2598" y="10818" class="nodeBody" text-anchor="start">polaris_accounts</text>
+<text x="2598" y="10841" class="nodeBody" text-anchor="start">loans</text>
+<text x="2598" y="10864" class="nodeBody" text-anchor="start">repayment_schedules</text>
+<text x="2598" y="10887" class="nodeBody" text-anchor="start">merchant_settlements</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,10736.5 5126,10736.5 5170,10807 5126,10877.5 3934,10877.5 3890,10807" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="10770.5" class="nodeTitle">Polaris reporting</text>
+    <text x="3946" y="10808.5" class="nodeBody" text-anchor="start">gen/getTmwJournalList</text>
+<text x="3946" y="10831.5" class="nodeBody" text-anchor="start">gen/getAccountStatement</text>
+<text x="3946" y="10854.5" class="nodeBody" text-anchor="start">account detail APIs</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="10736.5" width="1140" height="141" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="10736.5" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="10765.5" class="nodeTitle">If mismatch</text>
+    <text x="5314" y="10803.5" class="nodeBody" text-anchor="start">Mark mismatched/dead_letter,</text>
+<text x="5314" y="10826.5" class="nodeBody" text-anchor="start">create audit log for business</text>
+<text x="5314" y="10849.5" class="nodeBody" text-anchor="start">impact, send finance work item.</text>
+  </g>
+<path d="M1020,10807 L1092,10807" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,10807 L2552,10807" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="10783" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="10802" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Matched</text>
+<path d="M3760,10807 L3872,10807" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,10807 L5272,10807" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="10783" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="10802" class="edgeLabel" text-anchor="middle" fill="#0891b2">No: investigate</text>
+<path d="M1775,10918 L1775,10962" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="10920" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="10939" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="10970" width="6360" height="242" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="11091" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="11100" text-anchor="middle" class="stepNo">38</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="11020.5" width="870" height="141" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="11020.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="11049.5" class="nodeTitle">All services</text>
+    <text x="174" y="11087.5" class="nodeBody" text-anchor="start">Write observability records</text>
+<text x="174" y="11110.5" class="nodeBody" text-anchor="start">around business events and</text>
+<text x="174" y="11133.5" class="nodeBody" text-anchor="start">integrations.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="11009" width="1330" height="164" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="11009" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="11038" class="nodeTitle">Which log type?</text>
+    <text x="1134" y="11076" class="nodeBody" text-anchor="start">Business/security/financial status</text>
+<text x="1134" y="11099" class="nodeBody" text-anchor="start">change -&gt; audit. Runtime event -&gt;</text>
+<text x="1134" y="11122" class="nodeBody" text-anchor="start">system log. Polaris call -&gt;</text>
+<text x="1134" y="11145" class="nodeBody" text-anchor="start">API/attempt. Money -&gt; ledger.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,11004 C2570,10984 3760,10984 3760,11004 L3760,11178 C3760,11200 2570,11200 2570,11178 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="11004" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,11178 C2570,11200 3760,11200 3760,11178" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="11018" class="dbTitle" text-anchor="middle">Universal logging</text>
+    <text x="2598" y="11056" class="nodeBody" text-anchor="start">audit_logs</text>
+<text x="2598" y="11079" class="nodeBody" text-anchor="start">system_event_logs</text>
+<text x="2598" y="11102" class="nodeBody" text-anchor="start">polaris_api_logs</text>
+<text x="2598" y="11125" class="nodeBody" text-anchor="start">polaris_operation_attempts</text>
+<text x="2598" y="11148" class="nodeBody" text-anchor="start">ledger_journals</text>
+<text x="2598" y="11171" class="nodeBody" text-anchor="start">ledger_entries</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,11020.5 5126,11020.5 5170,11091 5126,11161.5 3934,11161.5 3890,11091" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="11054.5" class="nodeTitle">No extra call</text>
+    <text x="3946" y="11092.5" class="nodeBody" text-anchor="start">Logs reference request id,</text>
+<text x="3946" y="11115.5" class="nodeBody" text-anchor="start">correlation id, idempotency key,</text>
+<text x="3946" y="11138.5" class="nodeBody" text-anchor="start">jrno, account and source entity.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="11009" width="1140" height="164" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="11009" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="11038" class="nodeTitle">Audit evidence</text>
+    <text x="5314" y="11076" class="nodeBody" text-anchor="start">Every status transition has</text>
+<text x="5314" y="11099" class="nodeBody" text-anchor="start">audit_logs.operation_type =</text>
+<text x="5314" y="11122" class="nodeBody" text-anchor="start">status_change; every money</text>
+<text x="5314" y="11145" class="nodeBody" text-anchor="start">movement has ledger journal.</text>
+  </g>
+<path d="M1020,11091 L1092,11091" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,11091 L2552,11091" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="11067" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="11086" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Logged</text>
+<path d="M3760,11091 L3872,11091" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,11091 L5272,11091" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="11067" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="11086" class="edgeLabel" text-anchor="middle" fill="#0891b2">N/A</text>
+<path d="M1775,11202 L1775,11246" fill="none" stroke="#94a3b8" stroke-width="3.2" marker-end="url(#arrow)"/><rect x="1797" y="11204" width="156" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="1875" y="11223" class="edgeLabel" text-anchor="middle" fill="#64748b">next</text>
+<g filter="url(#softShadow)">
+    <rect x="120" y="11254" width="6360" height="219" rx="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.2"/>
+    <circle cx="162" cy="11363.5" r="34" fill="#334155" opacity="0.92"/>
+    <text x="162" y="11372.5" text-anchor="middle" class="stepNo">39</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="150" y="11281.5" width="870" height="164" rx="22" ry="22" fill="#eff6ff" stroke="#2563eb" stroke-width="1.8"/>
+    <rect x="150" y="11281.5" width="870" height="42" rx="22" ry="22" fill="#2563eb" opacity="0.12"/>
+    <text x="174" y="11310.5" class="nodeTitle">Staff / auditor</text>
+    <text x="174" y="11348.5" class="nodeBody" text-anchor="start">Read reports, export</text>
+<text x="174" y="11371.5" class="nodeBody" text-anchor="start">statements or inspect</text>
+<text x="174" y="11394.5" class="nodeBody" text-anchor="start">sensitive customer/merchant</text>
+<text x="174" y="11417.5" class="nodeBody" text-anchor="start">data.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="1110" y="11293" width="1330" height="141" rx="22" ry="22" fill="#ffffff" stroke="#0f172a" stroke-width="3"/>
+    <rect x="1110" y="11293" width="1330" height="42" rx="22" ry="22" fill="#0f172a" opacity="0.12"/>
+    <text x="1134" y="11322" class="nodeTitle">Sensitive read/export?</text>
+    <text x="1134" y="11360" class="nodeBody" text-anchor="start">Use reporting views and permission</text>
+<text x="1134" y="11383" class="nodeBody" text-anchor="start">checks; record business-level</text>
+<text x="1134" y="11406" class="nodeBody" text-anchor="start">read_sensitive/export audit event.</text>
+  </g>
+<g filter="url(#shadow)">
+    <path d="M2570,11288 C2570,11268 3760,11268 3760,11288 L3760,11439 C3760,11461 2570,11461 2570,11439 Z" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.9"/>
+    <ellipse cx="3165" cy="11288" rx="595" ry="20" fill="#f8faff" stroke="#4f46e5" stroke-width="1.9"/>
+    <path d="M2570,11439 C2570,11461 3760,11461 3760,11439" fill="none" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="3165" y="11302" class="dbTitle" text-anchor="middle">Reporting views</text>
+    <text x="2598" y="11340" class="nodeBody" text-anchor="start">v_status_transition_audit</text>
+<text x="2598" y="11363" class="nodeBody" text-anchor="start">v_polaris_reconciliation_worklist</text>
+<text x="2598" y="11386" class="nodeBody" text-anchor="start">audit_logs</text>
+<text x="2598" y="11409" class="nodeBody" text-anchor="start">ledger_journals</text>
+<text x="2598" y="11432" class="nodeBody" text-anchor="start">repayment and settlement views</text>
+  </g>
+<g filter="url(#shadow)">
+    <polygon points="3934,11293 5126,11293 5170,11363.5 5126,11434 3934,11434 3890,11363.5" fill="#ecfeff" stroke="#0891b2" stroke-width="1.9"/>
+    <text x="3946" y="11327" class="nodeTitle">Optional validation query</text>
+    <text x="3946" y="11365" class="nodeBody" text-anchor="start">Polaris statement query for</text>
+<text x="3946" y="11388" class="nodeBody" text-anchor="start">finance report verification when</text>
+<text x="3946" y="11411" class="nodeBody" text-anchor="start">required.</text>
+  </g>
+<g filter="url(#shadow)">
+    <rect x="5290" y="11293" width="1140" height="141" rx="22" ry="22" fill="#f0fdf4" stroke="#15803d" stroke-width="1.8"/>
+    <rect x="5290" y="11293" width="1140" height="42" rx="22" ry="22" fill="#15803d" opacity="0.12"/>
+    <text x="5314" y="11322" class="nodeTitle">Compliance result</text>
+    <text x="5314" y="11360" class="nodeBody" text-anchor="start">Export is traceable by actor,</text>
+<text x="5314" y="11383" class="nodeBody" text-anchor="start">filter, reason, correlation id</text>
+<text x="5314" y="11406" class="nodeBody" text-anchor="start">and generated artifact metadata.</text>
+  </g>
+<path d="M1020,11363.5 L1092,11363.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M2440,11363.5 L2552,11363.5" fill="none" stroke="#94a3b8" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="2404" y="11339.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+       <text x="2496" y="11358.5" class="edgeLabel" text-anchor="middle" fill="#94a3b8">Exported</text>
+<path d="M3760,11363.5 L3872,11363.5" fill="none" stroke="#818cf8" stroke-width="2.4" marker-end="url(#arrow)"/>
+<path d="M5170,11363.5 L5272,11363.5" fill="none" stroke="#0891b2" stroke-width="2.4" marker-end="url(#arrow)"/><rect x="5129" y="11339.5" width="184" height="28" rx="14" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
+       <text x="5221" y="11358.5" class="edgeLabel" text-anchor="middle" fill="#0891b2">Denied: audit</text>
+<g filter="url(#softShadow)">
+  <rect x="120" y="11575" width="6360" height="58" rx="20" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.4"/>
+  <text x="148" y="11610" class="legendTitle">Legend:</text>
+  <text x="262" y="11610" class="legendText">Rounded box = process/response, diamond = decision, cylinder = database state, hexagon = Polaris/external integration. Timeout means pending_reconcile, not failed. Retrying a write reuses the same idempotency key after statement/journal search.</text>
+</g>
+</svg>

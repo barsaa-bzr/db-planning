@@ -1,0 +1,20 @@
+Action,Our end process,Polaris end process,Response action
+User registers via mobile app,Create base user profile in BZR database,None,Return JWT auth token to user
+User completes Dan KYC,Verify national ID; Fetch data; Save to dan_verifications & kyc_personal_details,None,Unlock credit scoring phase
+System generates Credit Score,Calculate internal BZR score and fetch external FICO score,None,Scores ready for core banking sync
+Create Core Banking Profile,Trigger POST /cif/create API using polaris_product_configs,Create CIF (Customer Information File) Person profile,Update BZR customer_profiles with polaris_cif_no
+Sync Credit Scores to Core,Fetch polaris_dynamic_field_mappings; Trigger PUT /cif/update API,Save FICO and Custom scores as custom dynamic fields on CIF,Polaris acknowledges score sync
+Create Deposit Account,Trigger POST /account/create API for deposit product type,Create real deposit account for customer,Save returned acntCode to polaris_accounts & customer_deposit_accounts
+Allocate Credit Line,Approve credit limit; Create record in credit_line_accounts,Create parent line account in core banking,Link credit line to CIF; BZR UI shows available limit
+User requests Cash Loan,Queue create_loan_account step in loan_core_steps state machine,None,Async worker picks up job
+Worker: Create Loan Acct,Trigger POST /loan/create API,Create child loan account under user CIF,Save new acntCode to loans table
+Worker: Link Loan to Line,Trigger POST /loan/link API,Link child loan account to parent credit line account,Update BZR state machine step to succeeded
+Worker: Disburse Cash (One-Tap),Trigger POST /txn/disburse API with Idempotency Key; Write to ledger_journals & ledger_entries,Debit BZR internal funding account; Credit Customer Deposit account,Save polaris_jrno; Mark loan active; Funds available to user
+User requests BNPL Purchase,Queue bnpl_transfer step in loan_core_steps state machine,None,Async worker picks up job
+Worker: Disburse BNPL,Trigger POST /txn/disburse API for BNPL; Write to ledger_journals,Debit Customer Deposit account; Credit Emart Merchant passive account,Save polaris_jrno; Mark purchase complete; Merchant notified
+User pays via QPay (External),Receive webhook from QPay; Create pending repayment_transactions record,None,Trigger background repayment multi-leg processor
+Repayment Leg 1: Inbound Cash,Trigger POST /txn/transfer API; Write inbound_ledger_journal_id,Debit QPay settlement pool account; Credit Customer Deposit account,Save inbound polaris_jrno
+Repayment Leg 2: Loan Offset,Trigger POST /txn/transfer API; Write loan_payment_ledger_journal_id,Debit Customer Deposit account; Credit Child Loan account,Save offset polaris_jrno
+Repayment Leg 3: Settlement,Check child loan balance via GET /account/balance API,Return outstanding balance (0.00),Proceed to account closure
+Repayment Leg 4: Close Loan,Trigger POST /account/close API,Close child loan account in core banking,Update BZR loans status to closed; Restore credit limit in credit_line_accounts
+Fail-Safe: Double Spend Check,Background Sweeper checks stuck processing tasks,Validate idempotency key against historical transactions via GET /txn/verify,Recover missing polaris_jrno or automatically retry failed API calls

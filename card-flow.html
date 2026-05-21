@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BZR App Flow with Polaris</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      --ink: #10203f;
+      --muted: #63708a;
+      --soft: #eef4fb;
+      --paper: #f8fbff;
+      --panel: #ffffff;
+      --line: #d6e2f2;
+      --blue: #2f6df6;
+      --blue-soft: #e9f0ff;
+      --mint: #16a878;
+      --mint-soft: #e8f8f2;
+      --coral: #ff6b5f;
+      --coral-soft: #fff0ed;
+      --gold: #f2b84b;
+      --gold-soft: #fff6df;
+      --violet: #7c5cff;
+      --violet-soft: #f0edff;
+      --pink: #dd4a8a;
+      --pink-soft: #fff0f7;
+      --shadow: 0 18px 45px rgba(28, 61, 107, 0.12);
+      --radius: 8px;
+      color-scheme: light;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        linear-gradient(90deg, rgba(47, 109, 246, 0.05) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(47, 109, 246, 0.05) 1px, transparent 1px),
+        linear-gradient(135deg, #fbfdff 0%, #f3f8ff 48%, #fff9f2 100%);
+      background-size: 34px 34px, 34px 34px, auto;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+    }
+
+    .app-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 292px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 18px;
+      border-right: 1px solid rgba(120, 146, 183, 0.28);
+      background: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(18px);
+      overflow: auto;
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background:
+        linear-gradient(135deg, rgba(47, 109, 246, 0.96), rgba(22, 168, 120, 0.9)),
+        #2f6df6;
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(47, 109, 246, 0.22);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    .brand p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .search-box {
+      position: relative;
+      margin: 18px 0 12px;
+    }
+
+    .search-box svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      width: 18px;
+      height: 18px;
+      pointer-events: none;
+    }
+
+    .search-box input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      padding: 11px 12px 11px 38px;
+      outline: none;
+      box-shadow: 0 8px 20px rgba(28, 61, 107, 0.06);
+    }
+
+    .search-box input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(47, 109, 246, 0.12);
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 18px;
+      margin-top: 10px;
+    }
+
+    .filter-button,
+    .utility-button {
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 10px;
+      border-radius: var(--radius);
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+      white-space: normal;
+      text-align: center;
+      line-height: 1.15;
+      text-decoration: none;
+    }
+
+    .filter-button:hover,
+    .utility-button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(47, 109, 246, 0.44);
+    }
+
+    .filter-button.is-active {
+      background: var(--ink);
+      color: #fff;
+      border-color: var(--ink);
+    }
+
+    .filter-button svg,
+    .utility-button svg {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+    }
+
+    .nav-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 18px 2px 10px;
+    }
+
+    .lane-nav {
+      display: grid;
+      gap: 7px;
+    }
+
+    .lane-link {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      min-height: 44px;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(214, 226, 242, 0.9);
+      color: var(--ink);
+      cursor: pointer;
+      text-align: left;
+      transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+    }
+
+    .lane-link:hover {
+      transform: translateX(2px);
+      background: #fff;
+      border-color: rgba(47, 109, 246, 0.38);
+    }
+
+    .lane-link b {
+      font-size: 13px;
+      line-height: 1.1;
+    }
+
+    .lane-link span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .lane-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .source-preview {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      overflow: hidden;
+      box-shadow: 0 10px 24px rgba(28, 61, 107, 0.08);
+    }
+
+    .source-preview button {
+      display: block;
+      width: 100%;
+      padding: 0;
+      background: transparent;
+      cursor: zoom-in;
+    }
+
+    .source-preview img {
+      width: 100%;
+      aspect-ratio: 1491 / 1055;
+      display: block;
+      object-fit: cover;
+      object-position: top left;
+    }
+
+    .source-preview figcaption {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    .main {
+      min-width: 0;
+      padding: 22px 28px 44px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .title-block {
+      max-width: 880px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      padding: 5px 9px;
+      border: 1px solid rgba(22, 168, 120, 0.24);
+      border-radius: var(--radius);
+      color: #0d7d59;
+      background: rgba(232, 248, 242, 0.72);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .title-block h2 {
+      margin: 0;
+      font-size: 32px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .title-block p {
+      max-width: 820px;
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 15px;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .metric-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .metric {
+      min-height: 84px;
+      border: 1px solid rgba(214, 226, 242, 0.92);
+      border-radius: var(--radius);
+      padding: 13px 14px;
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow: 0 10px 24px rgba(28, 61, 107, 0.07);
+    }
+
+    .metric b {
+      display: block;
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 32px;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .legend-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 4px;
+    }
+
+    .flow-board {
+      display: grid;
+      gap: 18px;
+    }
+
+    .lane {
+      position: relative;
+      padding: 16px;
+      border: 1px solid rgba(157, 178, 209, 0.36);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.64);
+      box-shadow: 0 14px 34px rgba(28, 61, 107, 0.08);
+      scroll-margin-top: 18px;
+    }
+
+    .lane::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 6px;
+      border-radius: var(--radius) 0 0 var(--radius);
+      background: var(--lane-color);
+    }
+
+    .lane-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+      gap: 12px;
+      padding-left: 4px;
+      margin-bottom: 14px;
+    }
+
+    .lane-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .lane-number {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: var(--lane-color);
+      color: #fff;
+      font-weight: 900;
+      box-shadow: 0 10px 18px var(--lane-glow);
+      flex: 0 0 auto;
+    }
+
+    .lane h3 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .lane-head p {
+      margin: 5px 0 0 40px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .lane-count {
+      min-width: 72px;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .lane-count b {
+      color: var(--ink);
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(238px, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+
+    .flow-card {
+      position: relative;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-height: 230px;
+      border: 1px solid rgba(188, 204, 225, 0.9);
+      border-radius: var(--radius);
+      padding: 13px;
+      background: #fff;
+      color: var(--ink);
+      box-shadow: 0 12px 25px rgba(28, 61, 107, 0.08);
+      cursor: pointer;
+      transition: transform 170ms ease, border-color 170ms ease, box-shadow 170ms ease, opacity 170ms ease;
+      overflow: hidden;
+    }
+
+    .flow-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 5px;
+      background: var(--card-color);
+    }
+
+    .flow-card:hover,
+    .flow-card:focus-visible {
+      transform: translateY(-3px);
+      border-color: var(--card-color);
+      box-shadow: 0 18px 40px rgba(28, 61, 107, 0.14);
+      outline: none;
+    }
+
+    .flow-card.is-hidden {
+      display: none;
+    }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 11px;
+    }
+
+    .step-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 34px;
+      height: 24px;
+      padding: 0 8px;
+      border-radius: 7px;
+      background: var(--soft);
+      color: var(--ink);
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    .badge-row {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 24px;
+      padding: 4px 7px;
+      border-radius: 7px;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .badge.local {
+      color: #24517a;
+      background: #e8f1fb;
+    }
+
+    .badge.polaris {
+      color: #1859cf;
+      background: var(--blue-soft);
+    }
+
+    .badge.external {
+      color: #8a5807;
+      background: var(--gold-soft);
+    }
+
+    .badge.guard {
+      color: #b7332a;
+      background: var(--coral-soft);
+    }
+
+    .badge.sync {
+      color: #0c7a57;
+      background: var(--mint-soft);
+    }
+
+    .flow-card h4 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      line-height: 1.22;
+      letter-spacing: 0;
+    }
+
+    .mini-stack {
+      display: grid;
+      gap: 8px;
+    }
+
+    .mini-row {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr);
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.42;
+    }
+
+    .mini-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      background: var(--mini-bg);
+      color: var(--mini-color);
+      flex: 0 0 auto;
+    }
+
+    .mini-icon svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .token-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 12px;
+      min-height: 26px;
+      align-content: end;
+    }
+
+    .token {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 4px 7px;
+      border-radius: 7px;
+      border: 1px solid rgba(157, 178, 209, 0.45);
+      color: #4d5f7a;
+      background: rgba(248, 251, 255, 0.9);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+    }
+
+    .empty-state {
+      display: none;
+      min-height: 180px;
+      place-items: center;
+      border: 1px dashed rgba(99, 112, 138, 0.42);
+      border-radius: var(--radius);
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.68);
+      text-align: center;
+      padding: 24px;
+    }
+
+    .empty-state.is-visible {
+      display: grid;
+    }
+
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(470px, 100vw);
+      height: 100vh;
+      background: rgba(255, 255, 255, 0.96);
+      border-left: 1px solid var(--line);
+      box-shadow: -24px 0 50px rgba(28, 61, 107, 0.18);
+      transform: translateX(105%);
+      transition: transform 220ms ease;
+      z-index: 30;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .drawer.is-open {
+      transform: translateX(0);
+    }
+
+    .drawer-head {
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 12px;
+    }
+
+    .drawer-topline {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .drawer h3 {
+      margin: 0;
+      font-size: 21px;
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    .drawer-close {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      background: var(--soft);
+      cursor: pointer;
+    }
+
+    .drawer-close:hover {
+      color: var(--ink);
+      background: #e4edf8;
+    }
+
+    .drawer-close svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .drawer-body {
+      overflow: auto;
+      padding: 18px;
+      display: grid;
+      align-content: start;
+      gap: 14px;
+    }
+
+    .detail-block {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 13px;
+    }
+
+    .detail-block h4 {
+      margin: 0 0 8px;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .detail-block p {
+      margin: 0;
+      color: #34445e;
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .detail-token-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(16, 32, 63, 0.32);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+      z-index: 20;
+    }
+
+    .backdrop.is-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .source-dialog {
+      width: min(1180px, 94vw);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 0;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .source-dialog::backdrop {
+      background: rgba(16, 32, 63, 0.52);
+    }
+
+    .source-dialog header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .source-dialog h3 {
+      margin: 0;
+      font-size: 15px;
+      letter-spacing: 0;
+    }
+
+    .source-dialog img {
+      display: block;
+      width: 100%;
+      max-height: 78vh;
+      object-fit: contain;
+      background: #fff;
+    }
+
+    .icon-button {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      background: var(--soft);
+      cursor: pointer;
+    }
+
+    .icon-button svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .icon-button:hover {
+      color: var(--ink);
+      background: #e4edf8;
+    }
+
+    @media (max-width: 1040px) {
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: relative;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid rgba(120, 146, 183, 0.28);
+      }
+
+      .lane-nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .source-preview {
+        display: none;
+      }
+
+      .main {
+        padding: 20px 18px 34px;
+      }
+
+      .metric-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      .topbar,
+      .lane-head {
+        grid-template-columns: 1fr;
+        display: grid;
+      }
+
+      .top-actions {
+        justify-content: start;
+      }
+
+      .title-block h2 {
+        font-size: 25px;
+      }
+
+      .metric-strip,
+      .lane-nav,
+      .filter-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .card-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .lane {
+        padding: 14px;
+      }
+
+      .lane-head p {
+        margin-left: 0;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .sidebar,
+      .top-actions,
+      .drawer,
+      .backdrop {
+        display: none !important;
+      }
+
+      .app-shell {
+        display: block;
+      }
+
+      .main {
+        padding: 0;
+      }
+
+      .flow-card {
+        break-inside: avoid;
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Flow controls">
+      <div class="brand">
+        <div>
+          <h1>BZR App Flow Studio</h1>
+          <p>Lending, BNPL, repayment, refund, and reconciliation map.</p>
+        </div>
+      </div>
+
+      <label class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m20 20-3.6-3.6"></path>
+        </svg>
+        <input id="searchInput" type="search" placeholder="Search actions, tables, APIs">
+      </label>
+
+      <div class="filter-grid" aria-label="Flow filters">
+        <button class="filter-button is-active" type="button" data-filter="all">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M4 6h16"></path><path d="M4 12h16"></path><path d="M4 18h16"></path>
+          </svg>
+          All
+        </button>
+        <button class="filter-button" type="button" data-filter="polaris">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M4 18V8"></path><path d="M20 18V8"></path><path d="M4 8c0-2 16-2 16 0"></path><path d="M4 13c0-2 16-2 16 0"></path><path d="M4 18c0 2 16 2 16 0"></path>
+          </svg>
+          Polaris
+        </button>
+        <button class="filter-button" type="button" data-filter="external">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M7 7h10v10"></path><path d="M7 17 17 7"></path>
+          </svg>
+          External
+        </button>
+        <button class="filter-button" type="button" data-filter="guard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M12 3 4 7v6c0 5 3.5 7.5 8 8 4.5-.5 8-3 8-8V7l-8-4Z"></path><path d="M9 12l2 2 4-4"></path>
+          </svg>
+          Guardrails
+        </button>
+      </div>
+
+      <div class="nav-label">
+        <span>Journey</span>
+        <span id="visibleCount">57 visible</span>
+      </div>
+      <nav class="lane-nav" id="laneNav" aria-label="Flow sections"></nav>
+
+      <figure class="source-preview">
+        <button type="button" id="openSourceFromPreview" aria-label="Open source map">
+          <img src="polaris-flow-source.png" alt="Original lending and BNPL flow diagram">
+        </button>
+        <figcaption>
+          <span>Original map</span>
+          <span>1491 x 1055</span>
+        </figcaption>
+      </figure>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="title-block">
+          <div class="eyebrow">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M13 2 4 14h7l-1 8 10-13h-7l1-7Z"></path>
+            </svg>
+            Operational Flow
+          </div>
+          <h2>Lending / BNPL Flow with Polaris</h2>
+          <p>Operational flow, control points, database tables, Polaris calls, external API interactions, refund paths, and reconciliation outcomes in a cleaner browser-native view.</p>
+        </div>
+        <div class="top-actions">
+          <button class="utility-button" type="button" id="resetView">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M3 12a9 9 0 1 0 3-6.7"></path>
+              <path d="M3 4v6h6"></path>
+            </svg>
+            Reset
+          </button>
+          <button class="utility-button" type="button" id="openSource">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+              <path d="M7 15l3-3 2 2 4-5 2 3"></path>
+            </svg>
+            Map
+          </button>
+          <a class="utility-button" href="index.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path>
+            </svg>
+            Portal
+          </a>
+          <a class="utility-button" href="flow.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M4 5h6"></path><path d="M14 5h6"></path><path d="M7 5v14"></path><path d="M17 5v14"></path><path d="M10 12h4"></path>
+            </svg>
+            Flow HTML
+          </a>
+        </div>
+      </header>
+
+      <section class="metric-strip" aria-label="Flow metrics">
+        <div class="metric"><b id="metricActions">57</b><span>actions across the full customer and finance lifecycle</span></div>
+        <div class="metric"><b id="metricPolaris">0</b><span>steps with Polaris writes, queries, or sync checks</span></div>
+        <div class="metric"><b id="metricTables">0</b><span>unique local tables and operational stores referenced</span></div>
+        <div class="metric"><b id="metricGuard">0</b><span>guardrail, retry, timeout, or manual review paths</span></div>
+      </section>
+
+      <section class="legend" aria-label="Legend">
+        <div class="legend-item"><span class="legend-swatch" style="background: var(--blue);"></span>Polaris / core API</div>
+        <div class="legend-item"><span class="legend-swatch" style="background: var(--gold);"></span>External provider</div>
+        <div class="legend-item"><span class="legend-swatch" style="background: var(--mint);"></span>Success / sync</div>
+        <div class="legend-item"><span class="legend-swatch" style="background: var(--coral);"></span>Failure / manual review</div>
+        <div class="legend-item"><span class="legend-swatch" style="background: #8aa0bd;"></span>Local database step</div>
+      </section>
+
+      <section class="flow-board" id="flowBoard" aria-label="Flow board"></section>
+      <div class="empty-state" id="emptyState">No matching flow actions.</div>
+    </main>
+  </div>
+
+  <div class="backdrop" id="drawerBackdrop"></div>
+  <aside class="drawer" id="detailDrawer" aria-label="Action detail" aria-hidden="true">
+    <div class="drawer-head">
+      <div class="drawer-topline">
+        <div>
+          <div class="badge-row" id="drawerBadges"></div>
+          <h3 id="drawerTitle">Action detail</h3>
+        </div>
+        <button class="drawer-close" type="button" id="closeDrawer" aria-label="Close detail">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="drawer-body">
+      <section class="detail-block">
+        <h4>Our End Process</h4>
+        <p id="drawerLocal"></p>
+      </section>
+      <section class="detail-block">
+        <h4>Polaris / External Process</h4>
+        <p id="drawerPolaris"></p>
+      </section>
+      <section class="detail-block">
+        <h4>Response Action</h4>
+        <p id="drawerResponse"></p>
+      </section>
+      <section class="detail-block">
+        <h4>Detected Tables</h4>
+        <div class="detail-token-list" id="drawerTables"></div>
+      </section>
+      <section class="detail-block">
+        <h4>Detected APIs</h4>
+        <div class="detail-token-list" id="drawerApis"></div>
+      </section>
+    </div>
+  </aside>
+
+  <dialog class="source-dialog" id="sourceDialog">
+    <header>
+      <h3>Original Flow Map</h3>
+      <button class="icon-button" type="button" id="closeSource" aria-label="Close source map">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
+        </svg>
+      </button>
+    </header>
+    <img src="polaris-flow-source.png" alt="Original lending and BNPL flow diagram">
+  </dialog>
+
+  <script type="text/plain" id="flowCsv">Action,Our end process,Polaris end process,Response action
+System configuration,Admin saves active product configs transaction configs dynamic field mappings and service pause rules,No Polaris call during save but values map to future prodCode brchCode curCode txnDefCode and dynamicData,Config becomes active or operation is blocked if config is missing inactive or expired
+Merchant onboarding,Create merchant_profiles pos_terminals merchant portal users and planned passive settlement account records,,
+Merchant passive account setup,Save merchant passive and settlement accounts in polaris_accounts and link to merchant_profiles,Create or register merchant passive and settlement account acntCode according to configured product,BNPL invoices are allowed only when merchant status is active and passive account exists
+User register with OTP,Create users customer_profiles otp_sessions message_logs and customer reg_status pending,No Polaris call yet,Return OTP verified registration state or reject duplicate phone national id
+Login,Create user_sessions and update device login metadata,No Polaris call,Return access token refresh token and active session or reject suspended deleted user
+Set transaction PIN or biometric,Create or update customer_pin_credentials customer_biometric_credentials and audit security status,No Polaris call,Enable transaction authorization or lock revoke credential on failed policy
+DAN authorize,Save dan_verifications and update customer identity verification state,No Polaris call unless DAN success triggers CIF step,Continue to CIF creation on verified result or mark failed expired manual_review
+Create Polaris CIF,Update customer_profiles with identity data and enqueue polaris_sync_queue operation create_cif_person,Call cif/createPerson and if duplicate found search/update with cif/updatePerson,Save polaris_cust_code and polaris_cif_status synced or pending_reconcile on timeout
+Open customer deposit account,Create customer_deposit_accounts and polaris_accounts placeholder using configured deposit product,Call casa/createAccount then casa/openAccountStatus,Store deposit acntCode set account active or pending_reconcile if account result is unknown
+KYC info collection,Save kyc_personal_details kyc_addresses kyc_contact_infos kyc_customer_files kyc_employments and kyc_verification_steps,Sync changed customer data to Polaris using cif/updatePerson and mapped dynamicData fields,Set local KYC verified only when required local data and Polaris sync are complete
+KYC rejection or manual review,Set relevant kyc_* rows rejected or kyc_verification_steps manual review and audit reason,If data was already synced then update Polaris customer status or risk flags if configured,Stop line activation and show rejected or manual review status to customer
+HUR data fetch,Save hur_data_snapshots with raw response hash and extracted data,External HUR service only no Polaris write,Use snapshots for scoring or mark score unavailable if HUR fails
+Sain FICO score request,Save sain_score_requests with FICO sain score risk grade and raw response hash,External Sain/FICO service only no Polaris write,Continue custom scoring or reject score if response is invalid expired or duplicated
+Credit scoring calculation,Create credit_score_results and credit_scoring_factors with final score custom score FICO score model version and grade,No immediate Polaris money movement,Return eligible ineligible or manual review decision
+Sync score to Polaris,Update credit_score_results polaris_score_sync_status and queue sync_credit_score_to_polaris,Call cif/updatePerson with score risk grade model version and dynamicData mappings,Allow active limit only after sync succeeded or approved manual override
+Loan limit creation,Create or update loan_limits with max_total_limit product limits utilized amount and status active,No Polaris write inside local limit creation,Customer can see offer only if KYC score deposit account and config are valid
+Create Polaris line account,Create credit_line_accounts using active loan_limit customer deposit and line product config,Call line/createAccount then line/openAccount,Store line acntCode in polaris_accounts and set credit_line_accounts active
+Line limit adjustment,Update loan_limits and credit_line_accounts after risk refresh using row lock,Call line/adjustLineAccountLimit if line amount changes,Increase applies immediately; decrease below utilized suspends new drawdowns instead of breaking existing loans
+One tap loan start,Create loan_applications draft then submitted with requested amount term product and customer deposit account,No Polaris write yet,Return validation errors if inactive KYC inactive deposit inactive line expired limit or amount too high
+BNPL invoice create,Create pos_payment_invoices pos_qr_codes and pending pos_transactions with merchant terminal and cart snapshot,No Polaris write yet,Return QR to merchant POS if merchant terminal active and invoice not duplicated or expired
+Customer scans BNPL QR,Attach customer_id selected installment option and product terms to pos transaction,No Polaris write yet,Continue to reservation if customer is eligible or reject invoice with reason
+Credit line reservation,Lock credit_line_accounts row and create credit_limit_reservations reserved with idempotency_key,No Polaris write yet,Available amount equals line_amount minus utilized_amount minus reserved_amount to prevent double spend
+Approval decision,Update loan_applications approved pending_core_setup or rejected cancelled and write audit_logs,No Polaris write if rejected; approved proceeds to child loan setup,Rejected or cancelled releases reservation and returns reason
+Contract acceptance,Store accepted contract reference and customer_transaction_authorizations for money moving consent,No Polaris write,Proceed only when authorization is valid not expired and amount matches requested loan
+Create child loan account,Create loans row pending_core_setup and loan_core_steps create_loan_account open_loan_account,Call loan/createAccount then loan/openAccount,Store child loan acntCode in polaris_accounts or keep pending_reconcile on timeout
+Calculate repayment schedule,Create loan_core_steps calculate_schedule and store calculated schedule preview,Call loan/calculateNrsSchedule,Show final repayment terms or fail before grant if calculation is rejected
+Create repayment schedule,Insert repayment_schedules only after Polaris schedule is confirmed,Call loan/createNrsSchedule and optionally loan/getNrsSchedule,Set schedule_status succeeded only when local schedule matches Polaris schedule
+Link loan to line,Update loans line_link_status and loan_core_steps link_line_account_to_loan,Call line/linkLineAccountToLoan,Grant is blocked until link confirmed succeeded
+Grant one tap loan,Create ledger_journals ledger_entries and update loans grant_status pending,Call loan/grantLoanNonCash from child loan account to customer deposit account,Store grant_polaris_jrno set loan active application disbursed reservation consumed
+Grant timeout handling,Set loan grant_status pending_reconcile and queue reconciliation with same idempotency_key,Query gen/getTmwJournalList gen/getAccountStatement loan account detail and deposit detail before retry,If matching jrno exists mark success; if no match retry same key; if ambiguous dead_letter
+BNPL loan grant,Run same child loan grant into customer deposit and set loan pending_bnpl_transfer after success,Call loan/grantLoanNonCash from child loan account to customer deposit account,Do not approve POS yet because merchant passive transfer is still required
+BNPL merchant passive transfer,Create merchant transfer ledger_journals and update pos_transactions merchant_transfer_status pending,Call tllrcasa/internalCasaTransaction from customer deposit to merchant passive account,Set POS approved and loan active only after transfer jrno is confirmed
+POS callback send,Create pos_terminal_callbacks with unique idempotency key and callback payload,External merchant POS callback approved rejected or timeout,Retry callback delivery without repeating loan grant or merchant transfer
+QPay repayment invoice,Create qpay_repayment_invoices for loan schedule or manual target amount,External QPay invoice creation if provider is used,Return payable invoice to customer or reject duplicate active invoice by policy
+QPay callback receive,Save qpay_repayment_callbacks and create or find repayment_transactions,External QPay callback validation by payment id signature amount and invoice,Duplicate qpay_payment_id is ignored and invalid callback is failed
+Repayment inbound money,Create inbound ledger_journal and set repayment_transactions processing,Call configured inbound transfer such as tllrbac/transactionBacToCasa from bank or repayment pool to customer deposit,Proceed to loan payment only after inbound jrno is confirmed
+Pay loan from customer deposit,Create loan payment ledger_journal and update repayment transaction state,Call loan/nonCashLoanPayment or loan/loanPaymentTxnNonCash from customer deposit to loan account,Store loan_payment_polaris_jrno or set pending_reconcile on unknown result
+Repayment allocation,Lock repayment_schedules rows and insert repayment_allocations by principal interest penalty order,No additional Polaris write after loan payment unless adjustment required,Update schedules pending partial paid and prevent allocation above total due
+Partial repayment,Update repayment_transactions completed and schedule partial when payment is below outstanding amount,No extra Polaris call after confirmed loan payment,Show remaining due and next due date to customer
+Overpayment handling,Reject or hold excess amount based on configured policy and keep transaction pending manual review if needed,If money already moved query Polaris statement and create refund or adjustment only once,Prevent paid amount from exceeding total due
+Final repayment detection,Check all repayment_schedules paid and loan balance candidate zero,Call loan/getLoanClosingAccountDetail before closing,Proceed to close only when Polaris closing detail confirms payable closing amount
+Close loan account,Update loans closing state and create close ledger_journal if needed,Call loan/nonCashCloseAccount,Set loans closed reduce credit_line_accounts utilized_amount and audit status transition
+Overdue daily job,Mark due unpaid repayment_schedules overdue and create penalty_records if policy applies,No Polaris call unless penalty must be synced or posted,Notify customer and include overdue state in reporting
+Cashback or reward job,Create repayment_cashback_records and wallet transactions when eligible,Optional configured Polaris transfer if reward money moves to customer account,Credit reward once only or mark failed pending retry
+Merchant settlement build,Create merchant_settlements and merchant_settlement_items for approved BNPL transactions minus refunds,Optional tmm/selectSettleFintxn or configured settlement transfer,Settlement remains pending until finance approves or scheduled job processes it
+Merchant settlement transfer,Create settlement ledger_journal and update settlement processing,Call configured merchant passive to settlement or bank transfer,Set settlement completed with jrno or pending_reconcile on timeout
+Refund request,Create merchant_refund_requests and validate loan POS settlement state,No Polaris write until refund is approved,Reject invalid duplicate or over amount refund requests
+Refund reversal before settlement,Reverse merchant passive transfer then adjust or reverse loan according to product policy,Call gen/doReverseTxn or gen/undoTransaction for original merchant transfer jrno and related loan journals if required,Mark refund processed only when every dependency reversal is confirmed
+Refund reversal after settlement,Create settlement offset or reverse settlement first according to finance policy,Call gen/doReverseTxn or gen/undoTransaction only once per original jrno,Create payable adjustment or reversed settlement item and require finance review if ambiguous
+Generic Polaris timeout,Set source row and polaris_sync_queue to pending_reconcile not failed,Query gen/getTmwJournalList gen/getAccountStatement and account details using reference amount date account and idempotency key,Resolve to success retry same key or dead_letter manual review
+Confirmed Polaris failure,Set source row failed and save error details in polaris_operation_attempts polaris_api_logs and audit_logs,No retry unless failure is classified retryable and no journal exists,Return deterministic failure message and release reservation if safe
+Daily reconciliation,Read ledger_journals ledger_entries polaris_accounts loans schedules settlements and pending queues,Call gen/getTmwJournalList gen/getAccountStatement and account detail APIs,Mark matched reconciled mismatched or dead_letter and create audit logs for business impacts
+Service pause or EOD guard,Check service_pause_windows before repayment BNPL disbursement Polaris sync settlement and ledger posting,No Polaris call when paused,Return retryable service paused response and do not create duplicate operations
+Sensitive report or export,Read reporting views audit_logs ledger_journals repayment and settlement tables,Optional Polaris statement query for finance report validation,Create audit_logs operation_type read_sensitive or export with actor and filter metadata
+Audit logging rule,Create audit_logs only for business security financial status changes and sensitive reads,No Polaris call,Every status transition has one status_change audit row; runtime debug stays in system_event_logs
+Financial logging rule,Create ledger_journals and ledger_entries for every grant merchant transfer repayment close settlement refund and reversal,Store Polaris jrno returned by money moving APIs,Ledger is financial fact table and reconciliation source
+API logging rule,Create polaris_api_logs and polaris_operation_attempts for every external Polaris call,All Polaris write attempts are linked to polaris_sync_queue,Support replay diagnosis timeout resolution and audit traceability</script>
+
+  <script>
+    const lanes = [
+      { id: "setup", number: 1, name: "Setup & Onboarding", color: "#2f6df6", glow: "rgba(47, 109, 246, 0.18)", summary: "Configuration, merchants, users, identity, CIF, deposit account, and KYC readiness." },
+      { id: "score", number: 2, name: "Scoring & Line Setup", color: "#16a878", glow: "rgba(22, 168, 120, 0.18)", summary: "HUR, Sain/FICO, credit scoring, limit creation, and Polaris line account activation." },
+      { id: "origination", number: 3, name: "Origination & Reservation", color: "#f2b84b", glow: "rgba(242, 184, 75, 0.2)", summary: "One tap and BNPL entry, invoice scan, double-spend reservation, approval, and consent." },
+      { id: "core", number: 4, name: "Core Polaris Loan Setup", color: "#7c5cff", glow: "rgba(124, 92, 255, 0.17)", summary: "Child loan account, repayment calculation, schedule creation, and line linkage." },
+      { id: "execute", number: 5, name: "Disbursement & BNPL Execution", color: "#dd4a8a", glow: "rgba(221, 74, 138, 0.15)", summary: "Grant, merchant passive transfer, POS callback, settlement build, and settlement transfer." },
+      { id: "repay", number: 6, name: "Repayment & Closure", color: "#00a7b7", glow: "rgba(0, 167, 183, 0.16)", summary: "QPay collection, inbound transfer, loan payment, allocation, overpayment, closure, and rewards." },
+      { id: "refund", number: 7, name: "Refund & Reconciliation", color: "#ff6b5f", glow: "rgba(255, 107, 95, 0.18)", summary: "Refund requests, settlement-aware reversals, confirmed outcomes, and daily reconciliation." },
+      { id: "safety", number: 8, name: "Governance & Safety", color: "#586a84", glow: "rgba(88, 106, 132, 0.18)", summary: "Timeout handling, deterministic failure, service pause, audit, financial, and API logging rules." }
+    ];
+
+    const executeActions = new Set([
+      "Grant one tap loan",
+      "BNPL loan grant",
+      "BNPL merchant passive transfer",
+      "POS callback send",
+      "Merchant settlement build",
+      "Merchant settlement transfer"
+    ]);
+
+    const repayActions = new Set([
+      "QPay repayment invoice",
+      "QPay callback receive",
+      "Repayment inbound money",
+      "Pay loan from customer deposit",
+      "Repayment allocation",
+      "Partial repayment",
+      "Overpayment handling",
+      "Final repayment detection",
+      "Close loan account",
+      "Overdue daily job",
+      "Cashback or reward job"
+    ]);
+
+    const coreActions = new Set([
+      "Create child loan account",
+      "Calculate repayment schedule",
+      "Create repayment schedule",
+      "Link loan to line"
+    ]);
+
+    const refundActions = new Set([
+      "Refund request",
+      "Refund reversal before settlement",
+      "Refund reversal after settlement",
+      "Daily reconciliation"
+    ]);
+
+    const safetyActions = new Set([
+      "Grant timeout handling",
+      "Generic Polaris timeout",
+      "Confirmed Polaris failure",
+      "Service pause or EOD guard",
+      "Sensitive report or export",
+      "Audit logging rule",
+      "Financial logging rule",
+      "API logging rule"
+    ]);
+
+    const icons = {
+      local: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7c0-2 16-2 16 0v10c0 2-16 2-16 0V7Z"></path><path d="M4 12c0 2 16 2 16 0"></path></svg>',
+      polaris: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>',
+      response: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 7v6c0 5 3.5 7.5 8 8 4.5-.5 8-3 8-8V7l-8-4Z"></path><path d="M9 12l2 2 4-4"></path></svg>'
+    };
+
+    const escapeRegex = /[.*+?^${}()|[\]\\]/g;
+
+    function parseCsv(text) {
+      const lines = text.trim().replace(/^\uFEFF/, "").split(/\r?\n/);
+      return lines.slice(1).map((line, index) => {
+        const [action = "", local = "", polaris = "", response = ""] = line.split(",");
+        return {
+          index: index + 1,
+          action: action.trim(),
+          local: local.trim(),
+          polaris: polaris.trim() || "No linked service process recorded.",
+          response: response.trim() || "No explicit response action recorded."
+        };
+      });
+    }
+
+    function laneFor(action, index) {
+      if (index <= 11) return "setup";
+      if (index >= 12 && index <= 18) return "score";
+      if (index >= 19 && index <= 24) return "origination";
+      if (coreActions.has(action)) return "core";
+      if (executeActions.has(action)) return "execute";
+      if (repayActions.has(action)) return "repay";
+      if (refundActions.has(action)) return "refund";
+      if (safetyActions.has(action)) return "safety";
+      return "safety";
+    }
+
+    function extractTables(item) {
+      const text = `${item.local} ${item.polaris} ${item.response}`;
+      return [...new Set(text.match(/\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g) || [])].slice(0, 9);
+    }
+
+    function extractApis(item) {
+      const text = `${item.local} ${item.polaris} ${item.response}`;
+      return [...new Set(text.match(/\b[a-z][a-z0-9]*\/[A-Za-z0-9_]+/g) || [])].slice(0, 9);
+    }
+
+    function classify(item) {
+      const text = `${item.action} ${item.local} ${item.polaris} ${item.response}`;
+      const noPolarisWrite = /No linked service process|No Polaris call|No Polaris write|No immediate Polaris|No additional Polaris|No extra Polaris/i.test(item.polaris);
+      const hasApi = extractApis(item).length > 0;
+      const hasPolaris = !noPolarisWrite && (
+        hasApi ||
+        /Polaris|Call |Query |Optional configured Polaris|Store Polaris|configured inbound transfer|statement query/i.test(item.polaris)
+      );
+      const external = /External|QPay|HUR|Sain|FICO|merchant POS/i.test(text);
+      const guard = /reject|failed|failure|manual|timeout|pending_reconcile|dead_letter|blocked|paused|invalid|ambiguous|overpayment|duplicate/i.test(text);
+      const sync = /sync|confirmed|succeeded|reconciled|active|approved|matched/i.test(text);
+      const localOnly = noPolarisWrite && !external;
+      return { hasApi, hasPolaris, external, guard, sync, localOnly };
+    }
+
+    function summarize(text, max = 118) {
+      if (!text) return "";
+      return text.length > max ? `${text.slice(0, max - 3).trim()}...` : text;
+    }
+
+    function makeBadge(label, cls) {
+      const span = document.createElement("span");
+      span.className = `badge ${cls}`;
+      span.textContent = label;
+      return span;
+    }
+
+    function makeToken(label) {
+      const span = document.createElement("span");
+      span.className = "token";
+      span.textContent = label;
+      span.title = label;
+      return span;
+    }
+
+    function renderBadges(item) {
+      const flags = item.flags;
+      const frag = document.createDocumentFragment();
+      frag.append(makeBadge("Local", "local"));
+      if (flags.hasPolaris) frag.append(makeBadge("Polaris", "polaris"));
+      if (flags.external) frag.append(makeBadge("External", "external"));
+      if (flags.sync) frag.append(makeBadge("Sync", "sync"));
+      if (flags.guard) frag.append(makeBadge("Guard", "guard"));
+      return frag;
+    }
+
+    function createMini(label, text, type) {
+      const row = document.createElement("div");
+      row.className = "mini-row";
+
+      const icon = document.createElement("span");
+      icon.className = "mini-icon";
+      icon.style.setProperty("--mini-bg", type === "local" ? "#e8f1fb" : type === "polaris" ? "#e9f0ff" : "#e8f8f2");
+      icon.style.setProperty("--mini-color", type === "local" ? "#24517a" : type === "polaris" ? "#1859cf" : "#0c7a57");
+      icon.innerHTML = icons[type] || icons.response;
+
+      const copy = document.createElement("span");
+      copy.textContent = `${label}: ${summarize(text)}`;
+
+      row.append(icon, copy);
+      return row;
+    }
+
+    function openDrawer(item) {
+      const drawer = document.getElementById("detailDrawer");
+      const backdrop = document.getElementById("drawerBackdrop");
+      const badges = document.getElementById("drawerBadges");
+      badges.replaceChildren(renderBadges(item));
+
+      document.getElementById("drawerTitle").textContent = `${String(item.index).padStart(2, "0")} - ${item.action}`;
+      document.getElementById("drawerLocal").textContent = item.local;
+      document.getElementById("drawerPolaris").textContent = item.polaris;
+      document.getElementById("drawerResponse").textContent = item.response;
+
+      const tableList = document.getElementById("drawerTables");
+      tableList.replaceChildren(...(item.tables.length ? item.tables.map(makeToken) : [makeToken("None detected")]));
+
+      const apiList = document.getElementById("drawerApis");
+      apiList.replaceChildren(...(item.apis.length ? item.apis.map(makeToken) : [makeToken("None detected")]));
+
+      drawer.classList.add("is-open");
+      drawer.setAttribute("aria-hidden", "false");
+      backdrop.classList.add("is-open");
+    }
+
+    function closeDrawer() {
+      const drawer = document.getElementById("detailDrawer");
+      const backdrop = document.getElementById("drawerBackdrop");
+      drawer.classList.remove("is-open");
+      drawer.setAttribute("aria-hidden", "true");
+      backdrop.classList.remove("is-open");
+    }
+
+    function buildCard(item, lane) {
+      const card = document.createElement("article");
+      card.className = "flow-card";
+      card.tabIndex = 0;
+      card.dataset.search = `${item.action} ${item.local} ${item.polaris} ${item.response} ${item.tables.join(" ")} ${item.apis.join(" ")}`.toLowerCase();
+      card.dataset.filter = [
+        item.flags.hasPolaris ? "polaris" : "",
+        item.flags.external ? "external" : "",
+        item.flags.guard ? "guard" : "",
+        item.flags.localOnly ? "local" : ""
+      ].filter(Boolean).join(" ");
+      card.style.setProperty("--card-color", lane.color);
+
+      const top = document.createElement("div");
+      top.className = "card-top";
+      const step = document.createElement("span");
+      step.className = "step-chip";
+      step.textContent = String(item.index).padStart(2, "0");
+      const badgeRow = document.createElement("div");
+      badgeRow.className = "badge-row";
+      badgeRow.append(renderBadges(item));
+      top.append(step, badgeRow);
+
+      const title = document.createElement("h4");
+      title.textContent = item.action;
+
+      const miniStack = document.createElement("div");
+      miniStack.className = "mini-stack";
+      miniStack.append(
+        createMini("Local", item.local, "local"),
+        createMini("Polaris", item.polaris, "polaris"),
+        createMini("Response", item.response, "response")
+      );
+
+      const tokenRow = document.createElement("div");
+      tokenRow.className = "token-row";
+      const tokens = [...item.tables.slice(0, 2), ...item.apis.slice(0, 1)];
+      if (tokens.length) {
+        tokenRow.append(...tokens.map(makeToken));
+      }
+
+      card.append(top, title, miniStack, tokenRow);
+      card.addEventListener("click", () => openDrawer(item));
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openDrawer(item);
+        }
+      });
+      return card;
+    }
+
+    function render(data) {
+      const board = document.getElementById("flowBoard");
+      const nav = document.getElementById("laneNav");
+      board.replaceChildren();
+      nav.replaceChildren();
+
+      lanes.forEach((lane) => {
+        const items = data.filter((item) => item.lane === lane.id);
+
+        const link = document.createElement("button");
+        link.type = "button";
+        link.className = "lane-link";
+        link.dataset.target = lane.id;
+        link.innerHTML = `
+          <span class="lane-dot" style="background:${lane.color}">${lane.number}</span>
+          <b>${lane.name}</b>
+          <span>${items.length}</span>
+        `;
+        link.addEventListener("click", () => document.getElementById(`lane-${lane.id}`).scrollIntoView({ block: "start" }));
+        nav.append(link);
+
+        const section = document.createElement("section");
+        section.className = "lane";
+        section.id = `lane-${lane.id}`;
+        section.dataset.lane = lane.id;
+        section.style.setProperty("--lane-color", lane.color);
+        section.style.setProperty("--lane-glow", lane.glow);
+
+        const head = document.createElement("header");
+        head.className = "lane-head";
+        const titleWrap = document.createElement("div");
+        titleWrap.innerHTML = `
+          <div class="lane-title">
+            <span class="lane-number">${lane.number}</span>
+            <h3>${lane.name}</h3>
+          </div>
+          <p>${lane.summary}</p>
+        `;
+        const count = document.createElement("div");
+        count.className = "lane-count";
+        count.innerHTML = `<b>${items.length}</b> steps`;
+        head.append(titleWrap, count);
+
+        const grid = document.createElement("div");
+        grid.className = "card-grid";
+        items.forEach((item) => grid.append(buildCard(item, lane)));
+
+        section.append(head, grid);
+        board.append(section);
+      });
+    }
+
+    function updateMetrics(data) {
+      const allTables = new Set(data.flatMap((item) => item.tables));
+      document.getElementById("metricActions").textContent = data.length;
+      document.getElementById("metricPolaris").textContent = data.filter((item) => item.flags.hasPolaris).length;
+      document.getElementById("metricTables").textContent = allTables.size;
+      document.getElementById("metricGuard").textContent = data.filter((item) => item.flags.guard).length;
+    }
+
+    function applyFilters() {
+      const query = document.getElementById("searchInput").value.trim().toLowerCase();
+      const activeFilter = document.querySelector(".filter-button.is-active").dataset.filter;
+      const cards = [...document.querySelectorAll(".flow-card")];
+      let visible = 0;
+
+      cards.forEach((card) => {
+        const matchesQuery = !query || card.dataset.search.includes(query);
+        const matchesFilter = activeFilter === "all" || card.dataset.filter.split(" ").includes(activeFilter);
+        const show = matchesQuery && matchesFilter;
+        card.classList.toggle("is-hidden", !show);
+        if (show) visible += 1;
+      });
+
+      document.querySelectorAll(".lane").forEach((lane) => {
+        const laneVisible = lane.querySelectorAll(".flow-card:not(.is-hidden)").length;
+        lane.style.display = laneVisible ? "" : "none";
+        const count = lane.querySelector(".lane-count");
+        if (count) count.innerHTML = `<b>${laneVisible}</b> shown`;
+      });
+
+      document.getElementById("visibleCount").textContent = `${visible} visible`;
+      document.getElementById("emptyState").classList.toggle("is-visible", visible === 0);
+    }
+
+    const data = parseCsv(document.getElementById("flowCsv").textContent).map((item) => {
+      item.lane = laneFor(item.action, item.index);
+      item.tables = extractTables(item);
+      item.apis = extractApis(item);
+      item.flags = classify(item);
+      return item;
+    });
+
+    render(data);
+    updateMetrics(data);
+    applyFilters();
+
+    document.getElementById("searchInput").addEventListener("input", applyFilters);
+
+    document.querySelectorAll(".filter-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".filter-button").forEach((item) => item.classList.remove("is-active"));
+        button.classList.add("is-active");
+        applyFilters();
+      });
+    });
+
+    document.getElementById("resetView").addEventListener("click", () => {
+      document.getElementById("searchInput").value = "";
+      document.querySelectorAll(".filter-button").forEach((item) => item.classList.toggle("is-active", item.dataset.filter === "all"));
+      applyFilters();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    document.getElementById("closeDrawer").addEventListener("click", closeDrawer);
+    document.getElementById("drawerBackdrop").addEventListener("click", closeDrawer);
+
+    const sourceDialog = document.getElementById("sourceDialog");
+    const openSource = () => {
+      if (typeof sourceDialog.showModal === "function") sourceDialog.showModal();
+    };
+    document.getElementById("openSource").addEventListener("click", openSource);
+    document.getElementById("openSourceFromPreview").addEventListener("click", openSource);
+    document.getElementById("closeSource").addEventListener("click", () => sourceDialog.close());
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeDrawer();
+    });
+  </script>
+</body>
+</html>

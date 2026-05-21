@@ -1,0 +1,1800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BZR Polaris Flow Diagram</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      --ink: #10203f;
+      --muted: #63708a;
+      --paper: #f8fbff;
+      --panel: #ffffff;
+      --line: #d6e2f2;
+      --blue: #2f6df6;
+      --blue-soft: #e9f0ff;
+      --mint: #16a878;
+      --mint-soft: #e8f8f2;
+      --coral: #ff6b5f;
+      --coral-soft: #fff0ed;
+      --gold: #f2b84b;
+      --gold-soft: #fff6df;
+      --violet: #7c5cff;
+      --violet-soft: #f0edff;
+      --pink: #dd4a8a;
+      --pink-soft: #fff0f7;
+      --teal: #00a7b7;
+      --slate: #586a84;
+      --shadow: 0 18px 45px rgba(28, 61, 107, 0.12);
+      --radius: 8px;
+      color-scheme: light;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        linear-gradient(90deg, rgba(47, 109, 246, 0.05) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(47, 109, 246, 0.05) 1px, transparent 1px),
+        linear-gradient(135deg, #fbfdff 0%, #f3f8ff 48%, #fff9f2 100%);
+      background-size: 34px 34px, 34px 34px, auto;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+    }
+
+    .app-shell {
+      height: 100vh;
+      display: grid;
+      grid-template-columns: 292px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      height: 100vh;
+      padding: 18px;
+      border-right: 1px solid rgba(120, 146, 183, 0.28);
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: blur(18px);
+      overflow: auto;
+      z-index: 30;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background:
+        linear-gradient(135deg, rgba(47, 109, 246, 0.96), rgba(22, 168, 120, 0.9)),
+        #2f6df6;
+      box-shadow: 0 12px 24px rgba(47, 109, 246, 0.22);
+      flex: 0 0 auto;
+    }
+
+    .brand svg,
+    .filter-button svg,
+    .utility-button svg,
+    .drawer-close svg,
+    .search-box svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    .brand p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .search-box {
+      position: relative;
+      margin: 18px 0 12px;
+    }
+
+    .search-box svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    .search-box input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      padding: 11px 12px 11px 38px;
+      outline: none;
+      box-shadow: 0 8px 20px rgba(28, 61, 107, 0.06);
+    }
+
+    .search-box input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(47, 109, 246, 0.12);
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 18px;
+      margin-top: 10px;
+    }
+
+    .filter-button,
+    .utility-button {
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 10px;
+      border-radius: var(--radius);
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+      white-space: normal;
+      text-align: center;
+      line-height: 1.15;
+      text-decoration: none;
+    }
+
+    .filter-button:hover,
+    .utility-button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(47, 109, 246, 0.44);
+    }
+
+    .filter-button.is-active {
+      background: var(--ink);
+      color: #fff;
+      border-color: var(--ink);
+    }
+
+    .nav-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 18px 2px 10px;
+    }
+
+    .section-nav {
+      display: grid;
+      gap: 7px;
+    }
+
+    .section-link {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      min-height: 44px;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(214, 226, 242, 0.9);
+      color: var(--ink);
+      cursor: pointer;
+      text-align: left;
+      transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+    }
+
+    .section-link:hover {
+      transform: translateX(2px);
+      background: #fff;
+      border-color: rgba(47, 109, 246, 0.38);
+    }
+
+    .section-link b {
+      font-size: 12px;
+      line-height: 1.1;
+    }
+
+    .section-link span:last-child {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .section-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 900;
+      background: var(--section-color);
+    }
+
+    .legend {
+      margin-top: 18px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .legend-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 4px;
+      background: var(--legend-color);
+      flex: 0 0 auto;
+    }
+
+    .source-preview {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      overflow: hidden;
+      box-shadow: 0 10px 24px rgba(28, 61, 107, 0.08);
+    }
+
+    .source-preview img {
+      width: 100%;
+      aspect-ratio: 1491 / 1055;
+      display: block;
+      object-fit: cover;
+      object-position: top left;
+    }
+
+    .source-preview figcaption {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    .workspace {
+      min-width: 0;
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .topbar {
+      padding: 10px 16px 9px;
+      border-bottom: 1px solid rgba(120, 146, 183, 0.24);
+      background: rgba(255, 255, 255, 0.84);
+      backdrop-filter: blur(16px);
+      z-index: 20;
+    }
+
+    .topbar-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .title-block h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .top-actions .utility-button {
+      min-height: 32px;
+      padding: 7px 9px;
+      font-size: 12px;
+    }
+
+    .top-actions .utility-button svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    .metric-strip {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 8px;
+    }
+
+    .metric {
+      min-height: 30px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid rgba(214, 226, 242, 0.92);
+      border-radius: var(--radius);
+      padding: 6px 9px;
+      background: #fff;
+      box-shadow: none;
+    }
+
+    .metric b {
+      display: block;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .canvas-shell {
+      position: relative;
+      overflow: hidden;
+      cursor: grab;
+    }
+
+    .canvas-shell.dragging {
+      cursor: grabbing;
+    }
+
+    .stage {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 2860px;
+      height: 2260px;
+      transform-origin: 0 0;
+      user-select: none;
+    }
+
+    .connector-layer {
+      position: absolute;
+      inset: 0;
+      width: 2860px;
+      height: 2260px;
+      overflow: visible;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .label-layer {
+      position: absolute;
+      inset: 0;
+      width: 2860px;
+      height: 2260px;
+      overflow: visible;
+      z-index: 8;
+      pointer-events: none;
+    }
+
+    .diagram-section {
+      position: absolute;
+      border: 1px solid rgba(157, 178, 209, 0.44);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow: 0 16px 38px rgba(28, 61, 107, 0.08);
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .diagram-section::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 6px;
+      background: var(--section-color);
+    }
+
+    .diagram-section-head {
+      position: absolute;
+      left: 18px;
+      top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 2;
+    }
+
+    .section-number {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--section-color);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 900;
+      box-shadow: 0 10px 20px var(--section-glow);
+    }
+
+    .diagram-section h3 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+
+    .diagram-section p {
+      position: absolute;
+      left: 58px;
+      top: 45px;
+      margin: 0;
+      max-width: calc(100% - 78px);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .diagram-node {
+      position: absolute;
+      min-height: 120px;
+      display: grid;
+      grid-template-rows: auto auto auto;
+      gap: 9px;
+      border: 1px solid rgba(188, 204, 225, 0.96);
+      border-radius: var(--radius);
+      padding: 13px;
+      background: #fff;
+      color: var(--ink);
+      box-shadow: 0 12px 25px rgba(28, 61, 107, 0.08);
+      z-index: 4;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+    }
+
+    .diagram-node::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 5px;
+      border-radius: var(--radius) var(--radius) 0 0;
+      background: var(--node-color);
+    }
+
+    .diagram-node:hover,
+    .diagram-node:focus-visible,
+    .diagram-node.is-selected {
+      outline: none;
+      transform: translateY(-2px);
+      border-color: var(--node-color);
+      box-shadow: 0 18px 38px rgba(28, 61, 107, 0.14);
+    }
+
+    .diagram-node.is-hidden {
+      opacity: 0.12;
+      pointer-events: none;
+    }
+
+    .node-top {
+      display: grid;
+      grid-template-columns: 32px minmax(0, 1fr);
+      align-items: start;
+      gap: 10px;
+    }
+
+    .node-index {
+      width: 32px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: var(--node-soft);
+      color: var(--node-color);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .node-title {
+      min-width: 0;
+      font-size: 15px;
+      line-height: 1.18;
+      font-weight: 900;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .node-body {
+      color: #40516d;
+      font-size: 12px;
+      line-height: 1.38;
+      overflow-wrap: anywhere;
+    }
+
+    .node-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      align-content: end;
+    }
+
+    .meta-pill {
+      max-width: 100%;
+      min-height: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 6px;
+      border-radius: 7px;
+      border: 1px solid rgba(157, 178, 209, 0.45);
+      color: #52647e;
+      background: #f8fbff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .diagram-node.kind-decision {
+      border-color: rgba(242, 184, 75, 0.85);
+      background: linear-gradient(180deg, #fffdf6, #fff7e5);
+    }
+
+    .diagram-node.kind-decision .node-top {
+      grid-template-columns: 26px minmax(0, 1fr);
+    }
+
+    .diagram-node.kind-decision .node-index {
+      transform: rotate(45deg);
+      border-radius: 4px;
+    }
+
+    .diagram-node.kind-decision .node-index span {
+      transform: rotate(-45deg);
+    }
+
+    .diagram-node.kind-guard {
+      border-color: rgba(255, 107, 95, 0.75);
+      background: linear-gradient(180deg, #fffafa, #fff2f0);
+    }
+
+    .diagram-node.kind-result {
+      background: linear-gradient(180deg, #ffffff, var(--node-soft));
+    }
+
+    .zone {
+      position: absolute;
+      border: 1.5px dashed var(--zone-color);
+      border-radius: var(--radius);
+      background: var(--zone-bg);
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .zone-label {
+      position: absolute;
+      left: 14px;
+      top: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--zone-color);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .edge {
+      fill: none;
+      stroke: var(--edge-color);
+      stroke-width: 2.2;
+      opacity: 0.84;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .edge.is-muted {
+      opacity: 0.1;
+    }
+
+    .edge-label {
+      fill: var(--edge-color);
+      font-size: 11px;
+      font-weight: 900;
+      dominant-baseline: middle;
+    }
+
+    .edge-label-bg {
+      fill: rgba(255, 255, 255, 0.96);
+      stroke: rgba(199, 216, 236, 0.98);
+      stroke-width: 1;
+    }
+
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(470px, 100vw);
+      height: 100vh;
+      background: rgba(255, 255, 255, 0.96);
+      border-left: 1px solid var(--line);
+      box-shadow: -24px 0 50px rgba(28, 61, 107, 0.18);
+      transform: translateX(105%);
+      transition: transform 220ms ease;
+      z-index: 60;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .drawer.is-open {
+      transform: translateX(0);
+    }
+
+    .drawer-head {
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 12px;
+    }
+
+    .drawer-topline {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .drawer h3 {
+      margin: 7px 0 0;
+      font-size: 21px;
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    .drawer-close {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      background: var(--paper);
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+
+    .drawer-close:hover {
+      color: var(--ink);
+      background: #e4edf8;
+    }
+
+    .drawer-body {
+      overflow: auto;
+      padding: 18px;
+      display: grid;
+      align-content: start;
+      gap: 14px;
+    }
+
+    .detail-block {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 13px;
+    }
+
+    .detail-block h4 {
+      margin: 0 0 8px;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .detail-block p {
+      margin: 0;
+      color: #34445e;
+      line-height: 1.55;
+      font-size: 14px;
+      white-space: pre-line;
+    }
+
+    .drawer-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .drawer-tag {
+      min-height: 24px;
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 7px;
+      border-radius: 7px;
+      border: 1px solid rgba(157, 178, 209, 0.48);
+      background: #f8fbff;
+      color: #52647e;
+      font-size: 11px;
+      line-height: 1;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(16, 32, 63, 0.32);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+      z-index: 50;
+    }
+
+    .backdrop.is-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .minimap {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      width: 160px;
+      height: 112px;
+      border: 1px solid #c8d8ec;
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.58);
+      z-index: 25;
+      box-shadow: 0 10px 26px rgba(28, 61, 107, 0.12);
+      overflow: hidden;
+      opacity: 0.58;
+      pointer-events: none;
+      transition: opacity 160ms ease;
+    }
+
+    .canvas-shell:hover .minimap {
+      opacity: 0.82;
+    }
+
+    .mini-box {
+      position: absolute;
+      border: 1px solid rgba(47, 109, 246, 0.42);
+      background: rgba(47, 109, 246, 0.08);
+      border-radius: 3px;
+    }
+
+    .mini-view {
+      position: absolute;
+      border: 1.5px solid var(--blue);
+      background: rgba(47, 109, 246, 0.08);
+      border-radius: 4px;
+      pointer-events: none;
+    }
+
+    @media (max-width: 1050px) {
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .title-block h2 {
+        font-size: 23px;
+      }
+
+      .metric-strip {
+        gap: 6px;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .topbar-row {
+        display: grid;
+      }
+
+      .top-actions {
+        justify-content: flex-start;
+      }
+
+      .metric {
+        flex: 1 1 120px;
+      }
+
+      .minimap {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Flow controls">
+      <div class="brand">
+        <div>
+          <h1>Flow Diagram</h1>
+          <p>Readable lifecycle map for Polaris lending, BNPL, repayment, refund, and controls.</p>
+        </div>
+      </div>
+
+      <label class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m20 20-3.6-3.6"></path>
+        </svg>
+        <input id="searchInput" type="search" placeholder="Search tables, APIs, controls">
+      </label>
+
+      <div class="filter-grid" aria-label="Node filters">
+        <button class="filter-button is-active" type="button" data-filter="all">All</button>
+        <button class="filter-button" type="button" data-filter="api">API</button>
+        <button class="filter-button" type="button" data-filter="db">DB</button>
+        <button class="filter-button" type="button" data-filter="decision">Decision</button>
+        <button class="filter-button" type="button" data-filter="guard">Guard</button>
+        <button class="filter-button" type="button" data-filter="money">Money</button>
+      </div>
+
+      <div class="nav-label">
+        <span>Sections</span>
+        <span id="visibleCount">79 shown</span>
+      </div>
+      <nav class="section-nav" id="sectionNav" aria-label="Flow sections"></nav>
+
+      <div class="legend">
+        <div class="legend-item"><span class="legend-swatch" style="--legend-color: var(--blue);"></span>Process / core operation</div>
+        <div class="legend-item"><span class="legend-swatch" style="--legend-color: var(--gold);"></span>Decision / validation</div>
+        <div class="legend-item"><span class="legend-swatch" style="--legend-color: var(--mint);"></span>Success / continuation</div>
+        <div class="legend-item"><span class="legend-swatch" style="--legend-color: var(--coral);"></span>Reject / failure / review</div>
+        <div class="legend-item"><span class="legend-swatch" style="--legend-color: var(--teal);"></span>Polaris or external API</div>
+      </div>
+
+      <figure class="source-preview">
+        <img src="polaris-flow-source.png" alt="Original flow map reference">
+        <figcaption>
+          <span>Original map</span>
+          <span>Reference only</span>
+        </figcaption>
+      </figure>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div class="topbar-row">
+          <div class="title-block">
+            <h2>Lending / BNPL Flow with Polaris</h2>
+          </div>
+          <div class="top-actions">
+            <button class="utility-button" type="button" id="zoomOut">-</button>
+            <button class="utility-button" type="button" id="zoomReadout">70%</button>
+            <button class="utility-button" type="button" id="zoomIn">+</button>
+            <button class="utility-button" type="button" id="fitView">Fit</button>
+            <button class="utility-button" type="button" id="resetView">Reset</button>
+            <a class="utility-button" href="index.html">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path>
+              </svg>
+              Portal
+            </a>
+            <a class="utility-button" href="card-flow.html">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="3" y="5" width="7" height="6" rx="1"></rect>
+                <rect x="14" y="5" width="7" height="6" rx="1"></rect>
+                <rect x="3" y="15" width="7" height="4" rx="1"></rect>
+                <rect x="14" y="15" width="7" height="4" rx="1"></rect>
+              </svg>
+              Card View
+            </a>
+          </div>
+        </div>
+        <section class="metric-strip" aria-label="Flow metrics">
+          <div class="metric"><b id="metricNodes">48</b><span>Nodes</span></div>
+          <div class="metric"><b id="metricApis">0</b><span>API</span></div>
+          <div class="metric"><b id="metricDb">0</b><span>DB</span></div>
+          <div class="metric"><b id="metricGuard">0</b><span>Guards</span></div>
+        </section>
+      </header>
+
+      <section class="canvas-shell" id="viewport" aria-label="Zoomable flow canvas">
+        <div class="stage" id="stage">
+          <svg class="connector-layer" id="connectorLayer" viewBox="0 0 2860 2260" aria-hidden="true">
+            <defs>
+              <marker id="arrow-neutral" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto">
+                <path d="M0 0 L12 6 L0 12 Z" fill="#2f6df6"></path>
+              </marker>
+              <marker id="arrow-success" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto">
+                <path d="M0 0 L12 6 L0 12 Z" fill="#16a878"></path>
+              </marker>
+              <marker id="arrow-fail" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto">
+                <path d="M0 0 L12 6 L0 12 Z" fill="#ff6b5f"></path>
+              </marker>
+              <marker id="arrow-warn" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto">
+                <path d="M0 0 L12 6 L0 12 Z" fill="#f2b84b"></path>
+              </marker>
+            </defs>
+          </svg>
+          <svg class="label-layer" id="labelLayer" viewBox="0 0 2860 2260" aria-hidden="true"></svg>
+        </div>
+        <div class="minimap" id="minimap">
+          <div class="mini-view" id="miniView"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="backdrop" id="drawerBackdrop"></div>
+  <aside class="drawer" id="detailDrawer" aria-hidden="true" aria-label="Node detail">
+    <div class="drawer-head">
+      <div class="drawer-topline">
+        <div>
+          <div class="drawer-tags" id="drawerTags"></div>
+          <h3 id="drawerTitle">Node detail</h3>
+        </div>
+        <button class="drawer-close" type="button" id="closeDrawer" aria-label="Close detail">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6 6 18"></path>
+            <path d="m6 6 12 12"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="drawer-body">
+      <section class="detail-block">
+        <h4>Purpose</h4>
+        <p id="drawerBody"></p>
+      </section>
+      <section class="detail-block">
+        <h4>Database / State</h4>
+        <p id="drawerDb"></p>
+      </section>
+      <section class="detail-block">
+        <h4>API / External Call</h4>
+        <p id="drawerApi"></p>
+      </section>
+      <section class="detail-block">
+        <h4>Outcome / Control</h4>
+        <p id="drawerOutcome"></p>
+      </section>
+    </div>
+  </aside>
+
+  <script>
+    const stage = document.getElementById("stage");
+    const viewport = document.getElementById("viewport");
+    const connectorLayer = document.getElementById("connectorLayer");
+    const labelLayer = document.getElementById("labelLayer");
+    const zoomReadout = document.getElementById("zoomReadout");
+    const miniView = document.getElementById("miniView");
+    const minimap = document.getElementById("minimap");
+    const CANVAS_WIDTH = 2860;
+    const CANVAS_HEIGHT = 2260;
+    const MINIMAP_WIDTH = 160;
+    const MINIMAP_HEIGHT = 112;
+
+    const colors = {
+      setup: "#2f6df6",
+      score: "#16a878",
+      origination: "#f2b84b",
+      core: "#7c5cff",
+      control: "#586a84",
+      execute: "#dd4a8a",
+      repay: "#00a7b7",
+      refund: "#ff6b5f",
+      reconcile: "#2f6df6",
+      governance: "#586a84",
+      process: "#2f6df6",
+      decision: "#f2b84b",
+      guard: "#ff6b5f",
+      result: "#16a878",
+      api: "#00a7b7",
+      money: "#dd4a8a"
+    };
+
+    const sections = [
+      { id: "setup", n: 1, title: "Setup & Onboarding", x: 40, y: 40, w: 1210, h: 240, color: colors.setup, summary: "Configuration, merchant readiness, user identity, CIF, deposit account, and KYC capture." },
+      { id: "score", n: 2, title: "Scoring & Line Setup", x: 1280, y: 40, w: 880, h: 240, color: colors.score, summary: "External bureau data, score calculation, Polaris score sync, limit, and line account." },
+      { id: "origination", n: 3, title: "Origination Entry", x: 40, y: 310, w: 1020, h: 365, color: colors.origination, summary: "Loan or BNPL entry, service guards, eligibility validation, reservation, approval, and contract authorization." },
+      { id: "core", n: 4, title: "Core Polaris Loan Setup", x: 1090, y: 310, w: 440, h: 365, color: colors.core, summary: "Child loan creation, repayment schedule calculation, schedule creation, and line linkage." },
+      { id: "control", n: 4, title: "Any Polaris Write Control", x: 1560, y: 310, w: 600, h: 365, color: colors.control, summary: "Timeout resolution, idempotent retry, confirmed failure handling, and safe continuation." },
+      { id: "execute", n: 5, title: "Disbursement / BNPL Execution", x: 40, y: 705, w: 1100, h: 280, color: colors.execute, summary: "Grant, BNPL merchant transfer, callback, POS approval, and merchant settlement." },
+      { id: "repay", n: 6, title: "Repayment & Closure", x: 40, y: 1015, w: 1000, h: 430, color: colors.repay, summary: "QPay invoice, callback, inbound money, loan payment, allocation, close, overdue, and reward jobs." },
+      { id: "refund", n: 6, title: "Refund / Reversal Flow", x: 1070, y: 1015, w: 500, h: 430, color: colors.refund, summary: "Settlement-aware refund request, reversal paths, confirmation, and finance review." },
+      { id: "reconcile", n: 6, title: "Reconciliation Outcomes", x: 1600, y: 1015, w: 300, h: 430, color: colors.reconcile, summary: "Daily reconciliation, Polaris queries, matched, mismatched, and dead-letter outcomes." },
+      { id: "governance", n: 7, title: "Governance & Logging", x: 1910, y: 705, w: 250, h: 740, color: colors.governance, summary: "Audit logs, financial ledger truth, API attempts, notes, and global controls." }
+    ];
+
+    const nodes = [
+      { id: "start", section: "setup", kind: "result", x: 70, y: 122, w: 70, h: 64, title: "Start", body: "Customer, merchant, or scheduler begins an operation.", outcome: "Route into configured products and service guards." },
+      { id: "system", section: "setup", kind: "process", x: 160, y: 88, w: 170, h: 105, title: "System Configuration", body: "Admin saves product configs, transaction codes, dynamic field mappings, and service pause windows.", db: "product_configs\ntxn_configs\ndynamic_field_mappings\nservice_pause_windows", outcome: "Operation is blocked if config is missing, inactive, or expired." },
+      { id: "merchant", section: "setup", kind: "process", x: 350, y: 88, w: 170, h: 105, title: "Merchant Onboarding", body: "Create merchant profiles, POS terminals, portal users, and passive settlement account records.", db: "merchant_profiles\npos_terminals\nmerchant_users", api: "Merchant setup APIs when configured", outcome: "Merchant must be active before BNPL invoices are accepted." },
+      { id: "passive", section: "setup", kind: "api", x: 540, y: 88, w: 170, h: 105, title: "Merchant Passive Account", body: "Register or link merchant passive and settlement accounts.", db: "polaris_accounts\nmerchant_profiles", api: "create/register merchant passive account", outcome: "BNPL merchant transfer can target a confirmed passive account." },
+      { id: "register", section: "setup", kind: "process", x: 730, y: 88, w: 170, h: 105, title: "User Register + OTP", body: "Create user and customer profile, then validate OTP.", db: "users\ncustomer_profiles\notp_sessions\nmessage_logs", outcome: "Reject duplicate phone or national ID." },
+      { id: "login", section: "setup", kind: "process", x: 920, y: 88, w: 170, h: 105, title: "Login / PIN / Biometric", body: "Create session and transaction authorization credentials.", db: "user_sessions\ncustomer_pin_credentials\ncustomer_biometric_credentials", outcome: "Suspended or deleted users are rejected." },
+      { id: "dan", section: "setup", kind: "process", x: 160, y: 196, w: 170, h: 70, title: "DAN Authorize", body: "Save DAN identity verification result.", db: "dan_verifications", outcome: "Continue only on verified result." },
+      { id: "cif", section: "setup", kind: "api", x: 350, y: 196, w: 170, h: 70, title: "Create Polaris CIF", body: "Create or update customer person record in Polaris.", db: "customer_profiles\npolaris_sync_queue", api: "cif/createPerson\ncif/updatePerson", outcome: "Save polaris_cust_code or mark pending_reconcile on timeout." },
+      { id: "deposit", section: "setup", kind: "api", x: 540, y: 196, w: 170, h: 70, title: "Open Deposit Account", body: "Create customer CASA/deposit account.", db: "customer_deposit_accounts\npolaris_accounts", api: "casa/createAccount\ncasa/openAccountStatus", outcome: "Store deposit acntCode." },
+      { id: "kyc", section: "setup", kind: "process", x: 730, y: 196, w: 190, h: 70, title: "KYC Info Collection", body: "Collect personal, address, file, employment, and verification step data.", db: "kyc_personal_details\nkyc_addresses\nkyc_customer_files\nkyc_verification_steps", api: "cif/updatePerson for changed customer data", outcome: "Line activation waits for required local data and Polaris sync." },
+
+      { id: "hur", section: "score", kind: "api", x: 1320, y: 88, w: 150, h: 92, title: "HUR Data Fetch", body: "Fetch and snapshot HUR response.", db: "hur_data_snapshots", api: "External HUR service", outcome: "Mark score unavailable if HUR fails." },
+      { id: "fico", section: "score", kind: "api", x: 1490, y: 88, w: 150, h: 92, title: "Sain / FICO Request", body: "Save FICO score, risk grade, and raw response hash.", db: "sain_score_requests", api: "External SAIN / FICO service", outcome: "Reject invalid, expired, or duplicated response." },
+      { id: "score", section: "score", kind: "process", x: 1660, y: 88, w: 150, h: 92, title: "Credit Scoring", body: "Calculate final custom score and grade.", db: "credit_score_results\ncredit_scoring_factors", outcome: "Eligible, ineligible, or manual review decision." },
+      { id: "syncScore", section: "score", kind: "api", x: 1830, y: 88, w: 150, h: 92, title: "Sync Score to Polaris", body: "Queue score sync and push model fields to CIF.", db: "credit_score_results\npolaris_score_sync_status", api: "cif/updatePerson", outcome: "Limit can activate after sync or manual override." },
+      { id: "limit", section: "score", kind: "process", x: 1405, y: 190, w: 150, h: 75, title: "Loan Limit Creation", body: "Create active product and total limit.", db: "loan_limits", outcome: "Offer visible only when KYC, score, deposit account, and config are valid." },
+      { id: "line", section: "score", kind: "api", x: 1580, y: 190, w: 160, h: 75, title: "Create Polaris Line", body: "Create and open parent line account.", db: "credit_line_accounts\npolaris_accounts", api: "line/createAccount\nline/openAccount", outcome: "Store line acntCode and set account active." },
+      { id: "eligible", section: "score", kind: "decision", x: 1810, y: 190, w: 130, h: 75, title: "Eligible?", body: "KYC, score, deposit, line, limit, and product rules are valid.", outcome: "Yes enters origination. No rejects or manual review." },
+      { id: "scoreReject", section: "score", kind: "guard", x: 1980, y: 190, w: 135, h: 75, title: "Reject / Manual Review", body: "Ineligible, invalid score, expired data, or reviewer hold.", outcome: "No loan or BNPL offer is shown." },
+
+      { id: "product", section: "origination", kind: "decision", x: 80, y: 440, w: 130, h: 95, title: "Product Type?", body: "One-tap loan or BNPL invoice path.", outcome: "Routes into cash loan or invoice scan." },
+      { id: "oneTap", section: "origination", kind: "process", x: 240, y: 350, w: 160, h: 80, title: "One Tap Loan Start", body: "Create draft/submitted loan application.", db: "loan_applications", outcome: "Validate amount, term, active account, line, and product." },
+      { id: "invoice", section: "origination", kind: "process", x: 240, y: 535, w: 160, h: 80, title: "BNPL Invoice Create", body: "Create POS invoice, QR code, pending POS transaction, and cart snapshot.", db: "pos_payment_invoices\npos_qr_codes\npos_transactions", outcome: "Return QR to merchant POS." },
+      { id: "qr", section: "origination", kind: "process", x: 420, y: 535, w: 150, h: 80, title: "Customer Scans BNPL QR", body: "Attach customer, installment option, and product terms.", db: "pos_transactions", outcome: "Continue to reservation or reject invoice." },
+      { id: "pause", section: "origination", kind: "decision", x: 430, y: 420, w: 150, h: 90, title: "Service Paused / EOD?", body: "Check pause windows before creating side effects.", db: "service_pause_windows", outcome: "Paused operations return retryable response." },
+      { id: "valid", section: "origination", kind: "decision", x: 610, y: 420, w: 160, h: 90, title: "KYC + Account + Line Valid?", body: "Customer, product, deposit account, line, and config must be active.", outcome: "Invalid cases reject before reservation." },
+      { id: "reject", section: "origination", kind: "guard", x: 620, y: 550, w: 130, h: 62, title: "Reject", body: "Return exact validation reason.", outcome: "No reservation or Polaris write." },
+      { id: "reserve", section: "origination", kind: "guard", x: 790, y: 350, w: 180, h: 90, title: "Reserve Credit Line", body: "Lock line row and reserve requested amount.", db: "credit_line_accounts\ncredit_limit_reservations", outcome: "Available = line - utilized - reserved." },
+      { id: "approval", section: "origination", kind: "decision", x: 800, y: 485, w: 150, h: 82, title: "Approval Decision", body: "Approve, reject, cancel, or pending core setup.", db: "loan_applications\naudit_logs", outcome: "Reject/cancel releases reservation." },
+      { id: "release", section: "origination", kind: "guard", x: 660, y: 600, w: 140, h: 58, title: "Release Reservation", body: "Release reserved amount on reject, cancel, failure, or safe timeout.", db: "credit_limit_reservations", outcome: "Reserved amount returns to available line." },
+      { id: "contract", section: "origination", kind: "decision", x: 900, y: 575, w: 140, h: 82, title: "Contract Accepted?", body: "Accepted contract and transaction authorization must match amount and not be expired.", db: "loan_contracts\ncustomer_transaction_authorizations", outcome: "Valid authorization enters core loan setup." },
+
+      { id: "child", section: "core", kind: "api", x: 1130, y: 355, w: 170, h: 82, title: "Create Child Loan Account", body: "Create and open child loan account.", db: "loans\nloan_core_steps\npolaris_accounts", api: "loan/createAccount\nloan/openAccount", outcome: "Keep pending_reconcile on unknown result." },
+      { id: "calc", section: "core", kind: "api", x: 1130, y: 445, w: 170, h: 82, title: "Calculate Schedule", body: "Calculate repayment schedule preview.", db: "loan_core_steps", api: "loan/calculateNrsSchedule", outcome: "Fail before grant if calculation is rejected." },
+      { id: "schedule", section: "core", kind: "api", x: 1130, y: 535, w: 170, h: 82, title: "Create Repayment Schedule", body: "Insert local schedule only after Polaris schedule is confirmed.", db: "repayment_schedules", api: "loan/createNrsSchedule\nloan/getNrsSchedule", outcome: "Local schedule must match Polaris schedule." },
+      { id: "linkLine", section: "core", kind: "api", x: 1130, y: 625, w: 170, h: 36, title: "Link Loan to Line", body: "Link child loan account to credit line.", db: "loans\nloan_core_steps", api: "line/linkLineAccountToLoan", outcome: "Grant blocked until link succeeds." },
+
+      { id: "timeout", section: "control", kind: "decision", x: 1605, y: 370, w: 145, h: 86, title: "Timeout / Unknown Result?", body: "Any Polaris write can return an unknown result.", outcome: "Never retry blindly before journal/account search." },
+      { id: "genericTimeout", section: "control", kind: "guard", x: 1790, y: 335, w: 190, h: 100, title: "Generic Timeout Handling", body: "Set source row and queue to pending_reconcile.", db: "polaris_sync_queue\npolaris_operation_attempts", api: "gen/getTmwJournalList\ngen/getAccountStatement\naccount details", outcome: "Resolve to success, retry same key, or dead-letter." },
+      { id: "resolve", section: "control", kind: "result", x: 1690, y: 480, w: 120, h: 56, title: "Resolve Success", body: "Matching journal or account state proves success.", outcome: "Continue without duplicate money movement." },
+      { id: "retrySame", section: "control", kind: "guard", x: 1840, y: 480, w: 120, h: 56, title: "Retry Same Key", body: "No journal found and operation is retryable.", outcome: "Reuse idempotency key." },
+      { id: "deadLetter", section: "control", kind: "guard", x: 1990, y: 480, w: 120, h: 56, title: "Dead-letter", body: "Ambiguous or unrecoverable result.", outcome: "Manual review with full context." },
+      { id: "confirmedFail", section: "control", kind: "decision", x: 1605, y: 555, w: 145, h: 86, title: "Confirmed Polaris Failure?", body: "Failure classification decides safe release or stop.", outcome: "Only retry classified retryable failures with no journal." },
+      { id: "deterministic", section: "control", kind: "guard", x: 1790, y: 575, w: 190, h: 86, title: "Deterministic Failure", body: "Save error details and audit transition.", db: "polaris_api_logs\npolaris_operation_attempts\naudit_logs", outcome: "Release reservation only when safe." },
+      { id: "successContinue", section: "control", kind: "result", x: 1605, y: 655, w: 145, h: 46, title: "Success - Continue", body: "No failure confirmed.", outcome: "Resume source workflow." },
+
+      { id: "disbType", section: "execute", kind: "decision", x: 80, y: 810, w: 145, h: 90, title: "BNPL or One Tap?", body: "Disbursement path splits after core setup.", outcome: "One tap grants to customer. BNPL then transfers merchant passive." },
+      { id: "grantOne", section: "execute", kind: "api", x: 250, y: 745, w: 170, h: 80, title: "Grant One Tap Loan", body: "Grant child loan to customer deposit.", db: "ledger_journals\nledger_entries", api: "loan/grantLoanNonCash", outcome: "Loan active and reservation consumed." },
+      { id: "loanActive", section: "execute", kind: "result", x: 450, y: 745, w: 150, h: 80, title: "Loan Active", body: "Reservation consumed.", outcome: "Funds available to customer." },
+      { id: "bnplGrant", section: "execute", kind: "api", x: 250, y: 865, w: 170, h: 80, title: "BNPL Loan Grant", body: "Grant child loan into customer deposit, then wait for merchant transfer.", db: "loans\nledger_journals", api: "loan/grantLoanNonCash", outcome: "POS cannot be approved yet." },
+      { id: "merchantTransfer", section: "execute", kind: "money", x: 450, y: 865, w: 170, h: 80, title: "Merchant Passive Transfer", body: "Move customer deposit money to merchant passive account.", db: "pos_transactions\nledger_journals", api: "tllrcasa/internalCasaTransaction", outcome: "POS approved only after transfer jrno confirms." },
+      { id: "callback", section: "execute", kind: "api", x: 650, y: 865, w: 160, h: 80, title: "POS Callback Send", body: "Send approved/rejected callback to merchant POS.", db: "pos_terminal_callbacks", api: "External merchant POS callback", outcome: "Retry callback without repeating loan grant or transfer." },
+      { id: "posApproved", section: "execute", kind: "result", x: 845, y: 865, w: 150, h: 80, title: "POS Approved", body: "Loan active and transfer confirmed.", outcome: "Merchant sees approved transaction." },
+      { id: "settlementBuild", section: "execute", kind: "process", x: 650, y: 745, w: 160, h: 80, title: "Settlement Build", body: "Build settlement from approved BNPL minus refunds.", db: "merchant_settlements\nmerchant_settlement_items", api: "Optional tmm/selectSettleFintxn", outcome: "Settlement waits for finance approval or schedule." },
+      { id: "settlementTransfer", section: "execute", kind: "money", x: 845, y: 745, w: 150, h: 80, title: "Settlement Transfer", body: "Transfer merchant passive to settlement or bank account.", db: "ledger_journal\nmerchant_settlements", api: "Configured settlement transfer", outcome: "Completed or pending_reconcile on timeout." },
+
+      { id: "qpayInvoice", section: "repay", kind: "api", x: 80, y: 1070, w: 150, h: 80, title: "QPay Repayment Invoice", body: "Create repayment invoice for schedule or manual target amount.", db: "qpay_repayment_invoices", api: "External QPay create", outcome: "Reject duplicate active invoice by policy." },
+      { id: "qpayCallback", section: "repay", kind: "api", x: 250, y: 1070, w: 150, h: 80, title: "QPay Callback Receive", body: "Validate provider callback by payment id, signature, amount, and invoice.", db: "qpay_repayment_callbacks\nrepayment_transactions", api: "External QPay callback", outcome: "Duplicate qpay_payment_id is ignored." },
+      { id: "inbound", section: "repay", kind: "money", x: 420, y: 1070, w: 150, h: 80, title: "Repayment Inbound Money", body: "Move bank or repayment pool funds to customer deposit.", db: "repayment_transactions\nledger_journals", api: "tllrbac/transactionBacToCasa or configured inbound transfer", outcome: "Proceed only after inbound jrno confirms." },
+      { id: "payLoan", section: "repay", kind: "money", x: 590, y: 1070, w: 150, h: 80, title: "Pay Loan from Deposit", body: "Pay child loan from customer deposit.", db: "repayment_transactions\nledger_journals", api: "loan/nonCashLoanPayment\nloan/loanPaymentTxnNonCash", outcome: "Store loan payment jrno or pending_reconcile." },
+      { id: "allocation", section: "repay", kind: "process", x: 760, y: 1070, w: 150, h: 80, title: "Repayment Allocation", body: "Allocate principal, interest, and penalty in order.", db: "repayment_schedules\nrepayment_allocations", outcome: "Prevent allocation above total due." },
+      { id: "partial", section: "repay", kind: "decision", x: 230, y: 1240, w: 150, h: 85, title: "Partial / Full / Overpayment?", body: "Classify payment result.", outcome: "Remaining due, final repayment, or excess review." },
+      { id: "remaining", section: "repay", kind: "result", x: 80, y: 1345, w: 140, h: 58, title: "Remaining Due", body: "Back to future dues.", outcome: "Show remaining due and next due date." },
+      { id: "final", section: "repay", kind: "process", x: 250, y: 1345, w: 140, h: 58, title: "Final Repayment Detection", body: "Check all schedules paid and candidate loan balance zero.", api: "loan/getLoanClosingAccountDetail", outcome: "Proceed only when payable closing amount confirms." },
+      { id: "excess", section: "repay", kind: "guard", x: 420, y: 1345, w: 140, h: 58, title: "Hold Excess", body: "Reject or hold overpayment based on configured policy.", outcome: "Manual review if money already moved." },
+      { id: "closeAmount", section: "repay", kind: "decision", x: 590, y: 1240, w: 150, h: 85, title: "Closing Amount Confirmed?", body: "Polaris closing detail confirms payable amount.", outcome: "Close only after confirmation." },
+      { id: "closeLoan", section: "repay", kind: "api", x: 760, y: 1240, w: 150, h: 85, title: "Close Loan Account", body: "Close child loan and create close journal if needed.", db: "loans\nledger_journals", api: "loan/nonCashCloseAccount", outcome: "Set loan closed and reduce utilized amount." },
+      { id: "reduceLine", section: "repay", kind: "result", x: 760, y: 1345, w: 150, h: 58, title: "Reduce Utilized Amount", body: "Restore credit line availability.", db: "credit_line_accounts", outcome: "Future drawdowns can use released line." },
+      { id: "jobs", section: "repay", kind: "process", x: 925, y: 1170, w: 95, h: 150, title: "Daily Jobs", body: "Overdue identification, penalty, notification, cashback, and reward jobs.", db: "penalty_records\nrepayment_cashback_records", api: "Optional Polaris reward transfer", outcome: "Idempotent scheduled processing." },
+
+      { id: "refundRequest", section: "refund", kind: "process", x: 1100, y: 1070, w: 150, h: 80, title: "Refund Request", body: "Validate loan POS settlement state and refund amount.", db: "merchant_refund_requests", outcome: "Reject invalid, duplicate, or over amount requests." },
+      { id: "alreadySettled", section: "refund", kind: "decision", x: 1270, y: 1070, w: 130, h: 80, title: "Already Settled?", body: "Refund path depends on settlement state.", outcome: "Before settlement can reverse merchant passive transfer. After settlement needs offset or finance path." },
+      { id: "reverseBefore", section: "refund", kind: "api", x: 1415, y: 1060, w: 140, h: 100, title: "Reversal Before Settlement", body: "Reverse merchant passive transfer, then adjust or reverse loan.", db: "merchant_refund_requests\nledger_journals", api: "gen/doReverseTxn\ngen/undoTransaction", outcome: "Refund processed only when dependencies confirm." },
+      { id: "reverseAfter", section: "refund", kind: "api", x: 1100, y: 1225, w: 150, h: 85, title: "Reversal After Settlement", body: "Create settlement offset or reverse settlement first according to finance policy.", db: "merchant_settlements\nsettlement_items", api: "gen/doReverseTxn\ngen/undoTransaction", outcome: "Ambiguous results require finance review." },
+      { id: "reversalConfirmed", section: "refund", kind: "decision", x: 1285, y: 1225, w: 135, h: 85, title: "Reversal Confirmed?", body: "Confirmed or ambiguous result classification.", outcome: "Confirmed refund is processed; ambiguous goes to review." },
+      { id: "refundProcessed", section: "refund", kind: "result", x: 1100, y: 1340, w: 140, h: 64, title: "Refund Processed", body: "All dependency reversals confirmed.", outcome: "Refund state is final." },
+      { id: "financeReview", section: "refund", kind: "guard", x: 1415, y: 1340, w: 140, h: 64, title: "Finance Review", body: "Manual review for ambiguous or policy-sensitive refund state.", outcome: "No duplicate reversal." },
+
+      { id: "dailyRecon", section: "reconcile", kind: "process", x: 1625, y: 1080, w: 250, h: 80, title: "Daily Reconciliation", body: "Read journals, accounts, loans, schedules, settlements, and pending queues.", db: "ledger_journals\nledger_entries\npolaris_accounts\nloans\nrepayment_schedules\nsettlements\npending_queues", outcome: "Build reconciliation candidates." },
+      { id: "polarisQueries", section: "reconcile", kind: "api", x: 1625, y: 1195, w: 250, h: 80, title: "Polaris Queries", body: "Query Polaris truth sources.", api: "gen/getTmwJournalList\ngen/getAccountStatement\naccount details", outcome: "Compare local facts with core statements." },
+      { id: "matched", section: "reconcile", kind: "result", x: 1625, y: 1320, w: 78, h: 62, title: "Matched", body: "Reconciled.", outcome: "No action needed." },
+      { id: "mismatch", section: "reconcile", kind: "guard", x: 1710, y: 1320, w: 78, h: 62, title: "Mismatched", body: "Mismatch found.", outcome: "Create business impact audit and work item." },
+      { id: "deadRecon", section: "reconcile", kind: "guard", x: 1795, y: 1320, w: 78, h: 62, title: "Dead-letter", body: "Unresolved automatically.", outcome: "Manual review with context." },
+
+      { id: "auditRule", section: "governance", kind: "guard", x: 1935, y: 770, w: 200, h: 105, title: "Audit Logging Rule", body: "Record business, security, financial status changes, and sensitive reads.", db: "audit_logs\nsystem_event_logs", outcome: "Every status transition has one audit row." },
+      { id: "financialRule", section: "governance", kind: "money", x: 1935, y: 900, w: 200, h: 105, title: "Financial Logging Rule", body: "Ledger journals and entries are the financial fact source.", db: "ledger_journals\nledger_entries", outcome: "Every money movement has a journal." },
+      { id: "apiRule", section: "governance", kind: "api", x: 1935, y: 1030, w: 200, h: 105, title: "API Logging Rule", body: "All Polaris calls are linked to sync queue and attempts.", db: "polaris_api_logs\npolaris_operation_attempts\npolaris_sync_queue", outcome: "Supports replay diagnosis and timeout resolution." },
+      { id: "notes", section: "governance", kind: "guard", x: 1935, y: 1160, w: 200, h: 220, title: "Global Notes", body: "Use idempotency keys for critical operations. Route hard failures to manual review. Release reservations only on safe stop states. Do not approve POS until merchant passive transfer is confirmed.", outcome: "Controls protect against duplicate money movement and unclear Polaris state." }
+    ];
+
+    const zones = [
+      { id: "reservation-zone", x: 770, y: 332, w: 280, h: 335, color: colors.gold, bg: "rgba(255, 246, 223, 0.54)", label: "Credit line reservation" },
+      { id: "control-zone", x: 1585, y: 330, w: 545, h: 335, color: colors.slate, bg: "rgba(238, 244, 251, 0.56)", label: "Polaris write safety panel" }
+    ];
+
+    const spaciousLayout = {
+      sections: {
+        setup: { x: 50, y: 50, w: 1500, h: 390 },
+        score: { x: 1600, y: 50, w: 1210, h: 390 },
+        origination: { x: 50, y: 500, w: 1380, h: 580 },
+        core: { x: 1480, y: 500, w: 560, h: 580 },
+        control: { x: 2090, y: 500, w: 720, h: 620 },
+        execute: { x: 50, y: 1140, w: 1500, h: 450 },
+        governance: { x: 1600, y: 1140, w: 590, h: 450 },
+        repay: { x: 50, y: 1650, w: 1410, h: 560 },
+        refund: { x: 1500, y: 1650, w: 700, h: 560 },
+        reconcile: { x: 2240, y: 1650, w: 570, h: 560 }
+      },
+      zones: {
+        "reservation-zone": { x: 985, y: 540, w: 410, h: 495 },
+        "control-zone": { x: 2125, y: 540, w: 650, h: 560 }
+      },
+      nodes: {
+        start: { x: 90, y: 190, w: 130, h: 120 },
+        system: { x: 250, y: 110, w: 220, h: 150 },
+        merchant: { x: 500, y: 110, w: 220, h: 150 },
+        passive: { x: 750, y: 110, w: 220, h: 150 },
+        register: { x: 1000, y: 110, w: 220, h: 150 },
+        login: { x: 1250, y: 110, w: 220, h: 150 },
+        dan: { x: 250, y: 280, w: 220, h: 120 },
+        cif: { x: 500, y: 280, w: 220, h: 120 },
+        deposit: { x: 750, y: 280, w: 220, h: 120 },
+        kyc: { x: 1000, y: 280, w: 260, h: 120 },
+
+        hur: { x: 1640, y: 110, w: 230, h: 140 },
+        fico: { x: 1900, y: 110, w: 230, h: 140 },
+        score: { x: 2160, y: 110, w: 230, h: 140 },
+        syncScore: { x: 2420, y: 110, w: 230, h: 140 },
+        limit: { x: 1770, y: 280, w: 230, h: 120 },
+        line: { x: 2030, y: 280, w: 230, h: 120 },
+        eligible: { x: 2290, y: 280, w: 210, h: 120 },
+        scoreReject: { x: 2530, y: 280, w: 230, h: 120 },
+
+        product: { x: 95, y: 730, w: 180, h: 130 },
+        oneTap: { x: 330, y: 570, w: 230, h: 125 },
+        invoice: { x: 330, y: 880, w: 230, h: 125 },
+        qr: { x: 600, y: 880, w: 220, h: 125 },
+        pause: { x: 620, y: 620, w: 230, h: 130 },
+        valid: { x: 870, y: 620, w: 240, h: 130 },
+        reject: { x: 835, y: 860, w: 180, h: 120 },
+        reserve: { x: 1130, y: 575, w: 250, h: 130 },
+        approval: { x: 1130, y: 755, w: 240, h: 125 },
+        release: { x: 1045, y: 925, w: 175, h: 120 },
+        contract: { x: 1235, y: 925, w: 175, h: 120 },
+
+        child: { x: 1525, y: 585, w: 240, h: 125 },
+        calc: { x: 1525, y: 735, w: 240, h: 125 },
+        schedule: { x: 1525, y: 885, w: 240, h: 125 },
+        linkLine: { x: 1790, y: 885, w: 210, h: 125 },
+
+        timeout: { x: 2135, y: 610, w: 210, h: 130 },
+        genericTimeout: { x: 2395, y: 565, w: 250, h: 155 },
+        resolve: { x: 2200, y: 795, w: 180, h: 95 },
+        retrySame: { x: 2425, y: 795, w: 180, h: 95 },
+        deadLetter: { x: 2635, y: 795, w: 150, h: 95 },
+        confirmedFail: { x: 2135, y: 970, w: 210, h: 120 },
+        deterministic: { x: 2395, y: 970, w: 250, h: 120 },
+        successContinue: { x: 2660, y: 970, w: 150, h: 140 },
+
+        disbType: { x: 95, y: 1280, w: 190, h: 130 },
+        grantOne: { x: 330, y: 1205, w: 230, h: 125 },
+        loanActive: { x: 600, y: 1205, w: 220, h: 125 },
+        bnplGrant: { x: 330, y: 1400, w: 230, h: 125 },
+        merchantTransfer: { x: 600, y: 1400, w: 240, h: 125 },
+        callback: { x: 880, y: 1400, w: 230, h: 125 },
+        posApproved: { x: 1140, y: 1400, w: 220, h: 125 },
+        settlementBuild: { x: 880, y: 1205, w: 230, h: 125 },
+        settlementTransfer: { x: 1140, y: 1205, w: 220, h: 125 },
+
+        auditRule: { x: 1640, y: 1210, w: 240, h: 125 },
+        financialRule: { x: 1910, y: 1210, w: 240, h: 125 },
+        apiRule: { x: 1640, y: 1390, w: 240, h: 125 },
+        notes: { x: 1910, y: 1390, w: 240, h: 155 },
+
+        qpayInvoice: { x: 90, y: 1725, w: 210, h: 125 },
+        qpayCallback: { x: 330, y: 1725, w: 220, h: 125 },
+        inbound: { x: 580, y: 1725, w: 220, h: 125 },
+        payLoan: { x: 830, y: 1725, w: 220, h: 125 },
+        allocation: { x: 1080, y: 1725, w: 220, h: 125 },
+        partial: { x: 330, y: 1910, w: 220, h: 125 },
+        remaining: { x: 90, y: 2050, w: 200, h: 100 },
+        final: { x: 580, y: 1910, w: 220, h: 125 },
+        excess: { x: 830, y: 1910, w: 220, h: 125 },
+        closeAmount: { x: 1080, y: 1910, w: 220, h: 125 },
+        closeLoan: { x: 1080, y: 2050, w: 220, h: 100 },
+        reduceLine: { x: 830, y: 2050, w: 220, h: 100 },
+        jobs: { x: 1320, y: 1815, w: 120, h: 210 },
+
+        refundRequest: { x: 1535, y: 1725, w: 220, h: 125 },
+        alreadySettled: { x: 1785, y: 1725, w: 190, h: 125 },
+        reverseBefore: { x: 2000, y: 1725, w: 180, h: 145 },
+        reverseAfter: { x: 1535, y: 1905, w: 220, h: 125 },
+        reversalConfirmed: { x: 1785, y: 1905, w: 190, h: 125 },
+        refundProcessed: { x: 1535, y: 2075, w: 200, h: 100 },
+        financeReview: { x: 1980, y: 2075, w: 190, h: 100 },
+
+        dailyRecon: { x: 2275, y: 1735, w: 250, h: 140 },
+        polarisQueries: { x: 2275, y: 1915, w: 250, h: 125 },
+        matched: { x: 2555, y: 1750, w: 145, h: 100 },
+        mismatch: { x: 2555, y: 1870, w: 145, h: 100 },
+        deadRecon: { x: 2555, y: 1990, w: 145, h: 100 }
+      }
+    };
+
+    sections.forEach((section) => Object.assign(section, spaciousLayout.sections[section.id] || {}));
+    zones.forEach((zone) => Object.assign(zone, spaciousLayout.zones[zone.id] || {}));
+    nodes.forEach((node) => Object.assign(node, spaciousLayout.nodes[node.id] || {}));
+
+    const links = [
+      ["start", "system"], ["system", "merchant"], ["merchant", "passive"], ["passive", "register"], ["register", "login"], ["login", "dan"], ["dan", "cif"], ["cif", "deposit"], ["deposit", "kyc"], ["kyc", "hur"],
+      ["hur", "fico"], ["fico", "score"], ["score", "syncScore"], ["syncScore", "limit"], ["limit", "line"], ["line", "eligible"], ["eligible", "scoreReject", "fail", "No"], ["eligible", "product", "success", "Yes"],
+      ["product", "oneTap", "neutral", "One tap"], ["product", "invoice", "neutral", "BNPL"], ["invoice", "qr"], ["oneTap", "pause"], ["qr", "pause"], ["pause", "valid", "success", "No pause"], ["pause", "reject", "fail", "Paused"], ["valid", "reject", "fail", "Invalid"], ["valid", "reserve", "success", "Valid"], ["reserve", "approval"], ["approval", "release", "fail", "Reject"], ["approval", "contract", "success", "Approve"], ["contract", "child", "success", "Accepted"],
+      ["child", "calc"], ["calc", "schedule"], ["schedule", "linkLine"], ["linkLine", "disbType", "success", "Core ready"], ["child", "timeout", "warn", "Any write"], ["timeout", "genericTimeout", "warn", "Unknown"], ["genericTimeout", "resolve", "success"], ["genericTimeout", "retrySame", "warn"], ["genericTimeout", "deadLetter", "fail"], ["timeout", "confirmedFail", "neutral"], ["confirmedFail", "successContinue", "success", "No"], ["confirmedFail", "deterministic", "fail", "Yes"],
+      ["disbType", "grantOne", "neutral", "One tap"], ["grantOne", "loanActive", "success"], ["disbType", "bnplGrant", "neutral", "BNPL"], ["bnplGrant", "merchantTransfer"], ["merchantTransfer", "callback"], ["callback", "posApproved", "success"], ["merchantTransfer", "settlementBuild"], ["settlementBuild", "settlementTransfer"],
+      ["qpayInvoice", "qpayCallback"], ["qpayCallback", "inbound"], ["inbound", "payLoan"], ["payLoan", "allocation"], ["allocation", "partial"], ["partial", "remaining", "success", "Partial"], ["partial", "final", "success", "Full"], ["partial", "excess", "fail", "Overpay"], ["final", "closeAmount"], ["closeAmount", "closeLoan", "success", "Confirmed"], ["closeLoan", "reduceLine", "success"], ["allocation", "jobs", "neutral", "Daily"],
+      ["refundRequest", "alreadySettled"], ["alreadySettled", "reverseBefore", "fail", "No"], ["alreadySettled", "reverseAfter", "success", "Yes"], ["reverseBefore", "reversalConfirmed"], ["reverseAfter", "reversalConfirmed"], ["reversalConfirmed", "refundProcessed", "success", "Confirmed"], ["reversalConfirmed", "financeReview", "warn", "Ambiguous"],
+      ["dailyRecon", "polarisQueries"], ["polarisQueries", "matched", "success"], ["polarisQueries", "mismatch", "fail"], ["polarisQueries", "deadRecon", "warn"]
+    ];
+
+    const routeOverrides = {
+      "eligible->product": { fromSide: "bottom", toSide: "top", labelDy: -14 },
+      "product->oneTap": { fromSide: "right", toSide: "left", labelDx: -10, labelDy: -12 },
+      "product->invoice": { fromSide: "right", toSide: "left", labelDx: -10, labelDy: 12 },
+      "pause->valid": { fromSide: "right", toSide: "left", labelDy: -12 },
+      "pause->reject": { fromSide: "bottom", toSide: "top", labelDx: -18 },
+      "valid->reject": { fromSide: "bottom", toSide: "top", labelDx: 18 },
+      "valid->reserve": { fromSide: "right", toSide: "left", labelDy: -12 },
+      "approval->release": { fromSide: "bottom", toSide: "top", labelDx: -18 },
+      "approval->contract": { fromSide: "bottom", toSide: "top", labelDx: 20 },
+      "contract->child": { fromSide: "right", toSide: "left", labelDy: -12 },
+      "linkLine->disbType": { fromSide: "bottom", toSide: "top", labelDy: -18 },
+      "timeout->genericTimeout": { fromSide: "right", toSide: "left", labelDy: -12 },
+      "timeout->confirmedFail": { fromSide: "bottom", toSide: "top", labelDx: -16 },
+      "genericTimeout->resolve": { fromSide: "bottom", toSide: "top", labelDx: -28 },
+      "genericTimeout->retrySame": { fromSide: "bottom", toSide: "top" },
+      "genericTimeout->deadLetter": { fromSide: "bottom", toSide: "top", labelDx: 28 },
+      "confirmedFail->successContinue": { fromSide: "right", toSide: "left", labelDy: -12 },
+      "confirmedFail->deterministic": { fromSide: "bottom", toSide: "top", labelDx: 20 },
+      "disbType->grantOne": { fromSide: "right", toSide: "left", labelDx: -8, labelDy: -12 },
+      "disbType->bnplGrant": { fromSide: "right", toSide: "left", labelDx: -8, labelDy: 12 },
+      "partial->remaining": { fromSide: "left", toSide: "right", labelDy: -12 },
+      "partial->final": { fromSide: "right", toSide: "left", labelDy: -12 },
+      "partial->excess": { fromSide: "right", toSide: "left", labelDy: 14 },
+      "closeAmount->closeLoan": { fromSide: "bottom", toSide: "top", labelDy: -12 },
+      "alreadySettled->reverseBefore": { fromSide: "right", toSide: "left", labelDy: -12 },
+      "alreadySettled->reverseAfter": { fromSide: "bottom", toSide: "top", labelDy: 12 },
+      "reversalConfirmed->refundProcessed": { fromSide: "bottom", toSide: "top", labelDx: -24 },
+      "reversalConfirmed->financeReview": { fromSide: "bottom", toSide: "top", labelDx: 26 },
+      "polarisQueries->matched": { fromSide: "right", toSide: "left", labelDx: -8 },
+      "polarisQueries->mismatch": { fromSide: "right", toSide: "left" },
+      "polarisQueries->deadRecon": { fromSide: "right", toSide: "left", labelDx: 8 }
+    };
+
+    const styleByKind = {
+      process: { color: colors.process, soft: "var(--blue-soft)" },
+      api: { color: colors.api, soft: "#e8fbff" },
+      decision: { color: colors.decision, soft: "var(--gold-soft)" },
+      guard: { color: colors.guard, soft: "var(--coral-soft)" },
+      result: { color: colors.result, soft: "var(--mint-soft)" },
+      money: { color: colors.money, soft: "var(--pink-soft)" }
+    };
+
+    let scale = 0.64;
+    let panX = 18;
+    let panY = 18;
+    let dragging = false;
+    let startX = 0;
+    let startY = 0;
+    let startPanX = 0;
+    let startPanY = 0;
+    let activeFilter = "all";
+
+    function renderSections() {
+      const nav = document.getElementById("sectionNav");
+      sections.forEach((section) => {
+        const el = document.createElement("section");
+        el.className = "diagram-section";
+        el.id = `section-${section.id}`;
+        Object.assign(el.style, {
+          left: `${section.x}px`,
+          top: `${section.y}px`,
+          width: `${section.w}px`,
+          height: `${section.h}px`,
+          "--section-color": section.color,
+          "--section-glow": `${section.color}33`
+        });
+        el.innerHTML = `
+          <div class="diagram-section-head">
+            <span class="section-number">${section.n}</span>
+            <h3>${section.title}</h3>
+          </div>
+          <p>${section.summary}</p>
+        `;
+        stage.appendChild(el);
+
+        const count = nodes.filter((node) => node.section === section.id).length;
+        const button = document.createElement("button");
+        button.className = "section-link";
+        button.type = "button";
+        button.style.setProperty("--section-color", section.color);
+        button.innerHTML = `<span class="section-dot">${section.n}</span><b>${section.title}</b><span>${count}</span>`;
+        button.addEventListener("click", () => centerOnRect(section.x, section.y, section.w, section.h));
+        nav.appendChild(button);
+      });
+    }
+
+    function renderZones() {
+      zones.forEach((zone) => {
+        const el = document.createElement("div");
+        el.className = "zone";
+        el.id = zone.id;
+        Object.assign(el.style, {
+          left: `${zone.x}px`,
+          top: `${zone.y}px`,
+          width: `${zone.w}px`,
+          height: `${zone.h}px`,
+          "--zone-color": zone.color,
+          "--zone-bg": zone.bg
+        });
+        el.innerHTML = `<div class="zone-label">${zone.label}</div>`;
+        stage.appendChild(el);
+      });
+    }
+
+    function nodeSearchText(node) {
+      return [node.title, node.body, node.db, node.api, node.outcome, node.kind, node.section].filter(Boolean).join(" ").toLowerCase();
+    }
+
+    function nodeFlags(node) {
+      return [
+        node.kind,
+        node.api ? "api" : "",
+        node.db ? "db" : "",
+        node.outcome && /reject|manual|timeout|failure|failed|paused|dead|invalid|duplicate|review|reconcile/i.test(node.outcome + " " + node.body) ? "guard" : "",
+        /grant|transfer|payment|settlement|loan|ledger|money|refund|repayment/i.test(node.title + " " + node.body + " " + node.api) ? "money" : ""
+      ].filter(Boolean).join(" ");
+    }
+
+    function renderNodes() {
+      nodes.forEach((node, index) => {
+        const style = styleByKind[node.kind] || styleByKind.process;
+        const el = document.createElement("article");
+        el.className = `diagram-node kind-${node.kind}`;
+        el.id = `node-${node.id}`;
+        el.tabIndex = 0;
+        el.dataset.nodeId = node.id;
+        el.dataset.search = nodeSearchText(node);
+        el.dataset.flags = nodeFlags(node);
+        Object.assign(el.style, {
+          left: `${node.x}px`,
+          top: `${node.y}px`,
+          width: `${node.w}px`,
+          minHeight: `${node.h}px`,
+          "--node-color": style.color,
+          "--node-soft": style.soft
+        });
+
+        const pills = [];
+        if (node.db) pills.push(`<span class="meta-pill">DB</span>`);
+        if (node.api) pills.push(`<span class="meta-pill">API</span>`);
+        if (node.outcome) pills.push(`<span class="meta-pill">${node.kind}</span>`);
+        const idx = String(index + 1).padStart(2, "0");
+        el.innerHTML = `
+          <div class="node-top">
+            <span class="node-index"><span>${idx}</span></span>
+            <div class="node-title">${node.title}</div>
+          </div>
+          <div class="node-body">${node.body}</div>
+          <div class="node-meta">${pills.join("")}</div>
+        `;
+        el.addEventListener("click", () => openDrawer(node));
+        el.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openDrawer(node);
+          }
+        });
+        stage.appendChild(el);
+      });
+    }
+
+    function pointFor(node, side) {
+      const el = document.getElementById(`node-${node}`);
+      const x = parseFloat(el.style.left);
+      const y = parseFloat(el.style.top);
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      if (side === "left") return [x, y + h / 2];
+      if (side === "right") return [x + w, y + h / 2];
+      if (side === "top") return [x + w / 2, y];
+      return [x + w / 2, y + h];
+    }
+
+    function autoSides(from, to) {
+      const a = document.getElementById(`node-${from}`);
+      const b = document.getElementById(`node-${to}`);
+      const ax = parseFloat(a.style.left) + a.offsetWidth / 2;
+      const ay = parseFloat(a.style.top) + a.offsetHeight / 2;
+      const bx = parseFloat(b.style.left) + b.offsetWidth / 2;
+      const by = parseFloat(b.style.top) + b.offsetHeight / 2;
+      if (Math.abs(bx - ax) > Math.abs(by - ay)) {
+        return bx >= ax ? ["right", "left"] : ["left", "right"];
+      }
+      return by >= ay ? ["bottom", "top"] : ["top", "bottom"];
+    }
+
+    function edgeColor(type) {
+      if (type === "success") return colors.mint;
+      if (type === "fail") return colors.coral;
+      if (type === "warn") return colors.gold;
+      return colors.blue;
+    }
+
+    function edgeMarker(type) {
+      if (type === "success") return "url(#arrow-success)";
+      if (type === "fail") return "url(#arrow-fail)";
+      if (type === "warn") return "url(#arrow-warn)";
+      return "url(#arrow-neutral)";
+    }
+
+    function sideVector(side) {
+      if (side === "left") return [-1, 0];
+      if (side === "right") return [1, 0];
+      if (side === "top") return [0, -1];
+      return [0, 1];
+    }
+
+    function isHorizontalSide(side) {
+      return side === "left" || side === "right";
+    }
+
+    function compactPoints(points) {
+      return points.filter((point, index) => {
+        const previous = points[index - 1];
+        return !previous || Math.abs(previous[0] - point[0]) > 0.5 || Math.abs(previous[1] - point[1]) > 0.5;
+      });
+    }
+
+    function connectorPoints(x1, y1, fromSide, x2, y2, toSide) {
+      const lead = 34;
+      const [fromDx, fromDy] = sideVector(fromSide);
+      const [toDx, toDy] = sideVector(toSide);
+      const start = [x1 + fromDx * lead, y1 + fromDy * lead];
+      const end = [x2 + toDx * lead, y2 + toDy * lead];
+      const points = [[x1, y1], start];
+      const fromHorizontal = isHorizontalSide(fromSide);
+      const toHorizontal = isHorizontalSide(toSide);
+
+      if (fromHorizontal && toHorizontal) {
+        const midX = (start[0] + end[0]) / 2;
+        points.push([midX, start[1]], [midX, end[1]]);
+      } else if (!fromHorizontal && !toHorizontal) {
+        const midY = (start[1] + end[1]) / 2;
+        points.push([start[0], midY], [end[0], midY]);
+      } else if (fromHorizontal) {
+        points.push([start[0], end[1]]);
+      } else {
+        points.push([end[0], start[1]]);
+      }
+
+      points.push(end, [x2, y2]);
+      return compactPoints(points);
+    }
+
+    function pathFromPoints(points) {
+      return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point[0]} ${point[1]}`).join(" ");
+    }
+
+    function labelPoint(points, route) {
+      const segments = [];
+      let total = 0;
+      for (let index = 1; index < points.length; index += 1) {
+        const a = points[index - 1];
+        const b = points[index];
+        const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (length > 0.5) {
+          segments.push({ a, b, length });
+          total += length;
+        }
+      }
+
+      let remaining = total * (route.labelT || 0.5);
+      for (const segment of segments) {
+        if (remaining <= segment.length) {
+          const ratio = remaining / segment.length;
+          return [
+            segment.a[0] + (segment.b[0] - segment.a[0]) * ratio + (route.labelDx || 0),
+            segment.a[1] + (segment.b[1] - segment.a[1]) * ratio + (route.labelDy || 0)
+          ];
+        }
+        remaining -= segment.length;
+      }
+
+      const last = points[Math.max(0, points.length - 1)] || [0, 0];
+      return [last[0] + (route.labelDx || 0), last[1] + (route.labelDy || 0)];
+    }
+
+    function renderEdgeLabel(label, x, y, type) {
+      const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      group.setAttribute("class", "edge-label-group");
+
+      const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      rect.setAttribute("class", "edge-label-bg");
+      rect.setAttribute("rx", "6");
+      rect.setAttribute("ry", "6");
+
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("class", "edge-label");
+      text.setAttribute("x", `${x}`);
+      text.setAttribute("y", `${y}`);
+      text.setAttribute("text-anchor", "middle");
+      text.setAttribute("style", `--edge-color:${edgeColor(type)}`);
+      text.textContent = label;
+
+      group.append(rect, text);
+      labelLayer.appendChild(group);
+
+      const box = text.getBBox();
+      rect.setAttribute("x", `${box.x - 7}`);
+      rect.setAttribute("y", `${box.y - 4}`);
+      rect.setAttribute("width", `${box.width + 14}`);
+      rect.setAttribute("height", `${box.height + 8}`);
+    }
+
+    function drawConnectors() {
+      [...connectorLayer.querySelectorAll(".edge")].forEach((el) => el.remove());
+      [...labelLayer.querySelectorAll(".edge-label-group")].forEach((el) => el.remove());
+      links.forEach(([from, to, type = "neutral", label = ""]) => {
+        const fromEl = document.getElementById(`node-${from}`);
+        const toEl = document.getElementById(`node-${to}`);
+        if (!fromEl || !toEl || fromEl.classList.contains("is-hidden") || toEl.classList.contains("is-hidden")) return;
+
+        const route = routeOverrides[`${from}->${to}`] || {};
+        const [autoFromSide, autoToSide] = autoSides(from, to);
+        const fromSide = route.fromSide || autoFromSide;
+        const toSide = route.toSide || autoToSide;
+        const [x1, y1] = pointFor(from, fromSide);
+        const [x2, y2] = pointFor(to, toSide);
+        const points = connectorPoints(x1, y1, fromSide, x2, y2, toSide);
+
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("class", "edge");
+        path.setAttribute("d", pathFromPoints(points));
+        path.setAttribute("style", `--edge-color:${edgeColor(type)}`);
+        path.setAttribute("marker-end", edgeMarker(type));
+        connectorLayer.appendChild(path);
+
+        if (label) {
+          const [labelX, labelY] = labelPoint(points, route);
+          renderEdgeLabel(label, labelX, labelY, type);
+        }
+      });
+    }
+
+    function renderMinimap() {
+      [...minimap.querySelectorAll(".mini-box")].forEach((el) => el.remove());
+      sections.forEach((section) => {
+        const box = document.createElement("div");
+        box.className = "mini-box";
+        box.style.left = `${section.x / CANVAS_WIDTH * MINIMAP_WIDTH}px`;
+        box.style.top = `${section.y / CANVAS_HEIGHT * MINIMAP_HEIGHT}px`;
+        box.style.width = `${section.w / CANVAS_WIDTH * MINIMAP_WIDTH}px`;
+        box.style.height = `${section.h / CANVAS_HEIGHT * MINIMAP_HEIGHT}px`;
+        minimap.insertBefore(box, miniView);
+      });
+    }
+
+    function updateMinimap() {
+      const rect = viewport.getBoundingClientRect();
+      const x = Math.max(0, -panX / scale);
+      const y = Math.max(0, -panY / scale);
+      const w = Math.min(CANVAS_WIDTH, rect.width / scale);
+      const h = Math.min(CANVAS_HEIGHT, rect.height / scale);
+      miniView.style.left = `${x / CANVAS_WIDTH * MINIMAP_WIDTH}px`;
+      miniView.style.top = `${y / CANVAS_HEIGHT * MINIMAP_HEIGHT}px`;
+      miniView.style.width = `${w / CANVAS_WIDTH * MINIMAP_WIDTH}px`;
+      miniView.style.height = `${h / CANVAS_HEIGHT * MINIMAP_HEIGHT}px`;
+    }
+
+    function applyTransform() {
+      stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+      zoomReadout.textContent = `${Math.round(scale * 100)}%`;
+      updateMinimap();
+    }
+
+    function centerOnRect(x, y, w, h) {
+      const rect = viewport.getBoundingClientRect();
+      const targetScale = Math.max(0.62, Math.min(1.05, Math.min((rect.width - 80) / w, (rect.height - 80) / h)));
+      scale = targetScale;
+      panX = rect.width / 2 - (x + w / 2) * scale;
+      panY = rect.height / 2 - (y + h / 2) * scale;
+      applyTransform();
+    }
+
+    function fitView() {
+      const rect = viewport.getBoundingClientRect();
+      scale = Math.min((rect.width - 36) / CANVAS_WIDTH, (rect.height - 36) / CANVAS_HEIGHT);
+      panX = (rect.width - CANVAS_WIDTH * scale) / 2;
+      panY = (rect.height - CANVAS_HEIGHT * scale) / 2;
+      applyTransform();
+    }
+
+    function resetView() {
+      scale = viewport.clientWidth > 900 ? 0.64 : 0.44;
+      panX = 22;
+      panY = 22;
+      applyTransform();
+    }
+
+    function zoomAt(nextScale, cx, cy) {
+      const old = scale;
+      const bounded = Math.max(0.28, Math.min(1.8, nextScale));
+      const worldX = (cx - panX) / old;
+      const worldY = (cy - panY) / old;
+      scale = bounded;
+      panX = cx - worldX * scale;
+      panY = cy - worldY * scale;
+      applyTransform();
+    }
+
+    function applyFilters() {
+      const query = document.getElementById("searchInput").value.trim().toLowerCase();
+      let shown = 0;
+      nodes.forEach((node) => {
+        const el = document.getElementById(`node-${node.id}`);
+        const flags = el.dataset.flags.split(" ");
+        const matchesFilter = activeFilter === "all" || flags.includes(activeFilter);
+        const matchesQuery = !query || el.dataset.search.includes(query);
+        const visible = matchesFilter && matchesQuery;
+        el.classList.toggle("is-hidden", !visible);
+        if (visible) shown += 1;
+      });
+      document.getElementById("visibleCount").textContent = `${shown} shown`;
+      drawConnectors();
+
+      if (query) {
+        const first = nodes.map((node) => document.getElementById(`node-${node.id}`)).find((el) => !el.classList.contains("is-hidden"));
+        if (first) {
+          centerOnRect(parseFloat(first.style.left), parseFloat(first.style.top), first.offsetWidth, first.offsetHeight);
+        }
+      }
+    }
+
+    function tag(text) {
+      const span = document.createElement("span");
+      span.className = "drawer-tag";
+      span.textContent = text;
+      return span;
+    }
+
+    function openDrawer(node) {
+      document.querySelectorAll(".diagram-node").forEach((el) => el.classList.toggle("is-selected", el.dataset.nodeId === node.id));
+      const tags = document.getElementById("drawerTags");
+      tags.replaceChildren(tag(node.kind), tag(sections.find((section) => section.id === node.section).title));
+      document.getElementById("drawerTitle").textContent = node.title;
+      document.getElementById("drawerBody").textContent = node.body || "No process detail recorded.";
+      document.getElementById("drawerDb").textContent = node.db || "No local table/state detail recorded.";
+      document.getElementById("drawerApi").textContent = node.api || "No Polaris or external API call at this step.";
+      document.getElementById("drawerOutcome").textContent = node.outcome || "No explicit outcome recorded.";
+      document.getElementById("detailDrawer").classList.add("is-open");
+      document.getElementById("detailDrawer").setAttribute("aria-hidden", "false");
+      document.getElementById("drawerBackdrop").classList.add("is-open");
+    }
+
+    function closeDrawer() {
+      document.getElementById("detailDrawer").classList.remove("is-open");
+      document.getElementById("detailDrawer").setAttribute("aria-hidden", "true");
+      document.getElementById("drawerBackdrop").classList.remove("is-open");
+      document.querySelectorAll(".diagram-node").forEach((el) => el.classList.remove("is-selected"));
+    }
+
+    function updateMetrics() {
+      document.getElementById("metricNodes").textContent = nodes.length;
+      document.getElementById("metricApis").textContent = nodes.filter((node) => node.api).length;
+      document.getElementById("metricDb").textContent = nodes.filter((node) => node.db).length;
+      document.getElementById("metricGuard").textContent = nodes.filter((node) => node.kind === "decision" || node.kind === "guard").length;
+    }
+
+    renderSections();
+    renderZones();
+    renderNodes();
+    renderMinimap();
+    drawConnectors();
+    updateMetrics();
+    applyFilters();
+    resetView();
+
+    document.getElementById("searchInput").addEventListener("input", applyFilters);
+
+    document.querySelectorAll(".filter-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".filter-button").forEach((item) => item.classList.remove("is-active"));
+        button.classList.add("is-active");
+        activeFilter = button.dataset.filter;
+        applyFilters();
+      });
+    });
+
+    viewport.addEventListener("pointerdown", (event) => {
+      if (event.target.closest(".diagram-node")) return;
+      dragging = true;
+      viewport.classList.add("dragging");
+      startX = event.clientX;
+      startY = event.clientY;
+      startPanX = panX;
+      startPanY = panY;
+      viewport.setPointerCapture(event.pointerId);
+    });
+
+    viewport.addEventListener("pointermove", (event) => {
+      if (!dragging) return;
+      panX = startPanX + event.clientX - startX;
+      panY = startPanY + event.clientY - startY;
+      applyTransform();
+    });
+
+    viewport.addEventListener("pointerup", () => {
+      dragging = false;
+      viewport.classList.remove("dragging");
+    });
+
+    viewport.addEventListener("wheel", (event) => {
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        const factor = event.deltaY > 0 ? 0.92 : 1.08;
+        const rect = viewport.getBoundingClientRect();
+        zoomAt(scale * factor, event.clientX - rect.left, event.clientY - rect.top);
+      } else {
+        panX -= event.deltaX;
+        panY -= event.deltaY;
+        applyTransform();
+      }
+    }, { passive: false });
+
+    document.getElementById("zoomIn").addEventListener("click", () => zoomAt(scale * 1.14, viewport.clientWidth / 2, viewport.clientHeight / 2));
+    document.getElementById("zoomOut").addEventListener("click", () => zoomAt(scale / 1.14, viewport.clientWidth / 2, viewport.clientHeight / 2));
+    document.getElementById("fitView").addEventListener("click", fitView);
+    document.getElementById("resetView").addEventListener("click", resetView);
+    document.getElementById("closeDrawer").addEventListener("click", closeDrawer);
+    document.getElementById("drawerBackdrop").addEventListener("click", closeDrawer);
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeDrawer();
+    });
+    window.addEventListener("resize", applyTransform);
+  </script>
+</body>
+</html>

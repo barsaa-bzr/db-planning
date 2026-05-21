@@ -1,0 +1,125 @@
+flowchart TD
+    %% Custom Styling
+    classDef user fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#fff
+    classDef bzr fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#fff
+    classDef db fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#fff
+    classDef api fill:#4c1d95,stroke:#c084fc,stroke-width:2px,color:#fff
+    classDef core fill:#083344,stroke:#22d3ee,stroke-width:2px,color:#fff
+    classDef decision fill:#7f1d1d,stroke:#f87171,stroke-width:2px,color:#fff
+    classDef error fill:#450a0a,stroke:#dc2626,stroke-width:2px,color:#fca5a5,stroke-dasharray: 5 5
+
+    %% Swimlanes via Subgraphs
+    subgraph Client [1. Client Application]
+        direction TB
+        U1([User Registration]):::user
+        U2([Request Cash Loan]):::user
+        U3([Request BNPL Purchase]):::user
+        U4([Make Repayment]):::user
+        U5([Show Client Error]):::error
+    end
+
+    subgraph External [2. External Data & Payments]
+        direction TB
+        Dan[Dan / HUR API <br> KYC Verification]:::api
+        QPay[QPay Gateway <br> Payment Webhook]:::api
+        Merch[Emart Merchant System]:::api
+    end
+
+    subgraph BZR [3. BZR Orchestration Engine]
+        direction TB
+        BZR_Reg[Create Base Profile]:::bzr
+        BZR_DB1[(DB: customer_profiles)]:::db
+        BZR_KYC[Process KYC Data]:::bzr
+        BZR_DB2[(DB: dan_verifications)]:::db
+        
+        BZR_Sync[Sync Profile & Scores]:::bzr
+        BZR_DB3[(DB: polaris_accounts)]:::db
+        
+        BZR_Q[(DB: loan_core_steps <br> State Machine Queue)]:::db
+        
+        BZR_W_Loan[Worker: create_loan_account]:::bzr
+        BZR_W_Disb[Worker: grant_loan]:::bzr
+        BZR_W_BNPL[Worker: bnpl_transfer]:::bzr
+        
+        BZR_Sweep[Sweeper: Exception Recovery]:::bzr
+        
+        BZR_Ledger[(DB: ledger_journals)]:::db
+        
+        BZR_Repay[Repayment Processor]:::bzr
+        BZR_DB4[(DB: loans & credit_line)]:::db
+    end
+
+    subgraph Polaris [4. Polaris Core Banking API]
+        direction TB
+        P_CIF[POST /cif/create <br> Create Person]:::core
+        P_Score[PUT /cif/update <br> Sync Scoring]:::core
+        P_Acc[POST /account/create <br> Deposit Account]:::core
+        
+        P_LoanC[POST /loan/create <br> Child Loan]:::core
+        P_LoanL[POST /loan/link <br> Link to Line]:::core
+        
+        P_Txn[POST /txn/disburse <br> Move Funds]:::core
+        P_Verify[GET /txn/verify <br> Idempotency Check]:::core
+        
+        P_RepayIn[POST /txn/transfer <br> Inbound Clearing]:::core
+        P_RepayOff[POST /txn/transfer <br> Loan Offset]:::core
+        
+        P_Bal[GET /account/balance <br> Check Settlement]:::core
+        P_Close[POST /account/close <br> Settle Contract]:::core
+    end
+
+    %% Registration & KYC Flow
+    U1 --> BZR_Reg --> BZR_DB1
+    BZR_DB1 --> KYC_Dec{Submit KYC?}:::decision
+    KYC_Dec -- Yes --> Dan
+    Dan -- Valid ID --> BZR_KYC --> BZR_DB2
+    Dan -- Invalid ID --> U5
+    
+    %% Core Banking Sync
+    BZR_DB2 --> BZR_Sync
+    BZR_Sync --> P_CIF --> P_Score --> P_Acc
+    P_Acc --> BZR_DB3
+    
+    %% Loan Initiation
+    BZR_DB3 --> U2
+    BZR_DB3 --> U3
+    
+    U2 --> Q_Dec1{Limit Available?}:::decision
+    Q_Dec1 -- Yes --> BZR_Q
+    Q_Dec1 -- No --> U5
+    
+    U3 --> Q_Dec2{Limit Available?}:::decision
+    Q_Dec2 -- Yes --> BZR_Q
+    Q_Dec2 -- No --> U5
+    
+    %% Disbursal State Machine
+    BZR_Q -- Pull Cash Loan --> BZR_W_Loan
+    BZR_W_Loan --> P_LoanC --> P_LoanL --> BZR_W_Disb
+    
+    BZR_Q -- Pull BNPL --> BZR_W_BNPL
+    
+    BZR_W_Disb --> P_Txn
+    BZR_W_BNPL --> P_Txn
+    
+    %% Critical Exception / Reconciliation Branch
+    P_Txn -. Timeout / Network Crash .-> Err_Dec{Unknown State?}:::decision
+    Err_Dec -- Yes --> BZR_Sweep
+    
+    BZR_Sweep -->|Cron runs every 5m| P_Verify
+    P_Verify -- Transaction Exists --> Txn_Succ[Mark Step Succeeded]:::bzr
+    P_Verify -- Missing in Core --> BZR_W_Disb
+    
+    P_Txn -- 200 OK --> Txn_Succ
+    
+    %% Ledger & Completion
+    Txn_Succ --> BZR_Ledger
+    BZR_Ledger -- Notify Payment --> Merch
+    
+    %% Repayment Flow
+    U4 --> QPay
+    QPay --> BZR_Repay
+    BZR_Repay --> P_RepayIn --> P_RepayOff --> P_Bal
+    
+    P_Bal --> Bal_Dec{Balance == 0?}:::decision
+    Bal_Dec -- Yes --> P_Close --> BZR_DB4
+    Bal_Dec -- No --> BZR_DB4

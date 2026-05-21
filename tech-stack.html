@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BZR Technical Architecture Blueprint</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      --ink: #10203f;
+      --muted: #63708a;
+      --paper: #f8fbff;
+      --panel: #ffffff;
+      --line: #d6e2f2;
+      --blue: #2f6df6;
+      --blue-soft: #e9f0ff;
+      --mint: #16a878;
+      --mint-soft: #e8f8f2;
+      --coral: #ff6b5f;
+      --coral-soft: #fff0ed;
+      --gold: #f2b84b;
+      --gold-soft: #fff6df;
+      --violet: #7c5cff;
+      --violet-soft: #f0edff;
+      --pink: #dd4a8a;
+      --pink-soft: #fff0f7;
+      --teal: #00a7b7;
+      --teal-soft: #e7fbfd;
+      --slate: #586a84;
+      --shadow: 0 18px 45px rgba(28, 61, 107, 0.12);
+      --radius: 8px;
+      color-scheme: light;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        linear-gradient(90deg, rgba(47, 109, 246, 0.05) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(47, 109, 246, 0.05) 1px, transparent 1px),
+        linear-gradient(135deg, #fbfdff 0%, #f3f8ff 48%, #fff9f2 100%);
+      background-size: 34px 34px, 34px 34px, auto;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .app-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 306px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 18px;
+      border-right: 1px solid rgba(120, 146, 183, 0.28);
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: blur(18px);
+      overflow: auto;
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius);
+      display: grid;
+      place-items: center;
+      background:
+        linear-gradient(135deg, rgba(47, 109, 246, 0.96), rgba(22, 168, 120, 0.9)),
+        #2f6df6;
+      box-shadow: 0 12px 24px rgba(47, 109, 246, 0.22);
+      flex: 0 0 auto;
+      overflow: hidden;
+    }
+
+    .brand-mark img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    .brand p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .status-card {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border: 1px solid rgba(22, 168, 120, 0.2);
+      border-radius: var(--radius);
+      background: var(--mint-soft);
+      margin-bottom: 14px;
+    }
+
+    .status-card b {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0;
+      color: #0f7558;
+    }
+
+    .status-card span {
+      color: #29405e;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .search-box {
+      position: relative;
+      margin: 16px 0 12px;
+    }
+
+    .search-box svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      width: 18px;
+      height: 18px;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    .search-box input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      padding: 11px 12px 11px 38px;
+      outline: none;
+      box-shadow: 0 8px 20px rgba(28, 61, 107, 0.06);
+    }
+
+    .search-box input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(47, 109, 246, 0.12);
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .filter-button,
+    .utility-button {
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 10px;
+      border-radius: var(--radius);
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+      white-space: normal;
+      text-align: center;
+      line-height: 1.15;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .filter-button:hover,
+    .utility-button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(47, 109, 246, 0.44);
+      background: #fff;
+    }
+
+    .filter-button.is-active {
+      color: #fff;
+      background: var(--ink);
+      border-color: var(--ink);
+    }
+
+    .filter-button svg,
+    .utility-button svg {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+    }
+
+    .nav-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 18px 2px 10px;
+    }
+
+    .section-nav {
+      display: grid;
+      gap: 7px;
+    }
+
+    .section-link {
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      min-height: 44px;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(214, 226, 242, 0.9);
+      color: var(--ink);
+      text-decoration: none;
+      transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+    }
+
+    .section-link:hover {
+      transform: translateX(2px);
+      background: #fff;
+      border-color: rgba(47, 109, 246, 0.38);
+    }
+
+    .section-link.is-muted {
+      opacity: 0.42;
+    }
+
+    .section-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 900;
+      background: var(--section-color);
+    }
+
+    .section-link b {
+      font-size: 12px;
+      line-height: 1.1;
+    }
+
+    .section-link span:last-child {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: capitalize;
+    }
+
+    .quick-actions {
+      display: grid;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .main {
+      min-width: 0;
+      padding: 24px;
+    }
+
+    .content-shell {
+      width: min(1240px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .topbar {
+      display: grid;
+      gap: 16px;
+      padding: 20px;
+      border: 1px solid rgba(214, 226, 242, 0.92);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow: var(--shadow);
+    }
+
+    .topbar-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .title-block {
+      min-width: 0;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      color: #1f5fe0;
+      background: var(--blue-soft);
+      border: 1px solid rgba(47, 109, 246, 0.16);
+      border-radius: var(--radius);
+      padding: 6px 9px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .title-block h2 {
+      margin: 0;
+      font-size: clamp(32px, 4vw, 56px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .title-block p {
+      margin: 14px 0 0;
+      max-width: 880px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex: 0 0 auto;
+    }
+
+    .metric-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      min-height: 92px;
+      border: 1px solid rgba(214, 226, 242, 0.92);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 14px;
+    }
+
+    .metric b {
+      display: block;
+      font-size: 24px;
+      line-height: 1.05;
+      margin-bottom: 8px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.42;
+    }
+
+    .blueprint-section {
+      display: grid;
+      gap: 14px;
+      scroll-margin-top: 22px;
+      border: 1px solid rgba(214, 226, 242, 0.92);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.86);
+      box-shadow: 0 16px 34px rgba(28, 61, 107, 0.08);
+      padding: 20px;
+    }
+
+    .blueprint-section.is-hidden {
+      display: none;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(214, 226, 242, 0.9);
+    }
+
+    .section-head h3 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .section-head p {
+      margin: 8px 0 0;
+      max-width: 860px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .section-badge {
+      flex: 0 0 auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      color: var(--slate);
+      background: #fff;
+      padding: 7px 9px;
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .prose {
+      display: grid;
+      gap: 12px;
+      color: #243954;
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .prose p,
+    .prose ul,
+    .prose ol {
+      margin: 0;
+    }
+
+    .prose ul,
+    .prose ol {
+      padding-left: 20px;
+    }
+
+    .prose li + li {
+      margin-top: 6px;
+    }
+
+    .grid-2,
+    .grid-3,
+    .grid-4 {
+      display: grid;
+      gap: 12px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .info-card,
+    .decision-card,
+    .critical-card,
+    .source-card {
+      border-radius: var(--radius);
+      border: 1px solid rgba(214, 226, 242, 0.92);
+      background: #fff;
+      padding: 14px;
+    }
+
+    .info-card h4,
+    .decision-card h4,
+    .critical-card h4,
+    .source-card h4 {
+      margin: 0 0 8px;
+      font-size: 15px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .info-card p,
+    .decision-card p,
+    .critical-card p,
+    .source-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .decision-card {
+      border-color: rgba(47, 109, 246, 0.2);
+      background: var(--blue-soft);
+    }
+
+    .critical-card {
+      border-color: rgba(255, 107, 95, 0.26);
+      background: var(--coral-soft);
+    }
+
+    .source-card {
+      border-color: rgba(242, 184, 75, 0.28);
+      background: var(--gold-soft);
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid rgba(214, 226, 242, 0.92);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    th,
+    td {
+      padding: 12px;
+      border-bottom: 1px solid rgba(214, 226, 242, 0.9);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: #29405e;
+      background: #f5f8fd;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+      padding: 5px 8px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .tag.strong {
+      color: #1f5fe0;
+      background: var(--blue-soft);
+      border-color: rgba(47, 109, 246, 0.18);
+    }
+
+    .flow-diagram,
+    .topology-diagram,
+    .pipeline-diagram {
+      display: grid;
+      gap: 10px;
+      border: 1px solid rgba(214, 226, 242, 0.92);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 14px;
+    }
+
+    .flow-row,
+    .pipeline-row {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(110px, 1fr));
+      gap: 8px;
+      align-items: stretch;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .flow-step,
+    .topology-node,
+    .pipeline-step {
+      position: relative;
+      min-height: 84px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(214, 226, 242, 0.92);
+      background: #f8fbff;
+      padding: 11px;
+    }
+
+    .flow-step::after,
+    .pipeline-step::after {
+      content: ">";
+      position: absolute;
+      right: -8px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-weight: 900;
+      z-index: 1;
+    }
+
+    .flow-step:last-child::after,
+    .pipeline-step:last-child::after {
+      display: none;
+    }
+
+    .flow-step b,
+    .topology-node b,
+    .pipeline-step b {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    .flow-step span,
+    .topology-node span,
+    .pipeline-step span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .flow-step.core,
+    .topology-node.core,
+    .pipeline-step.core {
+      background: var(--blue-soft);
+      border-color: rgba(47, 109, 246, 0.2);
+    }
+
+    .flow-step.async,
+    .topology-node.async,
+    .pipeline-step.async {
+      background: var(--mint-soft);
+      border-color: rgba(22, 168, 120, 0.22);
+    }
+
+    .flow-step.risk,
+    .topology-node.risk,
+    .pipeline-step.risk {
+      background: var(--coral-soft);
+      border-color: rgba(255, 107, 95, 0.26);
+    }
+
+    .topology-diagram {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    pre {
+      margin: 0;
+      overflow-x: auto;
+      border-radius: var(--radius);
+      border: 1px solid rgba(16, 32, 63, 0.14);
+      background: #10203f;
+      color: #f8fbff;
+      padding: 14px;
+      font-size: 12px;
+      line-height: 1.55;
+      tab-size: 2;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    .checklist {
+      display: grid;
+      gap: 9px;
+    }
+
+    .check-item {
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      border: 1px solid rgba(214, 226, 242, 0.92);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 11px;
+    }
+
+    .check-item span:first-child {
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      color: #0f7558;
+      background: var(--mint-soft);
+      border: 1px solid rgba(22, 168, 120, 0.22);
+      border-radius: 6px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .check-item b {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 13px;
+    }
+
+    .check-item small {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .empty-state {
+      display: none;
+      border: 1px dashed rgba(120, 146, 183, 0.58);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.74);
+      padding: 24px;
+      color: var(--muted);
+      text-align: center;
+      font-weight: 800;
+    }
+
+    .empty-state.is-visible {
+      display: block;
+    }
+
+    @media (max-width: 1180px) {
+      .grid-4,
+      .metric-strip,
+      .topology-diagram {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid-3 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 920px) {
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid rgba(120, 146, 183, 0.28);
+      }
+
+      .section-nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .topbar-row,
+      .section-head {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .top-actions {
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .main {
+        padding: 14px;
+      }
+
+      .sidebar {
+        padding: 14px;
+      }
+
+      .filter-grid,
+      .section-nav,
+      .grid-2,
+      .grid-3,
+      .grid-4,
+      .metric-strip,
+      .topology-diagram {
+        grid-template-columns: 1fr;
+      }
+
+      .blueprint-section,
+      .topbar {
+        padding: 16px;
+      }
+
+      .section-head h3 {
+        font-size: 23px;
+      }
+
+      .title-block h2 {
+        font-size: 34px;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .app-shell {
+        display: block;
+      }
+
+      .sidebar,
+      .top-actions,
+      .search-box,
+      .filter-grid {
+        display: none;
+      }
+
+      .main {
+        padding: 0;
+      }
+
+      .blueprint-section,
+      .topbar {
+        break-inside: avoid;
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Technical blueprint controls">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <img src="logo.png" alt="">
+        </div>
+        <div>
+          <h1>Tech Blueprint</h1>
+          <p>Production stack, AWS topology, security, and release governance.</p>
+        </div>
+      </div>
+
+      <div class="status-card">
+        <b>Current Blueprint</b>
+        <span>Active production-planning blueprint for the platform stack, AWS topology, security controls, audit model, and release governance.</span>
+      </div>
+
+      <label class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m20 20-3.6-3.6"></path>
+        </svg>
+        <input id="searchInput" type="search" placeholder="Search stack, AWS, audit, risk">
+      </label>
+
+      <div class="filter-grid" aria-label="Blueprint filters">
+        <button class="filter-button is-active" type="button" data-filter="all">All</button>
+        <button class="filter-button" type="button" data-filter="architecture">Architecture</button>
+        <button class="filter-button" type="button" data-filter="infra">Infra</button>
+        <button class="filter-button" type="button" data-filter="security">Security</button>
+        <button class="filter-button" type="button" data-filter="performance">Performance</button>
+        <button class="filter-button" type="button" data-filter="delivery">Delivery</button>
+        <button class="filter-button" type="button" data-filter="risk">Risk</button>
+      </div>
+
+      <div class="nav-label">
+        <span>Sections</span>
+        <span id="visibleCount">8 shown</span>
+      </div>
+      <nav class="section-nav" id="sectionNav" aria-label="Blueprint sections">
+        <a class="section-link" href="#strategy" data-section-link="strategy">
+          <span class="section-dot" style="--section-color: var(--blue);">1</span>
+          <b>Strategy</b>
+          <span>Risk</span>
+        </a>
+        <a class="section-link" href="#load" data-section-link="load">
+          <span class="section-dot" style="--section-color: var(--gold);">2</span>
+          <b>Market Load</b>
+          <span>Performance</span>
+        </a>
+        <a class="section-link" href="#architecture" data-section-link="architecture">
+          <span class="section-dot" style="--section-color: var(--mint);">3</span>
+          <b>Application</b>
+          <span>Architecture</span>
+        </a>
+        <a class="section-link" href="#runtime" data-section-link="runtime">
+          <span class="section-dot" style="--section-color: var(--violet);">4</span>
+          <b>Runtime</b>
+          <span>Performance</span>
+        </a>
+        <a class="section-link" href="#aws" data-section-link="aws">
+          <span class="section-dot" style="--section-color: var(--teal);">5</span>
+          <b>AWS Playbook</b>
+          <span>Infra</span>
+        </a>
+        <a class="section-link" href="#security" data-section-link="security">
+          <span class="section-dot" style="--section-color: var(--coral);">6</span>
+          <b>Security</b>
+          <span>Security</span>
+        </a>
+        <a class="section-link" href="#delivery" data-section-link="delivery">
+          <span class="section-dot" style="--section-color: var(--pink);">7</span>
+          <b>Delivery</b>
+          <span>Delivery</span>
+        </a>
+        <a class="section-link" href="#readiness" data-section-link="readiness">
+          <span class="section-dot" style="--section-color: var(--slate);">8</span>
+          <b>Launch Gates</b>
+          <span>Risk</span>
+        </a>
+      </nav>
+
+      <div class="quick-actions" aria-label="Portal links">
+        <a class="utility-button" href="index.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path>
+          </svg>
+          Portal
+        </a>
+        <a class="utility-button" href="flow.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M4 5h6"></path><path d="M14 5h6"></path><path d="M7 5v14"></path><path d="M17 5v14"></path><path d="M10 12h4"></path>
+          </svg>
+          Flow
+        </a>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="content-shell">
+        <header class="topbar">
+          <div class="topbar-row">
+            <div class="title-block">
+              <div class="eyebrow">Enterprise Digital Lending Platform</div>
+              <h2>Technical Architecture Blueprint</h2>
+              <p>This production-ready blueprint defines the backend stack, AWS deployment model, security controls, audit strategy, capacity assumptions, and delivery guardrails for launching a high-capacity digital lending platform in Mongolia.</p>
+            </div>
+            <div class="top-actions">
+              <a class="utility-button" href="index.html">Portal</a>
+              <a class="utility-button" href="erd.html">ERD</a>
+              <a class="utility-button" href="card-flow.html">Card Flow</a>
+            </div>
+          </div>
+
+          <section class="metric-strip" aria-label="Blueprint metrics">
+            <div class="metric"><b>Current</b><span>Status: active production blueprint for implementation planning.</span></div>
+            <div class="metric"><b>2,500+ RPS</b><span>Planning target for payday flash spikes, not average traffic.</span></div>
+            <div class="metric"><b>Java 21</b><span>Spring Boot 4.0.6, virtual threads, PostgreSQL 17, Redis 7, RabbitMQ 4.</span></div>
+            <div class="metric"><b>AWS Hybrid</b><span>EC2 application tier with managed RDS from launch, then managed Redis and RabbitMQ.</span></div>
+          </section>
+        </header>
+
+        <section class="blueprint-section" id="strategy" data-tags="risk architecture infra security" data-section-id="strategy">
+          <div class="section-head">
+            <div>
+              <h3>1. Executive Strategy</h3>
+              <p>The launch target is not a hobby deployment or a low-risk pilot; it is a regulated fintech platform expected to survive real payment-cycle surges.</p>
+            </div>
+            <span class="section-badge">Current Stage</span>
+          </div>
+
+          <div class="prose">
+            <p>The platform uses a managed hybrid cloud topology on AWS from launch. Application compute remains simple and containerized, while durable state, secrets, audit evidence, and database activity tracking are isolated into services designed for stronger durability, operational visibility, and controlled access.</p>
+            <p>The key design principle is direct: financial records must outlive host failures, deployment mistakes, queue stalls, and provider downtime. Redis, RabbitMQ, application logs, and third-party provider traces are supporting systems. PostgreSQL remains the source of truth, immutable audit storage preserves compliance evidence, and asynchronous integration paths prevent slow external systems from consuming the API tier.</p>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Decision Area</th>
+                  <th>Current Blueprint Position</th>
+                  <th>Critical Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Data tier</td>
+                  <td>Managed hybrid cloud topology on AWS from launch, with primary PostgreSQL on AWS RDS.</td>
+                  <td>Reduces data-loss exposure, disk I/O contention, backup burden, and failover risk for the lending ledger.</td>
+                </tr>
+                <tr>
+                  <td>Secrets and configuration</td>
+                  <td>AWS Secrets Manager injection into application memory at startup.</td>
+                  <td>Supports controlled access, secret rotation, IAM boundaries, and removal of static secrets from server files.</td>
+                </tr>
+                <tr>
+                  <td>Operational logging</td>
+                  <td>Structured JSON logs streamed to Grafana Loki or AWS CloudWatch.</td>
+                  <td>Application hosts must be disposable. Local logs cannot be the only operational evidence.</td>
+                </tr>
+                <tr>
+                  <td>Immutable audit</td>
+                  <td>Amazon S3 bucket with Object Lock enabled for WORM-compliant financial/security events.</td>
+                  <td>Compliance evidence must be tamper-resistant and independent from app-server lifecycle.</td>
+                </tr>
+                <tr>
+                  <td>Deployment topology</td>
+                  <td>Phase 0 EC2 app node plus managed RDS; Phase 1 adds gateway, two stateless app nodes, ElastiCache, and Amazon MQ.</td>
+                  <td>Separates delivery simplicity from state durability. Compute can stay simple while the ledger is managed.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="grid-3">
+            <div class="critical-card">
+              <h4>Managed state boundary</h4>
+              <p>The database, audit trail, secrets, and core operational evidence are treated as protected state. Application hosts can be replaced without becoming the only place where critical records exist.</p>
+            </div>
+            <div class="critical-card">
+              <h4>What is still intentionally simple</h4>
+              <p>The application remains a modular monolith. The blueprint avoids premature microservices because distributed ownership and cross-service transactions would slow v1 delivery and increase failure modes.</p>
+            </div>
+            <div class="decision-card">
+              <h4>Decision stance</h4>
+              <p>Keep code deployment simple, but make durable state, secrets, and audit evidence cloud-managed from the beginning.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="blueprint-section" id="load" data-tags="performance risk infra" data-section-id="load">
+          <div class="section-head">
+            <div>
+              <h3>2. Market Load and Capacity Targets</h3>
+              <p>The deployment target is Mongolia, where digital finance adoption is already high. Capacity planning should assume salary-cycle bursts and national-holiday traffic rather than smooth average usage.</p>
+            </div>
+            <span class="section-badge">Capacity Model</span>
+          </div>
+
+          <div class="grid-2">
+            <div class="source-card">
+              <h4>Verified market signal</h4>
+              <p>Official LendMN wording currently states "over one million registered users" and coverage of more than 80% of Mongolia's economically active population. Use this as verified context, not an exact capacity number.</p>
+            </div>
+            <div class="source-card">
+              <h4>Planning assumption</h4>
+              <p>The 1.3M to 1.5M registered-account target and 1.3M to 1.38M competitor benchmark are aggressive planning assumptions unless a primary source is attached. The system should still be load-tested against them.</p>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Market Player / Signal</th>
+                  <th>What It Means For This Platform</th>
+                  <th>Evidence Level</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>LendMN</td>
+                  <td>Sets the availability expectation for digital lending in Mongolia. Official wording supports "over one million registered users"; the 1.3M to 1.38M number is retained as a stress-planning benchmark until a primary source is attached.</td>
+                  <td>Verified for over one million; aggressive assumption for exact 1.3M to 1.38M range.</td>
+                </tr>
+                <tr>
+                  <td>Pocket.mn</td>
+                  <td>Represents user expectation for always-available wallet, lending, and payment-adjacent flows. The architecture must handle frequent mobile interactions and fast decision feedback.</td>
+                  <td>Competitive landscape signal; no precise load number assumed from this document.</td>
+                </tr>
+                <tr>
+                  <td>Storepay</td>
+                  <td>Merchant checkout and retail purchase loops create traffic patterns that are sharper than ordinary account browsing. Payment and BNPL flows must degrade gracefully when providers slow down.</td>
+                  <td>Competitive landscape signal; no precise load number assumed from this document.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="prose">
+            <p>The platform must be sized for a nationwide consumer-finance usage pattern. Standard off-peak usage is not the limiting case. The dangerous windows are daily commute/lunch peaks, semi-monthly salary dates, and major holiday demand spikes around Tsagaan Sar and Naadam. During those windows, thousands of users may attempt loan drawdowns, repayment, QR merchant payments, and settlement checks at the same time.</p>
+            <p>The architecture therefore targets flash-spike survival before perfect steady-state efficiency. That is why the blueprint prioritizes database IOPS, bounded connection pools, asynchronous provider calls, row-level locking, idempotency, dead-letter handling, and immutable audit trails.</p>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Operating Condition</th>
+                  <th>Target System Throughput</th>
+                  <th>Real-World Concurrency and System Behavior</th>
+                  <th>Architectural Consequence</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Standard Baseline</td>
+                  <td>100 - 150 RPS</td>
+                  <td>Typical off-peak behavior. Users check account balances, modify application inputs, browse lending terms, or inspect repayment schedules.</td>
+                  <td>API latency should be consistently low, but this band is not enough to prove production readiness.</td>
+                </tr>
+                <tr>
+                  <td>Daily Peak Windows</td>
+                  <td>600 - 900 RPS</td>
+                  <td>Commute and lunch windows. High QR scanning, QPay usage, application submissions, and micro-credit entry actions.</td>
+                  <td>Connection pools, Redis cache hit rates, and provider timeout limits must be monitored continuously.</td>
+                </tr>
+                <tr>
+                  <td>Payday Flash Spikes</td>
+                  <td>1,500 - 2,500+ RPS</td>
+                  <td>15-to-30 minute surge windows. Thousands of users execute loan draws and settlements simultaneously, requiring immediate ledger consistency.</td>
+                  <td>Ledger transactions require row locking, idempotency keys, outbox isolation, provisioned database IOPS, and tested queue backpressure.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="grid-3">
+            <div class="info-card">
+              <h4>DAU planning band</h4>
+              <p>For 1.3M to 1.5M registered accounts, a 10% to 15% DAU band implies 130K to 225K daily active users. The issue is not daily volume alone; it is synchronized demand.</p>
+            </div>
+            <div class="critical-card">
+              <h4>Average RPS is misleading</h4>
+              <p>A platform can pass average-load tests and still fail on payday. The acceptance test must include burst traffic, lock contention, and provider slowness at the same time.</p>
+            </div>
+            <div class="decision-card">
+              <h4>Target behavior</h4>
+              <p>Users should receive immediate, bounded responses while long-running provider synchronization moves through recoverable background processing.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="blueprint-section" id="architecture" data-tags="architecture performance risk delivery" data-section-id="architecture">
+          <div class="section-head">
+            <div>
+              <h3>3. Bounded Context Isolation and System Topography</h3>
+              <p>The backend uses a Spring Boot modular monolith: one deployable JVM, one relational source of truth, strict package boundaries, and asynchronous integration boundaries for third-party side effects.</p>
+            </div>
+            <span class="section-badge">Modular Monolith</span>
+          </div>
+
+          <div class="prose">
+            <p>The modular monolith choice optimizes for fast delivery without introducing distributed-data failure modes too early. Loan origination, repayment, KYC, merchant payments, and provider synchronization all need transactional clarity. Splitting these into independent services before the domain is stable would create cross-service consistency questions, distributed tracing requirements, and multi-team operational overhead.</p>
+            <p>The monolith is only acceptable if boundaries are enforced. Each bounded context must expose clear interfaces, avoid direct imports into unrelated modules, and keep financial write paths explicit. The outbox pattern is the required escape valve for operations that cannot safely complete inside the user-facing HTTP transaction.</p>
+          </div>
+
+          <div class="grid-4">
+            <div class="info-card">
+              <h4>Auth and Audit Context</h4>
+              <p>Handles stateless token processing with Spring Security 7.x and JJWT 0.12.6. Inbound API requests decode token signature claims in memory to avoid database pool exhaustion during login rushes.</p>
+            </div>
+            <div class="info-card">
+              <h4>KYC and Customer Context</h4>
+              <p>Controls identity matching through state registries such as DAN or GBD and biometric scanning. Network-bound identity work must run behind asynchronous collection boundaries.</p>
+            </div>
+            <div class="info-card">
+              <h4>Loan and Repayment Context</h4>
+              <p>Owns the financial ledger core: credit draws, interest tracking, settlements, repayments, and loan state transitions. High-contention operations use explicit row locking.</p>
+            </div>
+            <div class="info-card">
+              <h4>QPay and Polaris Boundary</h4>
+              <p>Connects to banking and payment networks. User response time must not depend on third-party stability, so provider side effects run through transactional outbox and queue workers.</p>
+            </div>
+          </div>
+
+          <div class="flow-diagram" aria-label="Transactional outbox flow">
+            <div class="tag-row">
+              <span class="tag strong">Transactional Outbox Pattern</span>
+              <span class="tag">Single ACID write</span>
+              <span class="tag">Recoverable async side effect</span>
+              <span class="tag">Provider downtime tolerant</span>
+            </div>
+            <div class="flow-row">
+              <div class="flow-step core"><b>API Request</b><span>User submits loan draw, repayment, or provider-linked action.</span></div>
+              <div class="flow-step core"><b>Validate and Lock</b><span>Apply rules, idempotency key, and <code>SELECT FOR UPDATE</code> where ledger rows are contested.</span></div>
+              <div class="flow-step core"><b>Ledger Write</b><span>Persist the primary business transaction inside PostgreSQL.</span></div>
+              <div class="flow-step core"><b>Outbox Insert</b><span>Insert a matching task event into the <code>outbox</code> table in the same ACID transaction.</span></div>
+              <div class="flow-step async"><b>Poller</b><span>Background worker reads eligible outbox events and publishes them to RabbitMQ 4.</span></div>
+              <div class="flow-step async"><b>Provider Sync</b><span>QPay or Polaris worker calls downstream systems with timeouts, circuit breakers, and retries.</span></div>
+              <div class="flow-step risk"><b>Retry or DLX</b><span>Failed events retry 3 times, then move to dead-letter handling and alerting without blocking other work.</span></div>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Failure Mode</th>
+                  <th>How It Happens</th>
+                  <th>Required Control</th>
+                  <th>Operational Evidence</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Duplicate disbursement</td>
+                  <td>Client retries, network timeouts, or worker replays submit the same financial action more than once.</td>
+                  <td>Idempotency keys, ledger uniqueness constraints, explicit row locking, and transaction-scoped outbox insert.</td>
+                  <td>Ledger row, idempotency record, outbox event, provider trace, immutable audit event.</td>
+                </tr>
+                <tr>
+                  <td>Stuck provider calls</td>
+                  <td>QPay, Polaris, or bank API latency exceeds normal response windows.</td>
+                  <td>Timeouts, Resilience4j circuit breakers, async workers, queue backpressure, user-facing pending state.</td>
+                  <td>Worker metrics, circuit-breaker state, retry count, DLX count, support-visible transaction status.</td>
+                </tr>
+                <tr>
+                  <td>Database pool exhaustion</td>
+                  <td>Login checks, lazy loading, slow queries, or long transactions consume all HikariCP connections.</td>
+                  <td>Stateless token validation, query review, pool sizing with Little's Law, short transactions, no provider calls inside DB transactions.</td>
+                  <td>Hikari metrics, slow-query logs, p95/p99 database latency, PostgreSQL active sessions.</td>
+                </tr>
+                <tr>
+                  <td>Third-party downtime</td>
+                  <td>External payment or registry provider is unavailable during peak demand.</td>
+                  <td>Outbox persistence, recoverable worker retry, circuit breaker open state, clear user status messaging.</td>
+                  <td>Outbox backlog, provider error rate, customer-visible status, DLX alerts.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="blueprint-section" id="runtime" data-tags="performance architecture delivery risk" data-section-id="runtime">
+          <div class="section-head">
+            <div>
+              <h3>4. Hardened Dependency Lock and JVM Tuning</h3>
+              <p>The backend stack is version-locked around Java 21 LTS, Spring Boot 4.0.6, Spring Framework 7.0.x, Gradle 9.x, PostgreSQL 17, and the operational libraries needed for security, persistence, resilience, and observability.</p>
+            </div>
+            <span class="section-badge">Backend Runtime</span>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Layer</th>
+                  <th>Locked Technology</th>
+                  <th>Purpose</th>
+                  <th>Critical Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Runtime</td>
+                  <td>Java 21 LTS</td>
+                  <td>Long-term JVM baseline with virtual thread support.</td>
+                  <td>All blocking I/O paths must be reviewed for thread pinning and transaction duration.</td>
+                </tr>
+                <tr>
+                  <td>Backend framework</td>
+                  <td>Spring Boot 4.0.6 and Spring Framework 7.0.x</td>
+                  <td>Web MVC, validation, security, actuator, AMQP, cache, Redis, mail, AOP, and application configuration.</td>
+                  <td>Boot 4 library compatibility must be validated with real integration tests before launch.</td>
+                </tr>
+                <tr>
+                  <td>Build</td>
+                  <td>Gradle 9.x</td>
+                  <td>Compilation, dependency lock, test execution, ArchUnit gates, CI reproducibility.</td>
+                  <td>Dependency drift should be treated as an architecture decision, not casual package maintenance.</td>
+                </tr>
+                <tr>
+                  <td>Persistence</td>
+                  <td>PostgreSQL 17.x, Flyway, HikariCP 6.x, Hibernate ORM 7.x</td>
+                  <td>Ledger source of truth, migrations, connection pooling, ORM access patterns.</td>
+                  <td>ORM convenience must not hide N+1 queries or wide transactional boundaries.</td>
+                </tr>
+                <tr>
+                  <td>Security</td>
+                  <td>Spring Security 7.x and JJWT 0.12.6</td>
+                  <td>JWT validation, access token handling, role checks, refresh lifecycle, and key rotation design.</td>
+                  <td>JWT key handling belongs in Secrets Manager and rotation policy, not static server files.</td>
+                </tr>
+                <tr>
+                  <td>Resilience</td>
+                  <td>Resilience4j 2.4.0 and Apache HttpClient5</td>
+                  <td>Circuit breakers, retries, timeouts, provider isolation, and controlled fallback messaging.</td>
+                  <td>Provider HTTP calls must never sit inside ledger transactions.</td>
+                </tr>
+                <tr>
+                  <td>Mobile</td>
+                  <td>Expo SDK 55, React Native 0.83, Expo Router 4.x, TypeScript 5.x</td>
+                  <td>Mobile app shell, routing, OTA JS/TS delivery, EAS environment profiles.</td>
+                  <td>Native code changes such as biometric routines or SSL pinning require app-store release cycles.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="grid-2">
+            <div class="info-card">
+              <h4>Virtual threads</h4>
+              <p>Spring Boot should enable virtual threads globally so high-concurrency I/O does not require a large platform-thread pool. This helps API scalability only if blocking sections do not pin carrier threads.</p>
+            </div>
+            <div class="critical-card">
+              <h4>Thread pinning rule</h4>
+              <p>Utilities or libraries that hold monitors through blocking I/O can pin virtual threads. Replace high-contention <code>synchronized</code> sections with <code>ReentrantLock</code> or narrower concurrency controls.</p>
+            </div>
+          </div>
+
+          <pre><code>spring:
+  threads:
+    virtual:
+      enabled: true</code></pre>
+
+          <div class="grid-3">
+            <div class="decision-card">
+              <h4>HikariCP sizing</h4>
+              <p>Pool size must be explicit and fixed. Use Little's Law as the starting estimate: <code>Pool Size = Throughput x Average Query Latency</code>. Set <code>minimum-idle</code> equal to <code>maximum-pool-size</code> to avoid surge-time connection allocation.</p>
+            </div>
+            <div class="decision-card">
+              <h4>Hibernate hardening</h4>
+              <p>Ban implicit lazy loading in high-frequency write paths. Use explicit <code>JOIN FETCH</code>, entity graphs, or batch fetching, and review query counts under realistic request traces.</p>
+            </div>
+            <div class="decision-card">
+              <h4>Provider resilience</h4>
+              <p>Wrap all banking HTTP clients in circuit breakers. After 5 consecutive failures, the breaker should open and return a bounded pending/unavailable response instead of consuming EC2 memory.</p>
+            </div>
+          </div>
+
+          <div class="critical-card">
+            <h4>Critical runtime position</h4>
+            <p>Virtual threads and fast Graviton CPUs do not compensate for slow queries, oversized transactions, missing indexes, or provider calls inside database transactions. The runtime stack is strong only when the team treats query review, timeout configuration, and pool metrics as release-blocking work.</p>
+          </div>
+        </section>
+
+        <section class="blueprint-section" id="aws" data-tags="infra performance risk security" data-section-id="aws">
+          <div class="section-head">
+            <div>
+              <h3>5. Staged AWS Infrastructure Deployment Playbook</h3>
+              <p>The launch topology uses scalable AWS infrastructure while avoiding Kubernetes-level complexity. Phase 0 separates the primary ledger from the application host. Phase 1 extracts Redis and RabbitMQ into managed HA services and scales the application tier horizontally.</p>
+            </div>
+            <span class="section-badge">AWS Hybrid</span>
+          </div>
+
+          <div class="grid-2">
+            <div class="decision-card">
+              <h4>Phase 0: AWS Launch Baseline</h4>
+              <p>0 to 10,000 users. Application compute, transient cache, and worker queues run as isolated Docker containers on one EC2 instance. The primary database is offloaded to managed AWS RDS from launch.</p>
+            </div>
+            <div class="decision-card">
+              <h4>Phase 1: HA Clustered Scale</h4>
+              <p>10,000 to 100,000+ users. Application servers become stateless, Redis and RabbitMQ move to AWS managed services, and public ingress is isolated behind an Nginx gateway.</p>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Phase 0 Component</th>
+                  <th>Exact Specification</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Application Compute Node</td>
+                  <td>1x EC2 <code>m7g.xlarge</code>, 4 vCPUs, 16 GiB RAM, AWS Graviton3.</td>
+                  <td>Cost-effective Java compute with enough memory for the monolith, RabbitMQ, Redis, Docker, and OS buffer.</td>
+                </tr>
+                <tr>
+                  <td>Primary Ledger Tier</td>
+                  <td>1x RDS <code>db.m7g.xlarge</code>, 4 vCPUs, 16 GiB RAM, PostgreSQL 17.x.</td>
+                  <td>Managed ledger durability, automated backups, better isolation, and less operational risk than local PostgreSQL.</td>
+                </tr>
+                <tr>
+                  <td>EC2 Storage</td>
+                  <td>30 GB gp3 EBS volume for application runtime logs and Docker configuration.</td>
+                  <td>Host storage is not trusted as the system of record. It holds runtime artifacts only.</td>
+                </tr>
+                <tr>
+                  <td>RDS Storage</td>
+                  <td>100 GB gp3 volume with 5,000 provisioned IOPS.</td>
+                  <td>Ledger writes and settlement windows require predictable I/O, not best-effort burst behavior.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Phase 0 Docker Component</th>
+                  <th>Dedicated RAM</th>
+                  <th>Key Settings and Configuration Parameters</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Spring Boot App Monolith</td>
+                  <td>9.0 GiB</td>
+                  <td><code>-XX:MaxRAMPercentage=80.0</code>, approximately 7.2 GB heap and 1.8 GB off-heap buffer.</td>
+                </tr>
+                <tr>
+                  <td>RabbitMQ 4 Queue Broker</td>
+                  <td>3.0 GiB</td>
+                  <td>Hard container limit in Docker Compose. Allows tens of thousands of queued outbox messages during provider slowdown.</td>
+                </tr>
+                <tr>
+                  <td>Redis 7 Caching Store</td>
+                  <td>2.0 GiB</td>
+                  <td><code>volatile-lru</code> eviction algorithm for distributed sessions, rate limits, and transient cache data.</td>
+                </tr>
+                <tr>
+                  <td>Host Operating System Buffer</td>
+                  <td>2.0 GiB</td>
+                  <td>Reserved for Linux kernel, Docker engine, monitoring agents, and operational headroom.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="topology-diagram" aria-label="Phase 1 topology">
+            <div class="topology-node core"><b>Public Gateway</b><span>1x <code>t4g.small</code> EC2 running Nginx for public routing and SSL/TLS termination.</span></div>
+            <div class="topology-node core"><b>Application Tier</b><span>2x <code>m7g.xlarge</code> EC2 nodes running stateless Spring Boot containers with 13.0 GiB limits.</span></div>
+            <div class="topology-node async"><b>Managed State</b><span>ElastiCache <code>cache.t4g.medium</code> and Amazon MQ RabbitMQ <code>mq.t3.medium</code>.</span></div>
+            <div class="topology-node async"><b>Ledger Tier</b><span>RDS <code>db.m7g.2xlarge</code>, 8 vCPUs, 32 GiB RAM, 200 GB gp3, 8,000 IOPS.</span></div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Phase 1 Migration Step</th>
+                  <th>Execution Detail</th>
+                  <th>Risk Reduced</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Extract state layers</td>
+                  <td>Provision AWS ElastiCache and Amazon MQ inside the private VPC. Update application environment configuration to connect to managed endpoints.</td>
+                  <td>Removes local Redis/RabbitMQ memory and disk contention from the app node.</td>
+                </tr>
+                <tr>
+                  <td>Scale out compute tier</td>
+                  <td>Spin up a second <code>m7g.xlarge</code> EC2 node with the same dockerized app configuration, both pointing to shared database, cache, and messaging layers.</td>
+                  <td>Reduces single app-node failure impact and improves burst capacity.</td>
+                </tr>
+                <tr>
+                  <td>Configure Nginx gateway</td>
+                  <td>Set upstream routing and health checks against <code>/actuator/health</code> for automatic failover between app nodes.</td>
+                  <td>Isolates public ingress and enables controlled app replacement.</td>
+                </tr>
+                <tr>
+                  <td>Update DNS records</td>
+                  <td>Point domain <code>A</code> records to the Nginx gateway public IP.</td>
+                  <td>Routes users through the load-balanced path and targets active capacity above 5,000 RPS after validation.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="grid-3">
+            <div class="critical-card">
+              <h4>Phase 0 app-node risk</h4>
+              <p>Phase 0 still has one application EC2 node. That is acceptable only if the business accepts a controlled early-stage compute failure risk and has restore/redeploy automation ready.</p>
+            </div>
+            <div class="critical-card">
+              <h4>Load-test requirement</h4>
+              <p>The claim of 5,000+ RPS must be proven with workload-specific tests, including ledger writes, provider slowness, Redis pressure, RabbitMQ backlog, and database lock contention.</p>
+            </div>
+            <div class="critical-card">
+              <h4>Graviton compatibility</h4>
+              <p>All JVM dependencies, Docker images, native mobile build assumptions, monitoring agents, and provider SDKs must be validated on ARM64/Graviton before production cutover.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="blueprint-section" id="security" data-tags="security risk infra delivery" data-section-id="security">
+          <div class="section-head">
+            <div>
+              <h3>6. Security, Compliance, and WORM Audit Trail</h3>
+              <p>The platform handles regulated lending data, customer identity details, repayment activity, and security-sensitive events. Secrets, operational logs, immutable audit records, and database activity tracking must be separated by design.</p>
+            </div>
+            <span class="section-badge">Compliance</span>
+          </div>
+
+          <div class="grid-2">
+            <div class="decision-card">
+              <h4>AWS Secrets Manager</h4>
+              <p>Static plaintext passwords or access keys are prohibited in repositories and raw server files. Database passwords, JWT private keys, and external integration tokens are fetched through AWS Secrets Manager and injected into Spring memory at startup.</p>
+            </div>
+            <div class="decision-card">
+              <h4>Separated log paths</h4>
+              <p>Operational logs go to Loki or CloudWatch for debugging and alerting. Critical financial and security events bypass volatile host disks and are written to S3 Object Lock for immutable retention.</p>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Control</th>
+                  <th>Blueprint Requirement</th>
+                  <th>Why It Matters</th>
+                  <th>Critical Caveat</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Secrets</td>
+                  <td>AWS Secrets Manager API bootstrap for database credentials, JWT keys, and provider tokens.</td>
+                  <td>Prevents long-lived secrets from being copied into source code, compose files, shell history, or server env dumps.</td>
+                  <td>Must include rotation policy, least-privilege IAM, and startup failure behavior.</td>
+                </tr>
+                <tr>
+                  <td>Operational logs</td>
+                  <td>Structured JSON logs with correlation IDs streamed to Loki or AWS CloudWatch.</td>
+                  <td>Supports debugging, alerting, incident review, and system health analysis across disposable app nodes.</td>
+                  <td>CloudWatch retention and ingestion cost must be configured deliberately.</td>
+                </tr>
+                <tr>
+                  <td>Immutable audit</td>
+                  <td>Loan approvals, repayments, KYC modifications, and security decisions written to S3 Object Lock.</td>
+                  <td>Creates WORM-compliant audit evidence that cannot be altered through normal admin workflows.</td>
+                  <td>Object Lock mode and retention mistakes are hard to undo. Configure a non-production rehearsal bucket first.</td>
+                </tr>
+                <tr>
+                  <td>Database activity</td>
+                  <td>pgAudit active on AWS RDS with events piped to CloudWatch.</td>
+                  <td>Provides an audit trail independent of application logs, including reads, DDL, and ledger interactions.</td>
+                  <td>Audit volume can be large; configure class filters and retention with compliance owners.</td>
+                </tr>
+                <tr>
+                  <td>PII masking</td>
+                  <td>Regex-based scrubbing for phone numbers, registration numbers, PINs, and account numbers before export.</td>
+                  <td>Prevents sensitive user data from leaking into monitoring, support, or analytics tools.</td>
+                  <td>Masking must be tested against real payload shapes and should not be the only PII control.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <pre><code>&lt;encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder"&gt;
+  &lt;layout class="ch.qos.logback.classic.PatternLayout"&gt;
+    &lt;pattern&gt;%replace(%msg){'(?i)(registration_number|pin|account_no)"\s*:\s*"([^"]+)"', "$1\":\"********\""}%n&lt;/pattern&gt;
+  &lt;/layout&gt;
+&lt;/encoder&gt;</code></pre>
+
+          <div class="grid-3">
+            <div class="critical-card">
+              <h4>Audit completeness</h4>
+              <p>An audit trail is only useful if every regulated event is captured. The team must define the event catalog before launch, not infer it after incidents.</p>
+            </div>
+            <div class="critical-card">
+              <h4>Object Lock mode</h4>
+              <p>Governance mode and compliance mode have different administrative properties. The wrong mode or retention period can create operational or legal problems.</p>
+            </div>
+            <div class="critical-card">
+              <h4>IAM blast radius</h4>
+              <p>Application roles should write audit objects but not delete or shorten retention. Human break-glass roles must be logged, rare, and reviewed.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="blueprint-section" id="delivery" data-tags="delivery architecture security risk" data-section-id="delivery">
+          <div class="section-head">
+            <div>
+              <h3>7. Team Delivery, Testing, and Pipeline Governance</h3>
+              <p>The monolith stays healthy only when boundary checks, real-infrastructure tests, queue recovery, mobile-release constraints, and environment parity are enforced by the delivery pipeline.</p>
+            </div>
+            <span class="section-badge">Governance</span>
+          </div>
+
+          <div class="prose">
+            <p>Delivery governance is not process decoration. It is how the team prevents local convenience from becoming production risk. ArchUnit protects package boundaries, Flyway protects schema evolution, Testcontainers protects integration confidence, RabbitMQ DLX protects queue progress, and EAS profiles protect mobile environment targeting.</p>
+          </div>
+
+          <div class="grid-2">
+            <div class="decision-card">
+              <h4>ArchUnit boundary control</h4>
+              <p>Gradle 9.x must run architecture tests that fail the build when modules import unauthorized packages. This is the guardrail that makes a modular monolith real.</p>
+            </div>
+            <div class="decision-card">
+              <h4>RabbitMQ DLX recovery</h4>
+              <p>Every queue path needs a Dead Letter Exchange. If an outbox message fails after 3 automated retries, route it to a DLQ and alert developers without blocking other transactions.</p>
+            </div>
+          </div>
+
+          <pre><code>@AnalyzeClasses(packages = "mn.fintech.platform")
+public class ArchitectureBoundaryTest {
+  @ArchTest
+  public static final ArchRule enforceQPayModuleIsolation = classes()
+      .that().resideInAPackage("..modules.qpay..")
+      .should().onlyBeAccessed().byAnyPackage("..modules.qpay..", "..modules.outbox..");
+}</code></pre>
+
+          <div class="pipeline-diagram" aria-label="Delivery pipeline">
+            <div class="pipeline-row">
+              <div class="pipeline-step core"><b>Local Dev</b><span>IDE app plus Docker Compose for PostgreSQL 17, Redis 7, RabbitMQ 4.</span></div>
+              <div class="pipeline-step core"><b>Flyway</b><span>Schema migrations run automatically to keep developer databases aligned.</span></div>
+              <div class="pipeline-step core"><b>GitHub Actions</b><span>Pull requests build with Gradle 9.x and run tests.</span></div>
+              <div class="pipeline-step async"><b>Testcontainers</b><span>Integration tests use disposable real PostgreSQL, Redis, and RabbitMQ containers.</span></div>
+              <div class="pipeline-step async"><b>Staging</b><span>Down-scaled mirror of production infrastructure, including RDS after production uses RDS.</span></div>
+              <div class="pipeline-step async"><b>Expo EAS</b><span>Profiles target development, preview, and production backend URLs.</span></div>
+              <div class="pipeline-step risk"><b>Release Gate</b><span>Launch only after load, restore, native module, and observability gates pass.</span></div>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Area</th>
+                  <th>Required Standard</th>
+                  <th>Failure Prevented</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Local development</td>
+                  <td>Developers run app locally with Docker Compose instances matching PostgreSQL 17, Redis 7, and RabbitMQ 4.</td>
+                  <td>Environment drift and integration surprises late in QA.</td>
+                </tr>
+                <tr>
+                  <td>CI integration tests</td>
+                  <td>GitHub Actions runs Gradle 9.x and Java Testcontainers against real disposable infrastructure.</td>
+                  <td>False confidence from mocks around SQL behavior, queues, and Redis semantics.</td>
+                </tr>
+                <tr>
+                  <td>Staging parity</td>
+                  <td>Staging mirrors production topology at smaller scale, including RDS once production uses RDS.</td>
+                  <td>Cloud-specific connectivity, security group, IAM, and SSL issues appearing first in production.</td>
+                </tr>
+                <tr>
+                  <td>Mobile environments</td>
+                  <td>Expo EAS profiles: <code>development</code> for local network loop, <code>preview</code> for staging/TestFlight QA, <code>production</code> for the HA Nginx endpoint.</td>
+                  <td>Mobile builds pointing to the wrong backend or bypassing staging validation.</td>
+                </tr>
+                <tr>
+                  <td>OTA constraints</td>
+                  <td>Expo OTA can deliver JS/TS and UI fixes, but native changes such as biometrics or SSL pinning require app-store review.</td>
+                  <td>Backend releases depending on mobile native changes that users do not have yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="blueprint-section" id="readiness" data-tags="risk delivery performance security infra" data-section-id="readiness">
+          <div class="section-head">
+            <div>
+              <h3>8. Launch Readiness Gates and Critical Review</h3>
+              <p>This blueprint is production-oriented, but it is not self-proving. The system should not launch at nationwide scale until each gate has evidence, owners, and rollback steps.</p>
+            </div>
+            <span class="section-badge">No Launch Without Evidence</span>
+          </div>
+
+          <div class="checklist">
+            <div class="check-item">
+              <span>1</span>
+              <div><b>Load and spike test evidence</b><small>Run baseline, daily peak, and payday flash-spike tests with ledger writes, login traffic, Redis lookups, RabbitMQ backlog, and third-party timeout simulation.</small></div>
+            </div>
+            <div class="check-item">
+              <span>2</span>
+              <div><b>Backup and restore drills</b><small>Prove RDS point-in-time recovery, restore duration, audit-bucket access, and application redeploy from a clean EC2 host.</small></div>
+            </div>
+            <div class="check-item">
+              <span>3</span>
+              <div><b>Dependency compatibility gate</b><small>Validate Spring Boot 4.0.6, Spring Framework 7.x, Hibernate ORM 7.x, HikariCP 6.x, JJWT 0.12.6, and all ARM64 Docker images in CI and staging.</small></div>
+            </div>
+            <div class="check-item">
+              <span>4</span>
+              <div><b>Mobile native-module validation</b><small>Confirm Expo SDK 55, React Native 0.83, SSL pinning, biometric authentication, compression/native modules, and EAS profiles before public mobile release.</small></div>
+            </div>
+            <div class="check-item">
+              <span>5</span>
+              <div><b>Observability dashboards</b><small>Dashboards must cover API latency, error rate, JVM memory, virtual-thread behavior, Hikari pool saturation, DB latency, Redis health, RabbitMQ depth, outbox age, DLX count, and provider error rates.</small></div>
+            </div>
+            <div class="check-item">
+              <span>6</span>
+              <div><b>Security and audit verification</b><small>Test Secrets Manager access, secret rotation, IAM least privilege, PII masking, pgAudit volume, S3 Object Lock retention, and immutable audit-event completeness.</small></div>
+            </div>
+            <div class="check-item">
+              <span>7</span>
+              <div><b>Incident runbooks</b><small>Create runbooks for provider outage, DLQ growth, RDS saturation, app-node replacement, stuck outbox events, suspicious login spikes, and audit-write failure.</small></div>
+            </div>
+            <div class="check-item">
+              <span>8</span>
+              <div><b>Business acceptance of Phase 0 risk</b><small>Phase 0 still has a single app compute node. Leadership must explicitly accept that risk or move directly to Phase 1 before launch.</small></div>
+            </div>
+          </div>
+
+          <div class="grid-3">
+            <div class="critical-card">
+              <h4>Most dangerous weak assumption</h4>
+              <p>Assuming infrastructure scale alone solves payday spikes. The harder risks are row contention, duplicate requests, third-party latency, and queue recovery.</p>
+            </div>
+            <div class="critical-card">
+              <h4>Most likely team failure</h4>
+              <p>Letting module boundaries blur because a monolith makes direct imports easy. ArchUnit and review standards must reject shortcuts before they become architecture.</p>
+            </div>
+            <div class="critical-card">
+              <h4>Most expensive late fix</h4>
+              <p>Audit and PII mistakes are costly to retrofit. Immutable event taxonomy, masking tests, and retention settings must be designed before real customer data lands.</p>
+            </div>
+          </div>
+
+          <div class="source-card">
+            <h4>Market source note</h4>
+            <p>Official LendMN reference used for verified wording: <a href="https://lend.mn/en/lendmn-dwm/">LendMN announcement</a>. Exact 1.3M to 1.38M registered-user figures remain planning assumptions unless a primary source is provided.</p>
+          </div>
+        </section>
+
+        <div class="empty-state" id="emptyState">No matching blueprint sections.</div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const searchInput = document.getElementById("searchInput");
+    const filterButtons = [...document.querySelectorAll(".filter-button")];
+    const sections = [...document.querySelectorAll(".blueprint-section")];
+    const links = [...document.querySelectorAll("[data-section-link]")];
+    const visibleCount = document.getElementById("visibleCount");
+    const emptyState = document.getElementById("emptyState");
+
+    function activeFilter() {
+      return document.querySelector(".filter-button.is-active").dataset.filter;
+    }
+
+    function sectionText(section) {
+      return `${section.textContent} ${section.dataset.tags}`.toLowerCase();
+    }
+
+    function applyFilters() {
+      const query = searchInput.value.trim().toLowerCase();
+      const filter = activeFilter();
+      let shown = 0;
+
+      sections.forEach((section) => {
+        const tags = section.dataset.tags.split(" ");
+        const matchesFilter = filter === "all" || tags.includes(filter);
+        const matchesQuery = !query || sectionText(section).includes(query);
+        const visible = matchesFilter && matchesQuery;
+        section.classList.toggle("is-hidden", !visible);
+        shown += visible ? 1 : 0;
+
+        const link = links.find((item) => item.dataset.sectionLink === section.dataset.sectionId);
+        if (link) link.classList.toggle("is-muted", !visible);
+      });
+
+      visibleCount.textContent = `${shown} shown`;
+      emptyState.classList.toggle("is-visible", shown === 0);
+    }
+
+    filterButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        filterButtons.forEach((item) => item.classList.remove("is-active"));
+        button.classList.add("is-active");
+        applyFilters();
+      });
+    });
+
+    searchInput.addEventListener("input", applyFilters);
+    applyFilters();
+  </script>
+</body>
+</html>

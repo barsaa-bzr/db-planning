@@ -1,0 +1,340 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lending / BNPL Flow</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-hover: #334155;
+            --primary: #3b82f6;
+            --secondary: #8b5cf6;
+            --accent: #f43f5e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.15) 0%, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 4rem;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .nav-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            justify-content: center;
+            margin-bottom: 3rem;
+            animation: fadeIn 1.2s ease-out;
+        }
+
+        .nav-pill {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            padding: 0.5rem 1.2rem;
+            border-radius: 999px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+        }
+
+        .nav-pill:hover, .nav-pill.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            transform: translateY(-2px);
+            border-color: rgba(255,255,255,0.2);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+
+        .section-container {
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        .section-container.active {
+            display: block;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: var(--text-main);
+        }
+
+        .section-title::after {
+            content: '';
+            flex-grow: 1;
+            height: 1px;
+            background: linear-gradient(90deg, var(--border), transparent);
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.4s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255,255,255,0.2);
+        }
+
+        .card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #fff;
+            line-height: 1.3;
+        }
+
+        .card-badge {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .process-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            flex-grow: 1;
+        }
+
+        .process-item {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .process-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .process-label.polaris { color: #c084fc; }
+        .process-label.response { color: #fb7185; }
+
+        .process-content {
+            font-size: 0.95rem;
+            color: #e2e8f0;
+        }
+
+        .empty-text {
+            color: #64748b;
+            font-style: italic;
+            font-size: 0.9rem;
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5rem; }
+            .cards-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Lending & BNPL Flow</h1>
+            <p class="subtitle">Operational flow, control points, database tables, and API interactions for the Polaris system.</p>
+        </header>
+
+        <div class="nav-pills" id="nav">
+            <!-- Navigation will be generated here -->
+        </div>
+
+        <div id="content">
+            <!-- Content will be generated here -->
+        </div>
+    </div>
+
+    <script>
+        const data = [{"title":"1. Setup & Onboarding","items":[{"id":1,"action":"System configuration","ourEnd":"Admin saves active product configs transaction configs dynamic field mappings and service pause rules","polarisEnd":"No Polaris call during save but values map to future prodCode brchCode curCode txnDefCode and dynamicData","response":"Config becomes active or operation is blocked if config is missing inactive or expired"},{"id":2,"action":"Merchant onboarding","ourEnd":"Create merchant_profiles pos_terminals merchant portal users and planned passive settlement account records","polarisEnd":"","response":""},{"id":3,"action":"Merchant passive account setup","ourEnd":"Save merchant passive and settlement accounts in polaris_accounts and link to merchant_profiles","polarisEnd":"Create or register merchant passive and settlement account acntCode according to configured product","response":"BNPL invoices are allowed only when merchant status is active and passive account exists"},{"id":4,"action":"User register with OTP","ourEnd":"Create users customer_profiles otp_sessions message_logs and customer reg_status pending","polarisEnd":"No Polaris call yet","response":"Return OTP verified registration state or reject duplicate phone national id"},{"id":5,"action":"Login","ourEnd":"Create user_sessions and update device login metadata","polarisEnd":"No Polaris call","response":"Return access token refresh token and active session or reject suspended deleted user"},{"id":6,"action":"Set transaction PIN or biometric","ourEnd":"Create or update customer_pin_credentials customer_biometric_credentials and audit security status","polarisEnd":"No Polaris call","response":"Enable transaction authorization or lock revoke credential on failed policy"},{"id":7,"action":"DAN authorize","ourEnd":"Save dan_verifications and update customer identity verification state","polarisEnd":"No Polaris call unless DAN success triggers CIF step","response":"Continue to CIF creation on verified result or mark failed expired manual_review"},{"id":8,"action":"Create Polaris CIF","ourEnd":"Update customer_profiles with identity data and enqueue polaris_sync_queue operation create_cif_person","polarisEnd":"Call cif/createPerson and if duplicate found search/update with cif/updatePerson","response":"Save polaris_cust_code and polaris_cif_status synced or pending_reconcile on timeout"},{"id":9,"action":"Open customer deposit account","ourEnd":"Create customer_deposit_accounts and polaris_accounts placeholder using configured deposit product","polarisEnd":"Call casa/createAccount then casa/openAccountStatus","response":"Store deposit acntCode set account active or pending_reconcile if account result is unknown"},{"id":10,"action":"KYC info collection","ourEnd":"Save kyc_personal_details kyc_addresses kyc_contact_infos kyc_customer_files kyc_employments and kyc_verification_steps","polarisEnd":"Sync changed customer data to Polaris using cif/updatePerson and mapped dynamicData fields","response":"Set local KYC verified only when required local data and Polaris sync are complete"},{"id":11,"action":"KYC rejection or manual review","ourEnd":"Set relevant kyc_* rows rejected or kyc_verification_steps manual review and audit reason","polarisEnd":"If data was already synced then update Polaris customer status or risk flags if configured","response":"Stop line activation and show rejected or manual review status to customer"}]},{"title":"2. Scoring & Line Setup","items":[{"id":12,"action":"HUR data fetch","ourEnd":"Save hur_data_snapshots with raw response hash and extracted data","polarisEnd":"External HUR service only no Polaris write","response":"Use snapshots for scoring or mark score unavailable if HUR fails"},{"id":13,"action":"Sain FICO score request","ourEnd":"Save sain_score_requests with FICO sain score risk grade and raw response hash","polarisEnd":"External Sain/FICO service only no Polaris write","response":"Continue custom scoring or reject score if response is invalid expired or duplicated"},{"id":14,"action":"Credit scoring calculation","ourEnd":"Create credit_score_results and credit_scoring_factors with final score custom score FICO score model version and grade","polarisEnd":"No immediate Polaris money movement","response":"Return eligible ineligible or manual review decision"},{"id":15,"action":"Sync score to Polaris","ourEnd":"Update credit_score_results polaris_score_sync_status and queue sync_credit_score_to_polaris","polarisEnd":"Call cif/updatePerson with score risk grade model version and dynamicData mappings","response":"Allow active limit only after sync succeeded or approved manual override"},{"id":16,"action":"Loan limit creation","ourEnd":"Create or update loan_limits with max_total_limit product limits utilized amount and status active","polarisEnd":"No Polaris write inside local limit creation","response":"Customer can see offer only if KYC score deposit account and config are valid"},{"id":17,"action":"Create Polaris line account","ourEnd":"Create credit_line_accounts using active loan_limit customer deposit and line product config","polarisEnd":"Call line/createAccount then line/openAccount","response":"Store line acntCode in polaris_accounts and set credit_line_accounts active"},{"id":18,"action":"Line limit adjustment","ourEnd":"Update loan_limits and credit_line_accounts after risk refresh using row lock","polarisEnd":"Call line/adjustLineAccountLimit if line amount changes","response":"Increase applies immediately; decrease below utilized suspends new drawdowns instead of breaking existing loans"}]},{"title":"3. Origination Entry","items":[{"id":19,"action":"One tap loan start","ourEnd":"Create loan_applications draft then submitted with requested amount term product and customer deposit account","polarisEnd":"No Polaris write yet","response":"Return validation errors if inactive KYC inactive deposit inactive line expired limit or amount too high"},{"id":20,"action":"BNPL invoice create","ourEnd":"Create pos_payment_invoices pos_qr_codes and pending pos_transactions with merchant terminal and cart snapshot","polarisEnd":"No Polaris write yet","response":"Return QR to merchant POS if merchant terminal active and invoice not duplicated or expired"},{"id":21,"action":"Customer scans BNPL QR","ourEnd":"Attach customer_id selected installment option and product terms to pos transaction","polarisEnd":"No Polaris write yet","response":"Continue to reservation if customer is eligible or reject invoice with reason"},{"id":22,"action":"Credit line reservation","ourEnd":"Lock credit_line_accounts row and create credit_limit_reservations reserved with idempotency_key","polarisEnd":"No Polaris write yet","response":"Available amount equals line_amount minus utilized_amount minus reserved_amount to prevent double spend"},{"id":23,"action":"Approval decision","ourEnd":"Update loan_applications approved pending_core_setup or rejected cancelled and write audit_logs","polarisEnd":"No Polaris write if rejected; approved proceeds to child loan setup","response":"Rejected or cancelled releases reservation and returns reason"},{"id":24,"action":"Contract acceptance","ourEnd":"Store accepted contract reference and customer_transaction_authorizations for money moving consent","polarisEnd":"No Polaris write","response":"Proceed only when authorization is valid not expired and amount matches requested loan"}]},{"title":"4. Core Polaris Loan Setup","items":[{"id":25,"action":"Create child loan account","ourEnd":"Create loans row pending_core_setup and loan_core_steps create_loan_account open_loan_account","polarisEnd":"Call loan/createAccount then loan/openAccount","response":"Store child loan acntCode in polaris_accounts or keep pending_reconcile on timeout"},{"id":26,"action":"Calculate repayment schedule","ourEnd":"Create loan_core_steps calculate_schedule and store calculated schedule preview","polarisEnd":"Call loan/calculateNrsSchedule","response":"Show final repayment terms or fail before grant if calculation is rejected"},{"id":27,"action":"Create repayment schedule","ourEnd":"Insert repayment_schedules only after Polaris schedule is confirmed","polarisEnd":"Call loan/createNrsSchedule and optionally loan/getNrsSchedule","response":"Set schedule_status succeeded only when local schedule matches Polaris schedule"},{"id":28,"action":"Link loan to line","ourEnd":"Update loans line_link_status and loan_core_steps link_line_account_to_loan","polarisEnd":"Call line/linkLineAccountToLoan","response":"Grant is blocked until link confirmed succeeded"}]},{"title":"5. Disbursement & Execution","items":[{"id":29,"action":"Grant one tap loan","ourEnd":"Create ledger_journals ledger_entries and update loans grant_status pending","polarisEnd":"Call loan/grantLoanNonCash from child loan account to customer deposit account","response":"Store grant_polaris_jrno set loan active application disbursed reservation consumed"},{"id":30,"action":"Grant timeout handling","ourEnd":"Set loan grant_status pending_reconcile and queue reconciliation with same idempotency_key","polarisEnd":"Query gen/getTmwJournalList gen/getAccountStatement loan account detail and deposit detail before retry","response":"If matching jrno exists mark success; if no match retry same key; if ambiguous dead_letter"},{"id":31,"action":"BNPL loan grant","ourEnd":"Run same child loan grant into customer deposit and set loan pending_bnpl_transfer after success","polarisEnd":"Call loan/grantLoanNonCash from child loan account to customer deposit account","response":"Do not approve POS yet because merchant passive transfer is still required"},{"id":32,"action":"BNPL merchant passive transfer","ourEnd":"Create merchant transfer ledger_journals and update pos_transactions merchant_transfer_status pending","polarisEnd":"Call tllrcasa/internalCasaTransaction from customer deposit to merchant passive account","response":"Set POS approved and loan active only after transfer jrno is confirmed"},{"id":33,"action":"POS callback send","ourEnd":"Create pos_terminal_callbacks with unique idempotency key and callback payload","polarisEnd":"External merchant POS callback approved rejected or timeout","response":"Retry callback delivery without repeating loan grant or merchant transfer"}]},{"title":"6. Repayment, Refund & Reconciliation","items":[{"id":34,"action":"QPay repayment invoice","ourEnd":"Create qpay_repayment_invoices for loan schedule or manual target amount","polarisEnd":"External QPay invoice creation if provider is used","response":"Return payable invoice to customer or reject duplicate active invoice by policy"},{"id":35,"action":"QPay callback receive","ourEnd":"Save qpay_repayment_callbacks and create or find repayment_transactions","polarisEnd":"External QPay callback validation by payment id signature amount and invoice","response":"Duplicate qpay_payment_id is ignored and invalid callback is failed"},{"id":36,"action":"Repayment inbound money","ourEnd":"Create inbound ledger_journal and set repayment_transactions processing","polarisEnd":"Call configured inbound transfer such as tllrbac/transactionBacToCasa from bank or repayment pool to customer deposit","response":"Proceed to loan payment only after inbound jrno is confirmed"},{"id":37,"action":"Pay loan from customer deposit","ourEnd":"Create loan payment ledger_journal and update repayment transaction state","polarisEnd":"Call loan/nonCashLoanPayment or loan/loanPaymentTxnNonCash from customer deposit to loan account","response":"Store loan_payment_polaris_jrno or set pending_reconcile on unknown result"},{"id":38,"action":"Repayment allocation","ourEnd":"Lock repayment_schedules rows and insert repayment_allocations by principal interest penalty order","polarisEnd":"No additional Polaris write after loan payment unless adjustment required","response":"Update schedules pending partial paid and prevent allocation above total due"},{"id":39,"action":"Partial repayment","ourEnd":"Update repayment_transactions completed and schedule partial when payment is below outstanding amount","polarisEnd":"No extra Polaris call after confirmed loan payment","response":"Show remaining due and next due date to customer"},{"id":40,"action":"Overpayment handling","ourEnd":"Reject or hold excess amount based on configured policy and keep transaction pending manual review if needed","polarisEnd":"If money already moved query Polaris statement and create refund or adjustment only once","response":"Prevent paid amount from exceeding total due"},{"id":41,"action":"Final repayment detection","ourEnd":"Check all repayment_schedules paid and loan balance candidate zero","polarisEnd":"Call loan/getLoanClosingAccountDetail before closing","response":"Proceed to close only when Polaris closing detail confirms payable closing amount"},{"id":42,"action":"Close loan account","ourEnd":"Update loans closing state and create close ledger_journal if needed","polarisEnd":"Call loan/nonCashCloseAccount","response":"Set loans closed reduce credit_line_accounts utilized_amount and audit status transition"},{"id":43,"action":"Overdue daily job","ourEnd":"Mark due unpaid repayment_schedules overdue and create penalty_records if policy applies","polarisEnd":"No Polaris call unless penalty must be synced or posted","response":"Notify customer and include overdue state in reporting"},{"id":44,"action":"Cashback or reward job","ourEnd":"Create repayment_cashback_records and wallet transactions when eligible","polarisEnd":"Optional configured Polaris transfer if reward money moves to customer account","response":"Credit reward once only or mark failed pending retry"},{"id":45,"action":"Merchant settlement build","ourEnd":"Create merchant_settlements and merchant_settlement_items for approved BNPL transactions minus refunds","polarisEnd":"Optional tmm/selectSettleFintxn or configured settlement transfer","response":"Settlement remains pending until finance approves or scheduled job processes it"},{"id":46,"action":"Merchant settlement transfer","ourEnd":"Create settlement ledger_journal and update settlement processing","polarisEnd":"Call configured merchant passive to settlement or bank transfer","response":"Set settlement completed with jrno or pending_reconcile on timeout"},{"id":47,"action":"Refund request","ourEnd":"Create merchant_refund_requests and validate loan POS settlement state","polarisEnd":"No Polaris write until refund is approved","response":"Reject invalid duplicate or over amount refund requests"},{"id":48,"action":"Refund reversal before settlement","ourEnd":"Reverse merchant passive transfer then adjust or reverse loan according to product policy","polarisEnd":"Call gen/doReverseTxn or gen/undoTransaction for original merchant transfer jrno and related loan journals if required","response":"Mark refund processed only when every dependency reversal is confirmed"},{"id":49,"action":"Refund reversal after settlement","ourEnd":"Create settlement offset or reverse settlement first according to finance policy","polarisEnd":"Call gen/doReverseTxn or gen/undoTransaction only once per original jrno","response":"Create payable adjustment or reversed settlement item and require finance review if ambiguous"}]},{"title":"7. Global Rules & Handling","items":[{"id":50,"action":"Generic Polaris timeout","ourEnd":"Set source row and polaris_sync_queue to pending_reconcile not failed","polarisEnd":"Query gen/getTmwJournalList gen/getAccountStatement and account details using reference amount date account and idempotency key","response":"Resolve to success retry same key or dead_letter manual review"},{"id":51,"action":"Confirmed Polaris failure","ourEnd":"Set source row failed and save error details in polaris_operation_attempts polaris_api_logs and audit_logs","polarisEnd":"No retry unless failure is classified retryable and no journal exists","response":"Return deterministic failure message and release reservation if safe"},{"id":52,"action":"Daily reconciliation","ourEnd":"Read ledger_journals ledger_entries polaris_accounts loans schedules settlements and pending queues","polarisEnd":"Call gen/getTmwJournalList gen/getAccountStatement and account detail APIs","response":"Mark matched reconciled mismatched or dead_letter and create audit logs for business impacts"},{"id":53,"action":"Service pause or EOD guard","ourEnd":"Check service_pause_windows before repayment BNPL disbursement Polaris sync settlement and ledger posting","polarisEnd":"No Polaris call when paused","response":"Return retryable service paused response and do not create duplicate operations"},{"id":54,"action":"Sensitive report or export","ourEnd":"Read reporting views audit_logs ledger_journals repayment and settlement tables","polarisEnd":"Optional Polaris statement query for finance report validation","response":"Create audit_logs operation_type read_sensitive or export with actor and filter metadata"},{"id":55,"action":"Audit logging rule","ourEnd":"Create audit_logs only for business security financial status changes and sensitive reads","polarisEnd":"No Polaris call","response":"Every status transition has one status_change audit row; runtime debug stays in system_event_logs"},{"id":56,"action":"Financial logging rule","ourEnd":"Create ledger_journals and ledger_entries for every grant merchant transfer repayment close settlement refund and reversal","polarisEnd":"Store Polaris jrno returned by money moving APIs","response":"Ledger is financial fact table and reconciliation source"},{"id":57,"action":"API logging rule","ourEnd":"Create polaris_api_logs and polaris_operation_attempts for every external Polaris call","polarisEnd":"All Polaris write attempts are linked to polaris_sync_queue","response":"Support replay diagnosis timeout resolution and audit traceability"}]}];
+
+        const nav = document.getElementById('nav');
+        const content = document.getElementById('content');
+
+        function render() {
+            // Render Navigation
+            data.forEach((group, index) => {
+                const btn = document.createElement('div');
+                btn.className = `nav-pill ${index === 0 ? 'active' : ''}`;
+                btn.textContent = group.title.replace(/^\d+\.\s*/, '');
+                btn.onclick = () => switchTab(index);
+                nav.appendChild(btn);
+            });
+
+            // Render Content
+            data.forEach((group, index) => {
+                const section = document.createElement('div');
+                section.className = `section-container ${index === 0 ? 'active' : ''}`;
+                section.id = `section-${index}`;
+
+                let html = `<h2 class="section-title">${group.title}</h2><div class="cards-grid">`;
+                
+                group.items.forEach(item => {
+                    html += `
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">${item.action}</h3>
+                                <span class="card-badge">Step ${item.id}</span>
+                            </div>
+                            
+                            <div class="process-group">
+                                ${renderProcessItem('Our Process', item.ourEnd, '')}
+                                ${renderProcessItem('Polaris', item.polarisEnd, 'polaris')}
+                                ${renderProcessItem('Response', item.response, 'response')}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+                section.innerHTML = html;
+                content.appendChild(section);
+            });
+        }
+
+        function renderProcessItem(label, text, className) {
+            if (!text || text === '-' || text.toLowerCase() === 'no polaris call') {
+                return `
+                    <div class="process-item">
+                        <div class="process-label ${className}">${label}</div>
+                        <div class="empty-text">No action / None</div>
+                    </div>
+                `;
+            }
+            return `
+                <div class="process-item">
+                    <div class="process-label ${className}">${label}</div>
+                    <div class="process-content">${text}</div>
+                </div>
+            `;
+        }
+
+        function switchTab(index) {
+            document.querySelectorAll('.nav-pill').forEach((el, i) => {
+                el.classList.toggle('active', i === index);
+            });
+            document.querySelectorAll('.section-container').forEach((el, i) => {
+                el.classList.toggle('active', i === index);
+            });
+        }
+
+        render();
+    </script>
+</body>
+</html>

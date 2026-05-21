@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>App Lifecycle Sequence</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      --ink: #12213b;
+      --muted: #65728a;
+      --paper: #f8fbff;
+      --panel: rgba(255, 255, 255, 0.88);
+      --line: #d8e3f1;
+      --line-strong: #b8c9df;
+      --blue: #2f6df6;
+      --cyan: #00a7b7;
+      --green: #17a876;
+      --amber: #f0b844;
+      --rose: #ff6b5f;
+      --purple: #775cff;
+      --slate: #607089;
+      --shadow: 0 18px 48px rgba(33, 66, 114, 0.12);
+      --radius: 8px;
+      color-scheme: light;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        linear-gradient(90deg, rgba(47, 109, 246, 0.052) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(47, 109, 246, 0.052) 1px, transparent 1px),
+        linear-gradient(135deg, #fbfdff 0%, #f2f8ff 44%, #fff8ef 100%);
+      background-size: 34px 34px, 34px 34px, auto;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 304px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .side {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      padding: 18px;
+      border-right: 1px solid rgba(120, 146, 183, 0.28);
+      background: rgba(255, 255, 255, 0.76);
+      backdrop-filter: blur(18px);
+      z-index: 10;
+    }
+
+    .brand {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), var(--green));
+      box-shadow: 0 12px 26px rgba(47, 109, 246, 0.22);
+    }
+
+    .brand-icon svg,
+    .icon svg,
+    .tiny svg,
+    .chip-icon svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .search {
+      position: relative;
+      margin-bottom: 12px;
+    }
+
+    .search svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      width: 18px;
+      height: 18px;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    .search input {
+      width: 100%;
+      min-height: 42px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      padding: 10px 12px 10px 38px;
+      color: var(--ink);
+      background: #fff;
+      outline: none;
+      box-shadow: 0 10px 22px rgba(33, 66, 114, 0.06);
+    }
+
+    .search input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(47, 109, 246, 0.12);
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .filter,
+    .utility {
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 9px 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      line-height: 1.15;
+      transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+    }
+
+    .filter:hover,
+    .utility:hover {
+      transform: translateY(-1px);
+      border-color: rgba(47, 109, 246, 0.42);
+    }
+
+    .filter.is-active {
+      color: #fff;
+      border-color: var(--ink);
+      background: var(--ink);
+    }
+
+    .filter svg,
+    .utility svg {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+    }
+
+    .side-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 18px 2px 10px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .phase-nav {
+      display: grid;
+      gap: 7px;
+    }
+
+    .phase-button {
+      width: 100%;
+      min-height: 44px;
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--ink);
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .phase-button:hover {
+      border-color: rgba(47, 109, 246, 0.38);
+      background: #fff;
+    }
+
+    .phase-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      background: var(--phase-color);
+    }
+
+    .phase-button b {
+      font-size: 12px;
+      line-height: 1.15;
+    }
+
+    .phase-button span:last-child {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .reference {
+      margin-top: 18px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: #fff;
+      overflow: hidden;
+      box-shadow: 0 12px 24px rgba(33, 66, 114, 0.08);
+    }
+
+    .reference img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 784 / 843;
+      object-fit: cover;
+      object-position: top;
+      background: #fff;
+    }
+
+    .reference figcaption {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .main {
+      min-width: 0;
+      padding: 22px 28px 44px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: start;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow {
+      width: fit-content;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 30px;
+      padding: 6px 10px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(23, 168, 118, 0.25);
+      color: #0d7f59;
+      background: rgba(232, 248, 242, 0.72);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .hero h2 {
+      margin: 10px 0 0;
+      font-size: 34px;
+      line-height: 1.06;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 850px;
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(145px, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .metric {
+      min-height: 82px;
+      padding: 13px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: 0 10px 24px rgba(33, 66, 114, 0.07);
+    }
+
+    .metric b {
+      display: block;
+      font-size: 25px;
+      line-height: 1;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .section {
+      border-radius: var(--radius);
+      border: 1px solid rgba(157, 178, 209, 0.38);
+      background: rgba(255, 255, 255, 0.68);
+      box-shadow: 0 16px 40px rgba(33, 66, 114, 0.08);
+      padding: 16px;
+      margin-bottom: 18px;
+      scroll-margin-top: 18px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .section h3 {
+      margin: 0;
+      font-size: 19px;
+      line-height: 1.14;
+      letter-spacing: 0;
+    }
+
+    .section-head p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 13px;
+    }
+
+    .lifecycle-rail {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(130px, 1fr));
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 3px;
+    }
+
+    .phase-card {
+      position: relative;
+      min-width: 130px;
+      min-height: 132px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 12px;
+      box-shadow: 0 10px 24px rgba(33, 66, 114, 0.07);
+      overflow: hidden;
+    }
+
+    .phase-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 5px;
+      background: var(--phase-color);
+    }
+
+    .phase-card b {
+      display: block;
+      margin: 8px 0 7px;
+      font-size: 14px;
+      line-height: 1.16;
+    }
+
+    .phase-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.38;
+    }
+
+    .phase-index {
+      width: 28px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: #edf4fd;
+      color: var(--ink);
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    .actor-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      padding: 4px 0;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.84));
+      backdrop-filter: blur(10px);
+    }
+
+    .actor {
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .actor-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: var(--actor-color);
+      flex: 0 0 auto;
+    }
+
+    .actor-icon svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    .sequence {
+      display: grid;
+      gap: 9px;
+    }
+
+    .operation {
+      display: grid;
+      grid-template-columns: 46px minmax(170px, 0.7fr) minmax(0, 1.55fr) minmax(160px, 0.75fr);
+      align-items: stretch;
+      gap: 10px;
+      padding: 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: #fff;
+      box-shadow: 0 10px 24px rgba(33, 66, 114, 0.06);
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .operation:hover,
+    .operation:focus-visible,
+    .operation.is-selected {
+      outline: none;
+      transform: translateY(-2px);
+      border-color: var(--phase-color);
+      box-shadow: 0 16px 34px rgba(33, 66, 114, 0.12);
+    }
+
+    .operation.is-hidden {
+      display: none;
+    }
+
+    .op-num {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--phase-color);
+      color: #fff;
+      font-weight: 900;
+      box-shadow: 0 10px 18px rgba(33, 66, 114, 0.12);
+    }
+
+    .participant-card {
+      min-width: 0;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: #f8fbff;
+      padding: 10px;
+    }
+
+    .participant-card .tiny {
+      margin-bottom: 7px;
+    }
+
+    .tiny,
+    .chip-icon {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 850;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .participant-card b {
+      display: block;
+      font-size: 13px;
+      line-height: 1.2;
+    }
+
+    .message {
+      min-width: 0;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+      padding: 2px 0;
+    }
+
+    .message h4 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    .message p {
+      margin: 0;
+      color: #40516d;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .arrow-line {
+      position: relative;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .arrow-line::before {
+      content: "";
+      height: 2px;
+      flex: 1 1 auto;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--phase-color), rgba(96, 112, 137, 0.18));
+    }
+
+    .arrow-line::after {
+      content: "";
+      width: 0;
+      height: 0;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-left: 8px solid var(--phase-color);
+    }
+
+    .target-card {
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 10px;
+      min-width: 0;
+    }
+
+    .target-card b {
+      display: block;
+      font-size: 12px;
+      line-height: 1.2;
+      margin-bottom: 7px;
+    }
+
+    .target-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .tag {
+      max-width: 100%;
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 4px 7px;
+      border-radius: 7px;
+      border: 1px solid rgba(157, 178, 209, 0.48);
+      background: #f8fbff;
+      color: #52647e;
+      font-size: 11px;
+      line-height: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .swimlanes {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr));
+      gap: 8px;
+      min-height: 210px;
+    }
+
+    .lane {
+      position: relative;
+      border: 1px dashed rgba(120, 146, 183, 0.48);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.72);
+      padding: 10px;
+      overflow: hidden;
+    }
+
+    .lane::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 4px;
+      background: var(--actor-color);
+    }
+
+    .lane h4 {
+      margin: 6px 0 10px;
+      font-size: 13px;
+      line-height: 1.2;
+    }
+
+    .lane-events {
+      display: grid;
+      gap: 7px;
+    }
+
+    .lane-event {
+      border-radius: 7px;
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 8px;
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    .lane-event b {
+      color: var(--phase-color);
+      margin-right: 4px;
+    }
+
+    .detail-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(480px, 100vw);
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      border-left: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: -24px 0 52px rgba(33, 66, 114, 0.2);
+      transform: translateX(104%);
+      transition: transform 220ms ease;
+      z-index: 30;
+    }
+
+    .detail-drawer.is-open {
+      transform: translateX(0);
+    }
+
+    .drawer-head {
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .drawer-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .drawer-head h3 {
+      margin: 8px 0 0;
+      font-size: 22px;
+      line-height: 1.14;
+      letter-spacing: 0;
+    }
+
+    .drawer-body {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      padding: 18px;
+      overflow: auto;
+    }
+
+    .detail-block {
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 13px;
+    }
+
+    .detail-block h4 {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 850;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .detail-block p {
+      margin: 0;
+      color: #34455f;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .close,
+    .icon-button {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      color: var(--muted);
+      background: #eef4fb;
+      cursor: pointer;
+    }
+
+    .close:hover,
+    .icon-button:hover {
+      color: var(--ink);
+      background: #e4edf8;
+    }
+
+    .close svg,
+    .icon-button svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      background: rgba(18, 33, 59, 0.32);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
+
+    .backdrop.is-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .source-dialog {
+      width: min(860px, 94vw);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 0;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .source-dialog::backdrop {
+      background: rgba(18, 33, 59, 0.54);
+    }
+
+    .source-dialog header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .source-dialog h3 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .source-dialog img {
+      display: block;
+      width: 100%;
+      max-height: 78vh;
+      object-fit: contain;
+      background: #fff;
+    }
+
+    .empty {
+      display: none;
+      place-items: center;
+      min-height: 170px;
+      border-radius: var(--radius);
+      border: 1px dashed rgba(101, 114, 138, 0.44);
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.68);
+      text-align: center;
+      padding: 24px;
+    }
+
+    .empty.is-visible {
+      display: grid;
+    }
+
+    @media (max-width: 1120px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .side {
+        position: relative;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid rgba(120, 146, 183, 0.28);
+      }
+
+      .phase-nav,
+      .filter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .reference {
+        display: none;
+      }
+
+      .main {
+        padding: 20px 18px 34px;
+      }
+    }
+
+    @media (max-width: 820px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-actions {
+        justify-content: flex-start;
+      }
+
+      .hero h2 {
+        font-size: 27px;
+      }
+
+      .metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .actor-grid,
+      .swimlanes {
+        grid-template-columns: 1fr;
+      }
+
+      .actor-grid {
+        position: relative;
+      }
+
+      .operation {
+        grid-template-columns: 38px minmax(0, 1fr);
+      }
+
+      .operation .message,
+      .operation .target-card {
+        grid-column: 2;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .main,
+      .side {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      .filter-grid,
+      .phase-nav,
+      .metrics {
+        grid-template-columns: 1fr;
+      }
+
+      .section {
+        padding: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="side" aria-label="Lifecycle controls">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 5h6"></path><path d="M14 5h6"></path><path d="M7 5v14"></path><path d="M17 5v14"></path><path d="M4 19h6"></path><path d="M14 19h6"></path><path d="M10 12h4"></path>
+          </svg>
+        </div>
+        <div>
+          <h1>App Lifecycle</h1>
+          <p>Sequence of operations across Client, BZR, external providers, and Polaris.</p>
+        </div>
+      </div>
+
+      <label class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.6-3.6"></path>
+        </svg>
+        <input id="searchInput" type="search" placeholder="Search operations, APIs, tables">
+      </label>
+
+      <div class="filter-grid" aria-label="Path filters">
+        <button type="button" class="filter is-active" data-view="all">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"></path><path d="M4 12h16"></path><path d="M4 18h16"></path></svg>
+          All
+        </button>
+        <button type="button" class="filter" data-view="cash">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12h12"></path><path d="M12 6v12"></path></svg>
+          Cash
+        </button>
+        <button type="button" class="filter" data-view="bnpl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="14" rx="2"></rect><path d="M4 10h16"></path></svg>
+          BNPL
+        </button>
+        <button type="button" class="filter" data-view="repayment">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 7h11v11"></path><path d="M18 7 6 19"></path></svg>
+          Repay
+        </button>
+        <button type="button" class="filter" data-view="recovery">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 7v6c0 5 3.5 7.5 8 8 4.5-.5 8-3 8-8V7l-8-4Z"></path><path d="M9 12l2 2 4-4"></path></svg>
+          Recovery
+        </button>
+        <button type="button" class="filter" data-view="core">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18V8"></path><path d="M20 18V8"></path><path d="M4 8c0-2 16-2 16 0"></path><path d="M4 13c0-2 16-2 16 0"></path><path d="M4 18c0 2 16 2 16 0"></path></svg>
+          Core
+        </button>
+      </div>
+
+      <div class="side-label">
+        <span>Phases</span>
+        <span id="visibleCount">19 shown</span>
+      </div>
+      <nav class="phase-nav" id="phaseNav" aria-label="Lifecycle phases"></nav>
+
+      <figure class="reference">
+        <button class="icon-button" id="openReferenceFromThumb" type="button" style="width:100%;height:auto;padding:0;background:transparent;" aria-label="Open reference diagram">
+          <img src="misc/app_flow_z.png" alt="Reference app lifecycle flow diagram">
+        </button>
+        <figcaption>
+          <span>Reference diagram</span>
+          <span>Mermaid render</span>
+        </figcaption>
+      </figure>
+    </aside>
+
+    <main class="main">
+      <header class="hero">
+        <div>
+          <div class="eyebrow">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M4 12h7"></path><path d="m8 8 4 4-4 4"></path><path d="M14 5h6v14h-6"></path>
+            </svg>
+            Sequence of Operations
+          </div>
+          <h2>App Lifecycle Flow</h2>
+          <p>A cleaner sequence view showing who acts, what operation is queued or executed, where Polaris is called, and which state changes happen at each stage.</p>
+        </div>
+        <div class="hero-actions">
+          <button class="utility" type="button" id="resetView">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v6h6"></path></svg>
+            Reset
+          </button>
+          <button class="utility" type="button" id="openReference">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M7 15l3-3 2 2 4-5 2 3"></path></svg>
+            Diagram
+          </button>
+          <a class="utility" href="polaris_bnpl_flow.html" style="text-decoration:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+            Detail map
+          </a>
+        </div>
+      </header>
+
+      <section class="metrics" aria-label="Lifecycle metrics">
+        <div class="metric"><b id="metricOps">19</b><span>ordered lifecycle operations from registration to recovery</span></div>
+        <div class="metric"><b id="metricCore">0</b><span>operations that call or validate Polaris core banking</span></div>
+        <div class="metric"><b id="metricLedger">0</b><span>steps writing ledgers, loans, credit line, or account state</span></div>
+        <div class="metric"><b id="metricAsync">0</b><span>worker, queue, webhook, or sweeper-driven operations</span></div>
+      </section>
+
+      <section class="section" id="lifecycle">
+        <div class="section-head">
+          <div>
+            <h3>Lifecycle Rail</h3>
+            <p>The main path starts with onboarding, moves into core setup, then branches into cash loan, BNPL, repayment, and recovery controls.</p>
+          </div>
+        </div>
+        <div class="lifecycle-rail" id="lifecycleRail"></div>
+      </section>
+
+      <section class="section" id="sequence">
+        <div class="section-head">
+          <div>
+            <h3>Sequence Timeline</h3>
+            <p>Each row is one operation packet: source participant, message, target participant, and the resulting local or Polaris state.</p>
+          </div>
+          <div class="tag" id="sequenceCount">19 operations</div>
+        </div>
+        <div class="actor-grid" id="actorGrid"></div>
+        <div class="sequence" id="sequenceList"></div>
+        <div class="empty" id="emptyState">No lifecycle operations match the current filter.</div>
+      </section>
+
+      <section class="section" id="swimlane">
+        <div class="section-head">
+          <div>
+            <h3>Actor Workload</h3>
+            <p>A quick swimlane summary of which participant owns each visible operation.</p>
+          </div>
+        </div>
+        <div class="swimlanes" id="swimlanes"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="backdrop" id="drawerBackdrop"></div>
+  <aside class="detail-drawer" id="detailDrawer" aria-hidden="true" aria-label="Operation detail">
+    <div class="drawer-head">
+      <div class="drawer-top">
+        <div>
+          <div class="tag-row" id="drawerTags"></div>
+          <h3 id="drawerTitle">Operation detail</h3>
+        </div>
+        <button type="button" class="close" id="closeDrawer" aria-label="Close detail">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+        </button>
+      </div>
+    </div>
+    <div class="drawer-body">
+      <section class="detail-block">
+        <h4>Our End Process</h4>
+        <p id="drawerLocal"></p>
+      </section>
+      <section class="detail-block">
+        <h4>Polaris End Process</h4>
+        <p id="drawerPolaris"></p>
+      </section>
+      <section class="detail-block">
+        <h4>Response Action</h4>
+        <p id="drawerResponse"></p>
+      </section>
+      <section class="detail-block">
+        <h4>Detected Tables</h4>
+        <div class="tag-row" id="drawerTables"></div>
+      </section>
+      <section class="detail-block">
+        <h4>Detected APIs</h4>
+        <div class="tag-row" id="drawerApis"></div>
+      </section>
+    </div>
+  </aside>
+
+  <dialog class="source-dialog" id="sourceDialog">
+    <header>
+      <h3>Reference App Lifecycle Diagram</h3>
+      <button type="button" class="icon-button" id="closeReference" aria-label="Close reference diagram">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+      </button>
+    </header>
+    <img src="misc/app_flow_z.png" alt="Reference app lifecycle flow diagram">
+  </dialog>
+
+  <script>
+    const actorIcons = {
+      client: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"></rect><path d="M11 18h2"></path></svg>',
+      external: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg>',
+      bzr: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 4 14h7l-1 8 10-13h-7l1-7Z"></path></svg>',
+      db: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7c0-2 16-2 16 0v10c0 2-16 2-16 0V7Z"></path><path d="M4 12c0 2 16 2 16 0"></path></svg>',
+      polaris: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18V8"></path><path d="M20 18V8"></path><path d="M4 8c0-2 16-2 16 0"></path><path d="M4 13c0-2 16-2 16 0"></path><path d="M4 18c0 2 16 2 16 0"></path></svg>'
+    };
+
+    const actors = {
+      client: { name: "Client App", color: "#2f6df6" },
+      external: { name: "External Services", color: "#f0b844" },
+      bzr: { name: "BZR Orchestration", color: "#775cff" },
+      db: { name: "BZR Database", color: "#17a876" },
+      polaris: { name: "Polaris Core", color: "#00a7b7" }
+    };
+
+    const phases = [
+      { id: "onboarding", name: "Onboarding", color: "#2f6df6", summary: "Register, KYC, score, and create the first core profile." },
+      { id: "core", name: "Core Setup", color: "#00a7b7", summary: "Sync scores, create deposit account, and allocate line." },
+      { id: "cash", name: "Cash Loan", color: "#775cff", summary: "Queue child loan, link it to the line, then disburse." },
+      { id: "bnpl", name: "BNPL", color: "#dd4a8a", summary: "Use the line to fund a purchase and notify merchant systems." },
+      { id: "repayment", name: "Repayment", color: "#17a876", summary: "Process QPay webhook and move money through repayment legs." },
+      { id: "closure", name: "Closure", color: "#f0b844", summary: "Check balance, close the child loan, and restore available line." },
+      { id: "recovery", name: "Recovery", color: "#ff6b5f", summary: "Sweeper verifies idempotent operations and repairs unknown states." }
+    ];
+
+    const operations = [
+      { id: 1, phase: "onboarding", paths: ["all"], from: "client", to: "bzr", action: "User registers via mobile app", local: "Create base user profile in BZR database", polaris: "None", response: "Return JWT auth token to user" },
+      { id: 2, phase: "onboarding", paths: ["all"], from: "client", to: "external", action: "User completes Dan KYC", local: "Verify national ID; Fetch data; Save to dan_verifications & kyc_personal_details", polaris: "None", response: "Unlock credit scoring phase" },
+      { id: 3, phase: "onboarding", paths: ["all"], from: "bzr", to: "external", action: "System generates Credit Score", local: "Calculate internal BZR score and fetch external FICO score", polaris: "None", response: "Scores ready for core banking sync" },
+      { id: 4, phase: "onboarding", paths: ["all", "core"], from: "bzr", to: "polaris", action: "Create Core Banking Profile", local: "Trigger POST /cif/create API using polaris_product_configs", polaris: "Create CIF (Customer Information File) Person profile", response: "Update BZR customer_profiles with polaris_cif_no" },
+      { id: 5, phase: "core", paths: ["all", "core"], from: "bzr", to: "polaris", action: "Sync Credit Scores to Core", local: "Fetch polaris_dynamic_field_mappings; Trigger PUT /cif/update API", polaris: "Save FICO and Custom scores as custom dynamic fields on CIF", response: "Polaris acknowledges score sync" },
+      { id: 6, phase: "core", paths: ["all", "core"], from: "bzr", to: "polaris", action: "Create Deposit Account", local: "Trigger POST /account/create API for deposit product type", polaris: "Create real deposit account for customer", response: "Save returned acntCode to polaris_accounts & customer_deposit_accounts" },
+      { id: 7, phase: "core", paths: ["all", "core"], from: "bzr", to: "db", action: "Allocate Credit Line", local: "Approve credit limit; Create record in credit_line_accounts", polaris: "Create parent line account in core banking", response: "Link credit line to CIF; BZR UI shows available limit" },
+      { id: 8, phase: "cash", paths: ["all", "cash"], from: "client", to: "bzr", action: "User requests Cash Loan", local: "Queue create_loan_account step in loan_core_steps state machine", polaris: "None", response: "Async worker picks up job" },
+      { id: 9, phase: "cash", paths: ["all", "cash"], from: "bzr", to: "polaris", action: "Worker: Create Loan Acct", local: "Trigger POST /loan/create API", polaris: "Create child loan account under user CIF", response: "Save new acntCode to loans table" },
+      { id: 10, phase: "cash", paths: ["all", "cash"], from: "bzr", to: "polaris", action: "Worker: Link Loan to Line", local: "Trigger POST /loan/link API", polaris: "Link child loan account to parent credit line account", response: "Update BZR state machine step to succeeded" },
+      { id: 11, phase: "cash", paths: ["all", "cash"], from: "bzr", to: "polaris", action: "Worker: Disburse Cash (One-Tap)", local: "Trigger POST /txn/disburse API with Idempotency Key; Write to ledger_journals & ledger_entries", polaris: "Debit BZR internal funding account; Credit Customer Deposit account", response: "Save polaris_jrno; Mark loan active; Funds available to user" },
+      { id: 12, phase: "bnpl", paths: ["all", "bnpl"], from: "client", to: "bzr", action: "User requests BNPL Purchase", local: "Queue bnpl_transfer step in loan_core_steps state machine", polaris: "None", response: "Async worker picks up job" },
+      { id: 13, phase: "bnpl", paths: ["all", "bnpl"], from: "bzr", to: "polaris", action: "Worker: Disburse BNPL", local: "Trigger POST /txn/disburse API for BNPL; Write to ledger_journals", polaris: "Debit Customer Deposit account; Credit Emart Merchant passive account", response: "Save polaris_jrno; Mark purchase complete; Merchant notified" },
+      { id: 14, phase: "repayment", paths: ["all", "repayment"], from: "client", to: "external", action: "User pays via QPay (External)", local: "Receive webhook from QPay; Create pending repayment_transactions record", polaris: "None", response: "Trigger background repayment multi-leg processor" },
+      { id: 15, phase: "repayment", paths: ["all", "repayment"], from: "bzr", to: "polaris", action: "Repayment Leg 1: Inbound Cash", local: "Trigger POST /txn/transfer API; Write inbound_ledger_journal_id", polaris: "Debit QPay settlement pool account; Credit Customer Deposit account", response: "Save inbound polaris_jrno" },
+      { id: 16, phase: "repayment", paths: ["all", "repayment"], from: "bzr", to: "polaris", action: "Repayment Leg 2: Loan Offset", local: "Trigger POST /txn/transfer API; Write loan_payment_ledger_journal_id", polaris: "Debit Customer Deposit account; Credit Child Loan account", response: "Save offset polaris_jrno" },
+      { id: 17, phase: "closure", paths: ["all", "repayment"], from: "bzr", to: "polaris", action: "Repayment Leg 3: Settlement", local: "Check child loan balance via GET /account/balance API", polaris: "Return outstanding balance (0.00)", response: "Proceed to account closure" },
+      { id: 18, phase: "closure", paths: ["all", "repayment"], from: "bzr", to: "polaris", action: "Repayment Leg 4: Close Loan", local: "Trigger POST /account/close API", polaris: "Close child loan account in core banking", response: "Update BZR loans status to closed; Restore credit limit in credit_line_accounts" },
+      { id: 19, phase: "recovery", paths: ["all", "recovery"], from: "bzr", to: "polaris", action: "Fail-Safe: Double Spend Check", local: "Background Sweeper checks stuck processing tasks", polaris: "Validate idempotency key against historical transactions via GET /txn/verify", response: "Recover missing polaris_jrno or automatically retry failed API calls" }
+    ];
+
+    const apiPattern = /\b(?:GET|POST|PUT|PATCH|DELETE)\s+\/[A-Za-z0-9_/-]+|\/[A-Za-z0-9_/-]+\b/g;
+    const tablePattern = /\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g;
+
+    function extract(item, pattern) {
+      return [...new Set(`${item.local} ${item.polaris} ${item.response}`.match(pattern) || [])].slice(0, 8);
+    }
+
+    function phaseFor(id) {
+      return phases.find((phase) => phase.id === id);
+    }
+
+    function makeTag(text) {
+      const span = document.createElement("span");
+      span.className = "tag";
+      span.textContent = text;
+      span.title = text;
+      return span;
+    }
+
+    function summarize(text, max = 118) {
+      return text.length > max ? `${text.slice(0, max - 3).trim()}...` : text;
+    }
+
+    function renderStatic() {
+      const phaseNav = document.getElementById("phaseNav");
+      const rail = document.getElementById("lifecycleRail");
+      const actorGrid = document.getElementById("actorGrid");
+
+      phases.forEach((phase, index) => {
+        const count = operations.filter((op) => op.phase === phase.id).length;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "phase-button";
+        button.style.setProperty("--phase-color", phase.color);
+        button.innerHTML = `<span class="phase-dot"></span><b>${phase.name}</b><span>${count}</span>`;
+        button.addEventListener("click", () => document.getElementById("sequence").scrollIntoView({ block: "start" }));
+        phaseNav.append(button);
+
+        const card = document.createElement("article");
+        card.className = "phase-card";
+        card.style.setProperty("--phase-color", phase.color);
+        card.innerHTML = `<span class="phase-index">${index + 1}</span><b>${phase.name}</b><p>${phase.summary}</p>`;
+        rail.append(card);
+      });
+
+      Object.entries(actors).forEach(([id, actor]) => {
+        const el = document.createElement("div");
+        el.className = "actor";
+        el.innerHTML = `<span class="actor-icon" style="--actor-color:${actor.color}">${actorIcons[id]}</span><span>${actor.name}</span>`;
+        actorGrid.append(el);
+      });
+
+      document.getElementById("metricOps").textContent = operations.length;
+      document.getElementById("metricCore").textContent = operations.filter((op) => op.to === "polaris" || /Polaris|core banking|account|loan|txn/i.test(op.polaris)).length;
+      document.getElementById("metricLedger").textContent = operations.filter((op) => /ledger|loans|credit_line|account|profiles|transactions/i.test(`${op.local} ${op.response}`)).length;
+      document.getElementById("metricAsync").textContent = operations.filter((op) => /Queue|Async|Worker|webhook|Sweeper|background/i.test(`${op.action} ${op.local} ${op.response}`)).length;
+    }
+
+    function operationSearch(op) {
+      return [
+        op.action,
+        op.local,
+        op.polaris,
+        op.response,
+        actors[op.from].name,
+        actors[op.to].name,
+        phaseFor(op.phase).name,
+        extract(op, tablePattern).join(" "),
+        extract(op, apiPattern).join(" ")
+      ].join(" ").toLowerCase();
+    }
+
+    function renderSequence(items) {
+      const list = document.getElementById("sequenceList");
+      list.replaceChildren();
+      items.forEach((op) => {
+        const phase = phaseFor(op.phase);
+        const apis = extract(op, apiPattern);
+        const tables = extract(op, tablePattern);
+
+        const row = document.createElement("article");
+        row.className = "operation";
+        row.tabIndex = 0;
+        row.style.setProperty("--phase-color", phase.color);
+        row.dataset.id = op.id;
+        row.dataset.search = operationSearch(op);
+        row.dataset.paths = op.paths.join(" ");
+
+        const tags = [phase.name, actors[op.from].name, actors[op.to].name].concat(apis.slice(0, 1), tables.slice(0, 2));
+        row.innerHTML = `
+          <div class="op-num">${String(op.id).padStart(2, "0")}</div>
+          <div class="participant-card">
+            <div class="tiny"><span class="actor-icon" style="--actor-color:${actors[op.from].color}; width:20px; height:20px;">${actorIcons[op.from]}</span>From</div>
+            <b>${actors[op.from].name}</b>
+          </div>
+          <div class="message">
+            <div class="tag-row">${tags.map((tag) => `<span class="tag">${tag}</span>`).join("")}</div>
+            <h4>${op.action}</h4>
+            <div class="arrow-line">${actors[op.from].name} to ${actors[op.to].name}</div>
+            <p>${summarize(op.local)}</p>
+          </div>
+          <div class="target-card">
+            <b>${actors[op.to].name}</b>
+            <p>${summarize(op.polaris === "None" ? op.response : op.polaris)}</p>
+          </div>
+        `;
+
+        row.addEventListener("click", () => openDrawer(op));
+        row.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openDrawer(op);
+          }
+        });
+        list.append(row);
+      });
+    }
+
+    function renderSwimlanes(items) {
+      const root = document.getElementById("swimlanes");
+      root.replaceChildren();
+      Object.entries(actors).forEach(([id, actor]) => {
+        const lane = document.createElement("section");
+        lane.className = "lane";
+        lane.style.setProperty("--actor-color", actor.color);
+        const events = items.filter((op) => op.from === id || op.to === id).slice(0, 8);
+        lane.innerHTML = `<h4>${actor.name}</h4><div class="lane-events">${events.map((op) => `<div class="lane-event"><b>${String(op.id).padStart(2, "0")}</b>${op.action}</div>`).join("") || `<div class="lane-event">No visible operations</div>`}</div>`;
+        root.append(lane);
+      });
+    }
+
+    function currentItems() {
+      const query = document.getElementById("searchInput").value.trim().toLowerCase();
+      const view = document.querySelector(".filter.is-active").dataset.view;
+      return operations.filter((op) => {
+        const viewMatch = view === "all" || op.paths.includes(view);
+        const queryMatch = !query || operationSearch(op).includes(query);
+        return viewMatch && queryMatch;
+      });
+    }
+
+    function applyFilters() {
+      const items = currentItems();
+      renderSequence(items);
+      renderSwimlanes(items);
+      document.getElementById("visibleCount").textContent = `${items.length} shown`;
+      document.getElementById("sequenceCount").textContent = `${items.length} operations`;
+      document.getElementById("emptyState").classList.toggle("is-visible", items.length === 0);
+    }
+
+    function openDrawer(op) {
+      document.querySelectorAll(".operation").forEach((row) => row.classList.toggle("is-selected", Number(row.dataset.id) === op.id));
+      const phase = phaseFor(op.phase);
+      const tags = document.getElementById("drawerTags");
+      const apis = extract(op, apiPattern);
+      const tables = extract(op, tablePattern);
+      tags.replaceChildren(makeTag(phase.name), makeTag(`${actors[op.from].name} -> ${actors[op.to].name}`), ...op.paths.filter((path) => path !== "all").map(makeTag));
+      document.getElementById("drawerTitle").textContent = `${String(op.id).padStart(2, "0")} - ${op.action}`;
+      document.getElementById("drawerLocal").textContent = op.local;
+      document.getElementById("drawerPolaris").textContent = op.polaris;
+      document.getElementById("drawerResponse").textContent = op.response;
+      document.getElementById("drawerTables").replaceChildren(...(tables.length ? tables.map(makeTag) : [makeTag("None detected")]));
+      document.getElementById("drawerApis").replaceChildren(...(apis.length ? apis.map(makeTag) : [makeTag("None detected")]));
+      document.getElementById("detailDrawer").classList.add("is-open");
+      document.getElementById("detailDrawer").setAttribute("aria-hidden", "false");
+      document.getElementById("drawerBackdrop").classList.add("is-open");
+    }
+
+    function closeDrawer() {
+      document.getElementById("detailDrawer").classList.remove("is-open");
+      document.getElementById("detailDrawer").setAttribute("aria-hidden", "true");
+      document.getElementById("drawerBackdrop").classList.remove("is-open");
+      document.querySelectorAll(".operation").forEach((row) => row.classList.remove("is-selected"));
+    }
+
+    renderStatic();
+    applyFilters();
+
+    document.getElementById("searchInput").addEventListener("input", applyFilters);
+    document.querySelectorAll(".filter").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".filter").forEach((item) => item.classList.remove("is-active"));
+        button.classList.add("is-active");
+        applyFilters();
+      });
+    });
+
+    document.getElementById("resetView").addEventListener("click", () => {
+      document.getElementById("searchInput").value = "";
+      document.querySelectorAll(".filter").forEach((item) => item.classList.toggle("is-active", item.dataset.view === "all"));
+      applyFilters();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    document.getElementById("closeDrawer").addEventListener("click", closeDrawer);
+    document.getElementById("drawerBackdrop").addEventListener("click", closeDrawer);
+
+    const sourceDialog = document.getElementById("sourceDialog");
+    const openReference = () => {
+      if (typeof sourceDialog.showModal === "function") sourceDialog.showModal();
+    };
+    document.getElementById("openReference").addEventListener("click", openReference);
+    document.getElementById("openReferenceFromThumb").addEventListener("click", openReference);
+    document.getElementById("closeReference").addEventListener("click", () => sourceDialog.close());
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeDrawer();
+    });
+  </script>
+</body>
+</html>
